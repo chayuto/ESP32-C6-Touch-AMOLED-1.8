@@ -1,0 +1,28 @@
+# Reference code (vendor test project, not original work)
+ref/
+
+# ESP-IDF build artifacts
+**/build/
+**/sdkconfig
+**/sdkconfig.old
+**/sdkconfig.defaults
+**/dependencies.lock
+**/__pycache__/
+
+# IDF Component Manager generated files
+**/.component_hash
+**/managed_components/
+
+# macOS
+.DS_Store
+
+# Internal dev notes (not for public)
+/docs/internal/
+
+# Vendor component bloat — not needed for builds, safe to exclude
+# LVGL: only src/ and env_support/ are needed; demos/examples/tests/docs are optional extras
+shared/components/lvgl__lvgl/demos/
+shared/components/lvgl__lvgl/examples/
+shared/components/lvgl__lvgl/tests/
+shared/components/lvgl__lvgl/docs/
+shared/components/lvgl__lvgl/scripts/
