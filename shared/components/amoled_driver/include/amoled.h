@@ -43,6 +43,15 @@ esp_lcd_panel_io_handle_t amoled_get_panel_io(void);
 /** Set AMOLED brightness via SH8601 register 0x51. level: 0-255. */
 esp_err_t amoled_set_brightness(uint8_t level);
 
+/** Turn display on/off. Off = low-power mode (0x28), On = resume (0x29). */
+esp_err_t amoled_display_on_off(bool on);
+
+/** Re-initialize SPI2 bus for QSPI display (call after SPI2 was used for SD card). */
+esp_err_t amoled_reinit_spi(void);
+
+/** Get touch INT GPIO number for strapping pin reference */
+#define AMOLED_TOUCH_INT_GPIO  15
+
 /* ── AXP2101 Power Management ─────────────────────────────── */
 
 /** Battery info structure. */

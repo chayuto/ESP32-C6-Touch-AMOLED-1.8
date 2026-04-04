@@ -1,0 +1,23 @@
+menu "Baby Cry Monitor Configuration"
+
+    config CANVAS_WIFI_SSID
+        string "WiFi SSID"
+        default "your_ssid"
+        help
+            WiFi network name to connect to.
+
+    config CANVAS_WIFI_PASSWORD
+        string "WiFi Password"
+        default "your_password"
+        help
+            WiFi network password.
+
+    config LOG_INTERVAL_SEC
+        int "Periodic metrics log interval (seconds)"
+        default 300
+        range 10 3600
+        help
+            Interval for logging sound metrics to SD card (RMS, cry ratio, noise floor, state).
+            Set to 300 for every 5 minutes. Min 10s, max 1 hour.
+
+endmenu

@@ -220,6 +220,17 @@ Total:                     ~344 KB of 512 KB
 Headroom:                  ~168 KB (tight — avoid large heap allocations)
 ```
 
+## Gotchas Discovered in Projects 12/13 (Baby Cry Detection)
+
+- **ES8311 I2C address**: `esp_codec_dev` expects 8-bit format (`0x30`), not 7-bit (`0x18`). The library does `device_address = addr >> 1` internally. Use `ES8311_CODEC_DEFAULT_ADDR` (0x30) from the header.
+- **SH8601 brightness via QSPI**: Must encode command as `(0x02UL << 24) | (0x51 << 8)`. Raw `0x51` doesn't work — the QSPI interface needs the write-command opcode prefix. The `esp_lcd_sh8601` component's internal `tx_param()` does this automatically, but direct `esp_lcd_panel_io_tx_param()` calls bypass it.
+- **ESP-SR VADNet on C6**: NOT available standalone. Bundled inside AFE pipeline (ESP32/S3/P4 only). WakeNet9s works on C6 (~10KB RAM, ~190KB flash) but only for wake words.
+- **ESP-SR on C6 summary**: WakeNet9s (yes), VADNet via AFE (no), MultiNet (no)
+- **TFLite Micro on C6**: Works via `espressif/esp-tflite-micro`. No SIMD, no FPU — use INT8 quantization. Confirmed by community ESP32-C6 keyword spotting project.
+- **`esp_codec_dev` backward compat**: Check `CONFIG_CODEC_I2C_BACKWARD_COMPATIBLE` — if enabled, uses legacy I2C driver which conflicts with new `i2c_master` driver. Default is `n` (new driver) in recent versions.
+- **GPIO 9 BOOT button**: Safe to use as user button after boot. Active LOW, external pull-up on board. Strapping pin — only matters during power-on.
+- **Speaker amplifier**: NS4150B Class-D amp, enable via TCA9554 IO expander pin P7 (EXTO7).
+
 ## Agent Skills
 
 Use these slash commands for common operations:

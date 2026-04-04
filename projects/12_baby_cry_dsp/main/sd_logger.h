@@ -1,0 +1,46 @@
+#pragma once
+
+#include "esp_err.h"
+#include <stdbool.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef enum {
+    SD_STATE_NOT_PRESENT = 0,
+    SD_STATE_MOUNTED,
+    SD_STATE_ERROR,
+} sd_state_t;
+
+/** Try to mount SD card. Opportunistic — returns OK even if no card. */
+void sd_logger_init(void);
+
+/** Log a cry event. No-op if SD not mounted. */
+void sd_logger_log_cry(uint32_t event_num, const char *timestamp);
+
+/** Log periodic metrics. Call frequently — internally rate-limited by CONFIG_LOG_INTERVAL_SEC.
+ *  Rows are long CSV with full debug data: audio, detection, battery, system. */
+void sd_logger_log_metrics(const char *timestamp, float rms, float cry_ratio,
+                           float noise_floor, float threshold, int periodicity,
+                           const char *state, uint32_t cry_count,
+                           uint16_t batt_mv, uint8_t batt_pct, bool charging, bool usb,
+                           uint32_t free_heap, uint32_t min_heap, int wifi_rssi,
+                           uint8_t brightness);
+
+/** Get current SD state. */
+sd_state_t sd_logger_get_state(void);
+
+/** Periodically retry mounting if card was absent. Call from a timer. */
+void sd_logger_check(void);
+
+/**
+ * Export SPIFFS logs to SD card. ONLY call when display is OFF (SPI2 is free).
+ * Temporarily claims SPI2 with SD card pins, copies files, releases SPI2.
+ * Returns true if export succeeded.
+ */
+bool sd_logger_export_to_sd(void);
+
+#ifdef __cplusplus
+}
+#endif

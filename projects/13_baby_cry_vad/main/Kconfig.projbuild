@@ -1,0 +1,15 @@
+menu "Baby Cry VAD Configuration"
+
+    config BABY_CRY_WIFI_SSID
+        string "WiFi SSID"
+        default "YOUR_SSID_HERE"
+        help
+            WiFi network name for status reporting.
+
+    config BABY_CRY_WIFI_PASSWORD
+        string "WiFi Password"
+        default "YOUR_PASSWORD_HERE"
+        help
+            WiFi network password.
+
+endmenu

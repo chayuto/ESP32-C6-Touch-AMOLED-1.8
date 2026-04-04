@@ -30,6 +30,8 @@ Built with an **agentic-first development workflow** — each project is develop
 | # | Project | Description |
 |---|---|---|
 | 11 | [MCP Canvas](projects/11_mcp_canvas/) | MCP server — AI draws to AMOLED over WiFi (12 tools, battery, power) |
+| 12 | [Baby Cry DSP](projects/12_baby_cry_dsp/) | Baby cry detection via pure DSP — FFT spectrum, adaptive threshold, SD logging |
+| 13 | [Baby Cry VAD](projects/13_baby_cry_vad/) | Baby cry detection with VAD gate + DSP (ESP-SR research documented) |
 
 ### MCP Canvas Demo
 
@@ -40,6 +42,12 @@ An AI agent controls the 368x448 AMOLED display over WiFi using the [Model Conte
 </p>
 
 **12 MCP tools:** `clear_canvas` `draw_rect` `draw_line` `draw_arc` `draw_text` `draw_path` `get_canvas_info` `get_canvas_snapshot` `get_battery_info` `set_brightness` `get_system_info` `power_off`
+
+### Baby Cry Detection
+
+Pure DSP crying detection using the onboard ES8311 codec + dual MEMS microphones. Real-time FFT spectrum visualization on the AMOLED, adaptive noise floor, NTP timestamps, SD card logging. BOOT button cycles display brightness (4 levels including off).
+
+Two variants explore different detection architectures — project 12 (pure DSP) and project 13 (VAD gate + DSP). Key finding: ESP-SR's VADNet is not available standalone on ESP32-C6 (AFE supports ESP32/S3/P4 only).
 
 ---
 
@@ -79,7 +87,9 @@ ESP32-C6-Touch-AMOLED-1.8/
 ├── shared/components/
 │   └── amoled_driver/       # AMOLED display, touch, PMIC, LVGL driver
 ├── projects/
-│   └── 11_mcp_canvas/       # MCP server with 12 drawing + device tools
+│   ├── 11_mcp_canvas/       # MCP server with 12 drawing + device tools
+│   ├── 12_baby_cry_dsp/     # Baby cry detection — pure DSP, FFT spectrum, SD logging
+│   └── 13_baby_cry_vad/     # Baby cry detection — VAD gate + DSP (ESP-SR research)
 ├── ref/                     # Vendor reference code (gitignored)
 ├── docs/                    # Board research, reference documents
 ├── .claude/commands/        # Agent skills for Claude Code
@@ -116,6 +126,8 @@ Comprehensive research documents are included in the repo root:
 | 11 | [MCP Canvas Ref Architecture](11-mcp-canvas-reference-architecture.md) | LCD-1.47 MCP server + canvas drawing pipeline |
 | 12 | [AMOLED MCP Canvas Strategy](12-amoled-mcp-canvas-strategy.md) | Canvas RAM strategy, option analysis, recommendation |
 | 13 | [Implementation Plan](13-implementation-plan.md) | MCP canvas project architecture, module design, RAM budget |
+| 14 | [Crying Detection Research](14-crying-detection-research.md) | ML/DSP algorithms, ESP-SR/TFLite/Edge Impulse on C6, RAM budget |
+| 15 | [Power Saving Strategies](15-power-saving-strategies.md) | WiFi off after NTP, display off, duty cycles, battery life estimates |
 
 ## Key Links
 

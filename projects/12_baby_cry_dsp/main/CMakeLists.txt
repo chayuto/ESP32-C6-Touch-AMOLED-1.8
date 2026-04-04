@@ -1,0 +1,24 @@
+idf_component_register(
+    SRCS
+        "main.c"
+        "audio_capture.c"
+        "cry_detector.c"
+        "ui_monitor.c"
+        "ntp_time.c"
+        "sd_logger.c"
+    INCLUDE_DIRS
+        "."
+    REQUIRES
+        amoled_driver
+        nvs_flash
+        esp_wifi
+        esp_event
+        esp_netif
+        esp_timer
+        esp_system
+        freertos
+        driver
+        spiffs
+        fatfs
+        sdmmc
+)

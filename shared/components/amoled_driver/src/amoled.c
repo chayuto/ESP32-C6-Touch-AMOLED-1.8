@@ -32,6 +32,9 @@ static esp_lcd_panel_io_handle_t s_panel_io = NULL;
 #define AXP2101_IRQ_OFF_ON_LVL  0x27  /* bits [1:0]: long press duration */
 #define AXP2101_INTEN2          0x41  /* power key interrupt enable */
 #define AXP2101_INTSTS2         0x49  /* power key interrupt status */
+#define AXP2101_ADC_CH_CTRL     0x30  /* ADC channel enable: bit0=batt, bit1=TS, bit2=vbus, bit3=sys */
+#define AXP2101_CHG_V_SET       0x64  /* charge target voltage */
+#define AXP2101_CHG_I_SET       0x62  /* charge current setting */
 #define AXP2101_BAT_V_H         0x34  /* battery voltage high byte */
 #define AXP2101_BAT_V_L         0x35  /* battery voltage low byte */
 #define AXP2101_BAT_PERCENT     0xA4  /* fuel gauge percentage */
@@ -88,6 +91,26 @@ static esp_err_t axp_init(void)
     uint8_t status;
     ESP_RETURN_ON_ERROR(axp_read_reg(AXP2101_STATUS1, &status), TAG, "AXP2101 read status");
     ESP_LOGI(TAG, "AXP2101 status1=0x%02x", status);
+
+    /* CRITICAL: Disable TS pin measurement — board has no battery thermistor.
+     * Without this, charging may malfunction (Waveshare reference code does this). */
+    uint8_t adc_ctrl;
+    axp_read_reg(AXP2101_ADC_CH_CTRL, &adc_ctrl);
+    adc_ctrl &= ~0x02;  /* Clear bit 1 = disable TS pin */
+    adc_ctrl |= 0x0D;   /* Enable: bit0=batt voltage, bit2=VBUS, bit3=system voltage */
+    axp_write_reg(AXP2101_ADC_CH_CTRL, adc_ctrl);
+    ESP_LOGI(TAG, "AXP2101 TS pin disabled, battery/VBUS/sys ADC enabled (0x%02x)", adc_ctrl);
+
+    /* Set charge current to 200mA (per Waveshare reference) */
+    axp_write_reg(AXP2101_CHG_I_SET, 0x04);  /* 200mA */
+    ESP_LOGI(TAG, "AXP2101 charge current: 200mA");
+
+    /* Set charge target voltage to 4.1V (per Waveshare reference — NOT 4.2V) */
+    uint8_t chg_v;
+    axp_read_reg(AXP2101_CHG_V_SET, &chg_v);
+    chg_v = (chg_v & 0xFC) | 0x01;  /* bits[1:0]: 00=4.0V, 01=4.1V, 02=4.15V, 03=4.2V */
+    axp_write_reg(AXP2101_CHG_V_SET, chg_v);
+    ESP_LOGI(TAG, "AXP2101 charge target: 4.1V");
 
     /* Enable long press shutdown (2.5s default) */
     ESP_RETURN_ON_ERROR(axp_set_bits(AXP2101_PWROFF_EN, 0x02), TAG, "AXP long press enable");
@@ -155,8 +178,16 @@ esp_err_t amoled_init(void)
         AMOLED_QSPI_DATA0, AMOLED_QSPI_DATA1,
         AMOLED_QSPI_DATA2, AMOLED_QSPI_DATA3,
         AMOLED_LCD_H_RES * AMOLED_LCD_V_RES * LCD_BIT_PER_PIXEL / 8);
-    ESP_RETURN_ON_ERROR(spi_bus_initialize(LCD_HOST, &buscfg, SPI_DMA_CH_AUTO),
-                        TAG, "SPI bus init");
+    esp_err_t spi_ret = spi_bus_initialize(LCD_HOST, &buscfg, SPI_DMA_CH_AUTO);
+    if (spi_ret != ESP_OK && spi_ret != ESP_ERR_INVALID_STATE) {
+        ESP_RETURN_ON_ERROR(spi_ret, TAG, "SPI bus init");
+    }
+    if (spi_ret == ESP_ERR_INVALID_STATE) {
+        ESP_LOGW(TAG, "SPI2 bus already initialized — freeing and reconfiguring for QSPI");
+        spi_bus_free(LCD_HOST);
+        ESP_RETURN_ON_ERROR(spi_bus_initialize(LCD_HOST, &buscfg, SPI_DMA_CH_AUTO),
+                            TAG, "SPI bus reinit");
+    }
 
     /* ── 5. SH8601 panel ─────────────────────────────────────── */
     ESP_LOGI(TAG, "SH8601 panel init (CS=%d, QSPI 40MHz)", AMOLED_QSPI_CS);
@@ -206,7 +237,44 @@ esp_err_t amoled_set_brightness(uint8_t level)
 {
     ESP_LOGI(TAG, "Brightness → %d", level);
     const uint8_t data = level;
-    return esp_lcd_panel_io_tx_param(s_panel_io, 0x51, &data, 1);
+    /* SH8601 QSPI command format: opcode(0x02) << 24 | cmd << 8 */
+    int cmd = (0x02UL << 24) | (0x51 << 8);
+    return esp_lcd_panel_io_tx_param(s_panel_io, cmd, &data, 1);
+}
+
+esp_err_t amoled_reinit_spi(void)
+{
+    ESP_LOGI(TAG, "Re-initializing SPI2 for QSPI display");
+    const spi_bus_config_t buscfg = SH8601_PANEL_BUS_QSPI_CONFIG(
+        AMOLED_QSPI_SCLK,
+        AMOLED_QSPI_DATA0, AMOLED_QSPI_DATA1,
+        AMOLED_QSPI_DATA2, AMOLED_QSPI_DATA3,
+        AMOLED_LCD_H_RES * AMOLED_LCD_V_RES * LCD_BIT_PER_PIXEL / 8);
+
+    esp_err_t ret = spi_bus_initialize(LCD_HOST, &buscfg, SPI_DMA_CH_AUTO);
+    if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
+        ESP_LOGE(TAG, "SPI2 reinit failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    /* Re-create panel IO on the bus */
+    const esp_lcd_panel_io_spi_config_t io_config = SH8601_PANEL_IO_QSPI_CONFIG(
+        AMOLED_QSPI_CS, NULL, NULL);
+    ESP_RETURN_ON_ERROR(
+        esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)LCD_HOST, &io_config, &s_panel_io),
+        TAG, "Panel IO re-create");
+
+    ESP_LOGI(TAG, "SPI2 QSPI restored for display");
+    return ESP_OK;
+}
+
+esp_err_t amoled_display_on_off(bool on)
+{
+    /* 0x29 = Display On, 0x28 = Display Off (low-power, stops AMOLED scanning) */
+    uint8_t raw_cmd = on ? 0x29 : 0x28;
+    int cmd = (0x02UL << 24) | (raw_cmd << 8);
+    ESP_LOGI(TAG, "Display %s (cmd 0x%02X)", on ? "ON" : "OFF", raw_cmd);
+    return esp_lcd_panel_io_tx_param(s_panel_io, cmd, NULL, 0);
 }
 
 /* ── AXP2101 battery + power ────────────────────────────── */
