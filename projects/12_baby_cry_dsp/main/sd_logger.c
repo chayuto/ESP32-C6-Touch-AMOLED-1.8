@@ -49,6 +49,8 @@ static const char *TAG = "logger";
 
 static sd_state_t s_state = SD_STATE_NOT_PRESENT;
 static int64_t s_last_metrics_log = 0;
+static uint32_t s_metrics_count = 0;
+static uint32_t s_cry_log_count = 0;
 #define METRICS_LOG_US  ((int64_t)CONFIG_LOG_INTERVAL_SEC * 1000000LL)
 
 /* ── Helpers ─────────────────────────────────────────────── */
@@ -128,6 +130,7 @@ void sd_logger_log_cry(uint32_t event_num, const char *timestamp)
     fprintf(f, "%s,%lu,cry_detected\n", timestamp ? timestamp : "unknown",
             (unsigned long)event_num);
     fclose(f);
+    s_cry_log_count++;
     ESP_LOGI(TAG, "Logged cry #%lu", (unsigned long)event_num);
 }
 
@@ -160,8 +163,9 @@ void sd_logger_log_metrics(const char *timestamp, float rms, float cry_ratio,
             (unsigned long)free_heap, (unsigned long)min_heap,
             wifi_rssi, brightness);
     fclose(f);
-    ESP_LOGI(TAG, "Metrics (uptime=%lus batt=%umV/%u%%)",
-             (unsigned long)uptime_s, batt_mv, batt_pct);
+    s_metrics_count++;
+    ESP_LOGI(TAG, "Metrics #%lu (uptime=%lus batt=%umV/%u%%)",
+             (unsigned long)s_metrics_count, (unsigned long)uptime_s, batt_mv, batt_pct);
 }
 
 /* ── SD Card Export (call ONLY when display is OFF) ──────── */
@@ -245,3 +249,6 @@ void sd_logger_check(void)
 {
     /* SPIFFS is always mounted — nothing to retry */
 }
+
+uint32_t sd_logger_get_metrics_count(void) { return s_metrics_count; }
+uint32_t sd_logger_get_cry_count(void) { return s_cry_log_count; }

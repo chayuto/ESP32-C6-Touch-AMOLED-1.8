@@ -58,6 +58,7 @@ static lv_obj_t *s_lbl_ntp       = NULL;
 static lv_obj_t *s_lbl_sd        = NULL;
 static lv_obj_t *s_lbl_stats     = NULL;
 static lv_obj_t *s_lbl_btn      = NULL;
+static lv_obj_t *s_lbl_logs     = NULL;
 
 /* Button state (set from main, read from timer cb) */
 static volatile int s_btn_count = 0;
@@ -197,6 +198,12 @@ void ui_monitor_init(void)
     s_lbl_btn = create_label(s_scr, &lv_font_montserrat_14,
                               lv_color_make(180, 180, 0),
                               LV_ALIGN_TOP_LEFT, MARGIN, y, "BTN: 0  Bright: 200");
+    y += 20;
+
+    /* Log counters */
+    s_lbl_logs = create_label(s_scr, &lv_font_montserrat_14,
+                               lv_color_make(140, 180, 140),
+                               LV_ALIGN_TOP_LEFT, MARGIN, y, "Logs: 0 metrics, 0 cries");
     y += 20;
 
     /* Build version at bottom */
@@ -380,6 +387,12 @@ void ui_monitor_timer_cb(lv_timer_t *timer)
         snprintf(buf, sizeof(buf), "Events: 0  Monitoring...");
     }
     lv_label_set_text(s_lbl_stats, buf);
+
+    /* ── Log counters ───────────────────────────────── */
+    snprintf(buf, sizeof(buf), "Logs: %lu metrics, %lu cries",
+             (unsigned long)sd_logger_get_metrics_count(),
+             (unsigned long)sd_logger_get_cry_count());
+    lv_label_set_text(s_lbl_logs, buf);
 
     /* ── Button debug ───────────────────────────────── */
     snprintf(buf, sizeof(buf), "BTN: %d  Bright: %d  GPIO9: %d",

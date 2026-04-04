@@ -34,6 +34,10 @@ sd_state_t sd_logger_get_state(void);
 /** Periodically retry mounting if card was absent. Call from a timer. */
 void sd_logger_check(void);
 
+/** Get log counters */
+uint32_t sd_logger_get_metrics_count(void);
+uint32_t sd_logger_get_cry_count(void);
+
 /**
  * Export SPIFFS logs to SD card. ONLY call when display is OFF (SPI2 is free).
  * Temporarily claims SPI2 with SD card pins, copies files, releases SPI2.
