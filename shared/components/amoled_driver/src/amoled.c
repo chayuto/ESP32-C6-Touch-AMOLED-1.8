@@ -13,6 +13,7 @@
 #include "esp_lcd_panel_ops.h"
 #include "esp_io_expander_tca9554.h"
 #include "esp_lcd_sh8601.h"
+#include "esp_lcd_panel_interface.h"
 
 static const char *TAG = "amoled";
 
@@ -242,29 +243,61 @@ esp_err_t amoled_set_brightness(uint8_t level)
     return esp_lcd_panel_io_tx_param(s_panel_io, cmd, &data, 1);
 }
 
-esp_err_t amoled_reinit_spi(void)
+esp_err_t amoled_release_spi(void)
 {
-    ESP_LOGI(TAG, "Re-initializing SPI2 for QSPI display");
+    ESP_LOGI(TAG, "Releasing SPI2 — deleting panel IO");
+    if (s_panel_io) {
+        esp_lcd_panel_io_del(s_panel_io);
+        s_panel_io = NULL;
+    }
+    esp_err_t ret = spi_bus_free(LCD_HOST);
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "spi_bus_free: %s", esp_err_to_name(ret));
+    }
+    ESP_LOGI(TAG, "SPI2 released");
+    return ESP_OK;
+}
+
+/*
+ * The SH8601 panel internally caches the IO handle pointer.
+ * After recreating panel IO, we must update that internal reference.
+ * The sh8601_panel_t struct layout: { esp_lcd_panel_t base; esp_lcd_panel_io_handle_t io; ... }
+ */
+typedef struct {
+    esp_lcd_panel_t base;
+    esp_lcd_panel_io_handle_t io;
+} sh8601_panel_io_ref_t;
+
+esp_err_t amoled_reclaim_spi(void)
+{
+    ESP_LOGI(TAG, "Reclaiming SPI2 for QSPI display");
     const spi_bus_config_t buscfg = SH8601_PANEL_BUS_QSPI_CONFIG(
         AMOLED_QSPI_SCLK,
         AMOLED_QSPI_DATA0, AMOLED_QSPI_DATA1,
         AMOLED_QSPI_DATA2, AMOLED_QSPI_DATA3,
         AMOLED_LCD_H_RES * AMOLED_LCD_V_RES * LCD_BIT_PER_PIXEL / 8);
 
-    esp_err_t ret = spi_bus_initialize(LCD_HOST, &buscfg, SPI_DMA_CH_AUTO);
-    if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
-        ESP_LOGE(TAG, "SPI2 reinit failed: %s", esp_err_to_name(ret));
-        return ret;
-    }
+    ESP_RETURN_ON_ERROR(spi_bus_initialize(LCD_HOST, &buscfg, SPI_DMA_CH_AUTO),
+                        TAG, "SPI2 reinit");
 
-    /* Re-create panel IO on the bus */
     const esp_lcd_panel_io_spi_config_t io_config = SH8601_PANEL_IO_QSPI_CONFIG(
         AMOLED_QSPI_CS, NULL, NULL);
     ESP_RETURN_ON_ERROR(
         esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)LCD_HOST, &io_config, &s_panel_io),
         TAG, "Panel IO re-create");
 
-    ESP_LOGI(TAG, "SPI2 QSPI restored for display");
+    /* Update the panel's internal IO reference (struct hack — verified layout matches) */
+    if (s_panel) {
+        sh8601_panel_io_ref_t *p = (sh8601_panel_io_ref_t *)s_panel;
+        ESP_LOGI(TAG, "Panel IO: old=%p new=%p", p->io, s_panel_io);
+        p->io = s_panel_io;
+    }
+
+    /* Send display-off to ensure clean state, then re-init will happen via display_on_off */
+    int cmd_off = (0x02UL << 24) | (0x28 << 8);
+    esp_lcd_panel_io_tx_param(s_panel_io, cmd_off, NULL, 0);
+
+    ESP_LOGI(TAG, "SPI2 QSPI reclaimed — panel IO updated, display in OFF state");
     return ESP_OK;
 }
 

@@ -46,8 +46,11 @@ esp_err_t amoled_set_brightness(uint8_t level);
 /** Turn display on/off. Off = low-power mode (0x28), On = resume (0x29). */
 esp_err_t amoled_display_on_off(bool on);
 
-/** Re-initialize SPI2 bus for QSPI display (call after SPI2 was used for SD card). */
-esp_err_t amoled_reinit_spi(void);
+/** Release SPI2 bus — deletes panel IO device, frees bus. Call when display is OFF. */
+esp_err_t amoled_release_spi(void);
+
+/** Reclaim SPI2 bus — reinits QSPI, recreates panel IO. Call before display ON. */
+esp_err_t amoled_reclaim_spi(void);
 
 /** Get touch INT GPIO number for strapping pin reference */
 #define AMOLED_TOUCH_INT_GPIO  15

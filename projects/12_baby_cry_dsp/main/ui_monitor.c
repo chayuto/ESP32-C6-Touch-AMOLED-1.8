@@ -389,9 +389,10 @@ void ui_monitor_timer_cb(lv_timer_t *timer)
     lv_label_set_text(s_lbl_stats, buf);
 
     /* ── Log counters ───────────────────────────────── */
-    snprintf(buf, sizeof(buf), "Logs: %lu metrics, %lu cries",
+    snprintf(buf, sizeof(buf), "Log: %lu met %lu cry  SD: %lu exp",
              (unsigned long)sd_logger_get_metrics_count(),
-             (unsigned long)sd_logger_get_cry_count());
+             (unsigned long)sd_logger_get_cry_count(),
+             (unsigned long)sd_logger_get_sd_export_count());
     lv_label_set_text(s_lbl_logs, buf);
 
     /* ── Button debug ───────────────────────────────── */

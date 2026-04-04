@@ -37,6 +37,7 @@ void sd_logger_check(void);
 /** Get log counters */
 uint32_t sd_logger_get_metrics_count(void);
 uint32_t sd_logger_get_cry_count(void);
+uint32_t sd_logger_get_sd_export_count(void);
 
 /**
  * Export SPIFFS logs to SD card. ONLY call when display is OFF (SPI2 is free).

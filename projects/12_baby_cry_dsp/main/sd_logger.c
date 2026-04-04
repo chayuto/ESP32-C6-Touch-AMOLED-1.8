@@ -13,6 +13,7 @@
  */
 
 #include "sd_logger.h"
+#include "amoled.h"
 #include "esp_log.h"
 #include "esp_spiffs.h"
 #include "esp_vfs_fat.h"
@@ -51,6 +52,7 @@ static sd_state_t s_state = SD_STATE_NOT_PRESENT;
 static int64_t s_last_metrics_log = 0;
 static uint32_t s_metrics_count = 0;
 static uint32_t s_cry_log_count = 0;
+static uint32_t s_sd_export_count = 0;
 #define METRICS_LOG_US  ((int64_t)CONFIG_LOG_INTERVAL_SEC * 1000000LL)
 
 /* ── Helpers ─────────────────────────────────────────────── */
@@ -172,12 +174,9 @@ void sd_logger_log_metrics(const char *timestamp, float rms, float cry_ratio,
 
 bool sd_logger_export_to_sd(void)
 {
-    ESP_LOGI(TAG, "=== SD export: claiming SPI2 for SD card ===");
+    ESP_LOGI(TAG, "=== SD export ===");
 
-    /* 1. Free SPI2 from display (display is off, GRAM holds frame) */
-    spi_bus_free(SPI2_HOST);
-
-    /* 2. Init SPI2 with SD card pins */
+    /* 1. Init SPI2 with SD card pins (call before display init, SPI2 is free) */
     spi_bus_config_t bus_cfg = {
         .mosi_io_num = SD_MOSI,
         .miso_io_num = SD_MISO,
@@ -208,7 +207,7 @@ bool sd_logger_export_to_sd(void)
     sdmmc_card_t *card = NULL;
     ret = esp_vfs_fat_sdspi_mount(SD_MOUNT, &host, &slot_cfg, &mount_cfg, &card);
     if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "SD mount failed: %s", esp_err_to_name(ret));
+        ESP_LOGW(TAG, "SD mount failed: %s (no card?)", esp_err_to_name(ret));
         spi_bus_free(SPI2_HOST);
         return false;
     }
@@ -232,11 +231,13 @@ bool sd_logger_export_to_sd(void)
         if (f) { fprintf(f, "%s\n", METRICS_HEADER); fclose(f); }
     }
 
+    if (ok) s_sd_export_count++;
+
     /* 5. Unmount SD + free SPI2 */
     esp_vfs_fat_sdcard_unmount(SD_MOUNT, card);
     spi_bus_free(SPI2_HOST);
 
-    ESP_LOGI(TAG, "=== SD export done, SPI2 released ===");
+    ESP_LOGI(TAG, "=== SD export %s, SPI2 free for display init ===", ok ? "OK" : "FAILED");
     return ok;
 }
 
@@ -252,3 +253,4 @@ void sd_logger_check(void)
 
 uint32_t sd_logger_get_metrics_count(void) { return s_metrics_count; }
 uint32_t sd_logger_get_cry_count(void) { return s_cry_log_count; }
+uint32_t sd_logger_get_sd_export_count(void) { return s_sd_export_count; }

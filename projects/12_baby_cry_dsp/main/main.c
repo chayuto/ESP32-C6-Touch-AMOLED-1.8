@@ -75,24 +75,17 @@ static void boot_button_poll(void)
                 uint8_t level = s_brightness_levels[s_brightness_idx];
 
                 if (level == 0) {
-                    /* Display off — low power mode */
+                    /* Display off — AMOLED low power, GRAM holds frame */
                     amoled_display_on_off(false);
                     s_display_on = false;
-                    ESP_LOGW(TAG, "BUTTON #%d -> Display OFF (power save)", s_btn_press_count);
-
-                    /* SPI2 is now free — export SPIFFS logs to SD card */
-                    if (sd_logger_export_to_sd()) {
-                        ESP_LOGI(TAG, "SD export succeeded");
-                    }
-                    /* Re-init SPI2 for display (needed when display turns back on) */
-                    /* Display GRAM still holds the last frame — SPI2 will be
-                     * reclaimed by amoled when we turn display back on */
+                    ESP_LOGW(TAG, "BUTTON #%d -> Display OFF", s_btn_press_count);
                 } else {
                     if (!s_display_on) {
-                        /* Coming back from off — reinit display SPI and turn on */
-                        amoled_reinit_spi();
+                        /* Display back on */
                         amoled_display_on_off(true);
                         s_display_on = true;
+                        lv_obj_invalidate(lv_scr_act());
+                        ESP_LOGW(TAG, "Display ON");
                     }
                     amoled_set_brightness(level);
                     ESP_LOGW(TAG, "BUTTON #%d -> Brightness: %d", s_btn_press_count, level);
@@ -225,7 +218,12 @@ void app_main(void)
     /* 2. BOOT button init */
     boot_button_init();
 
-    /* 3. Display hardware */
+    /* 3. SPIFFS init + SD export (before display claims SPI2).
+     * Exports any data from previous session to SD card. */
+    sd_logger_init();
+    sd_logger_export_to_sd();  /* SPI2 is free — no display yet */
+
+    /* 4. Display hardware (claims SPI2 for QSPI) */
     ESP_ERROR_CHECK(amoled_init());
 
     /* 4. Touch */
@@ -242,10 +240,7 @@ void app_main(void)
     /* 7. Create UI */
     ui_monitor_init();
 
-    /* 8. SPIFFS logger (internal flash — no SPI conflict with display) */
-    sd_logger_init();
-
-    /* 9. Audio capture */
+    /* 8. Audio capture */
     bool audio_ok = (audio_capture_init() == ESP_OK);
     if (!audio_ok) {
         ESP_LOGE(TAG, "Audio init failed — detection disabled");
