@@ -1,0 +1,15 @@
+menu "MCP Canvas Configuration"
+
+    config CANVAS_WIFI_SSID
+        string "WiFi SSID"
+        default "YOUR_SSID_HERE"
+        help
+            WiFi network name for MCP server.
+
+    config CANVAS_WIFI_PASSWORD
+        string "WiFi Password"
+        default "YOUR_PASSWORD_HERE"
+        help
+            WiFi password.
+
+endmenu

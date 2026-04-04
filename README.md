@@ -29,7 +29,17 @@ Built with an **agentic-first development workflow** — each project is develop
 
 | # | Project | Description |
 |---|---|---|
-| — | *Coming soon* | — |
+| 11 | [MCP Canvas](projects/11_mcp_canvas/) | MCP server — AI draws to AMOLED over WiFi (12 tools, battery, power) |
+
+### MCP Canvas Demo
+
+An AI agent controls the 368x448 AMOLED display over WiFi using the [Model Context Protocol](https://modelcontextprotocol.io/). Widget-based rendering at full resolution — no framebuffer needed (display GRAM holds the pixels).
+
+<p align="center">
+  <img src="docs/media/mcp_canvas_demo.jpg" alt="MCP Canvas Demo" width="200">
+</p>
+
+**12 MCP tools:** `clear_canvas` `draw_rect` `draw_line` `draw_arc` `draw_text` `draw_path` `get_canvas_info` `get_canvas_snapshot` `get_battery_info` `set_brightness` `get_system_info` `power_off`
 
 ---
 
@@ -66,8 +76,10 @@ idf.py -C projects/<name> -p /dev/cu.usbmodem1101 flash
 
 ```
 ESP32-C6-Touch-AMOLED-1.8/
-├── shared/components/       # Shared ESP-IDF components across all projects
-├── projects/                # One subdirectory per project
+├── shared/components/
+│   └── amoled_driver/       # AMOLED display, touch, PMIC, LVGL driver
+├── projects/
+│   └── 11_mcp_canvas/       # MCP server with 12 drawing + device tools
 ├── ref/                     # Vendor reference code (gitignored)
 ├── docs/                    # Board research, reference documents
 ├── .claude/commands/        # Agent skills for Claude Code
@@ -79,9 +91,10 @@ ESP32-C6-Touch-AMOLED-1.8/
 
 1. **TCA9554 IO expander** (I2C 0x20) must set P4 and P5 HIGH before display/touch init
 2. **SH8601 coordinates** must be even-aligned — LVGL needs a rounder callback
-3. **No PSRAM** — full framebuffer (322 KB) doesn't fit; use 1/4-screen double buffering
+3. **No PSRAM** — display has built-in GRAM; use widget-based rendering, not framebuffer
 4. **Nearly all GPIOs are used** by onboard peripherals — very few free pins for external hardware
 5. **6 I2C devices** share one bus (GPIO 7/8): TCA9554, AXP2101, FT3168, QMI8658, PCF85063, ES8311
+6. **AXP2101 PMIC** — long-press power button (2.5s) for hardware shutdown
 
 ---
 
@@ -100,6 +113,9 @@ Comprehensive research documents are included in the repo root:
 | 07 | [Complete GPIO & IO Map](07-complete-gpio-and-io-map.md) | Every GPIO assignment, pin_config.h, free pin analysis |
 | 08 | [I2C Bus & Peripherals](08-i2c-bus-and-peripherals.md) | All 6 I2C devices, power architecture, init sequence |
 | 10 | [RTC & Audio Peripherals](10-rtc-audio-peripherals.md) | PCF85063 RTC, ES8311 audio codec, XiaoZhi AI |
+| 11 | [MCP Canvas Ref Architecture](11-mcp-canvas-reference-architecture.md) | LCD-1.47 MCP server + canvas drawing pipeline |
+| 12 | [AMOLED MCP Canvas Strategy](12-amoled-mcp-canvas-strategy.md) | Canvas RAM strategy, option analysis, recommendation |
+| 13 | [Implementation Plan](13-implementation-plan.md) | MCP canvas project architecture, module design, RAM budget |
 
 ## Key Links
 

@@ -13,6 +13,9 @@ ref/
 **/.component_hash
 **/managed_components/
 
+# IDE / clangd
+**/.cache/
+
 # macOS
 .DS_Store
 

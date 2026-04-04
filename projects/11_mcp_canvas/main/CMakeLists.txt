@@ -1,0 +1,23 @@
+idf_component_register(
+    SRCS
+        "main.c"
+        "mcp_server.c"
+        "drawing_engine.c"
+        "ui_display.c"
+        "snapshot.c"
+    INCLUDE_DIRS
+        "."
+    REQUIRES
+        amoled_driver
+        nvs_flash
+        esp_wifi
+        esp_event
+        esp_netif
+        esp_timer
+        esp_http_server
+        json
+        mbedtls
+        esp_system
+        freertos
+        driver
+)
