@@ -34,13 +34,13 @@ static const char *TAG = "cry_det";
 #define CRY_BIN_HIGH        19        /* ~594 Hz */
 
 /* Adaptive thresholds */
-#define INITIAL_NOISE_FLOOR      300.0f
-#define NOISE_ADAPT_RATE         0.03f     /* Slow adaptation during silence */
-#define MIN_NOISE_FLOOR          50.0f
-#define VAD_NOISE_MULT           2.0f      /* Voice activity = noise_floor × this */
-#define CRY_BAND_RATIO_BASE      0.10f    /* Base cry band ratio threshold (2x more sensitive) */
-#define CONFIRM_COUNT            2          /* Faster detection */
-#define CLEAR_COUNT              3
+#define INITIAL_NOISE_FLOOR      30.0f    /* MEMS mic is quiet — typical idle ~10-50 */
+#define NOISE_ADAPT_RATE         0.05f    /* Adapt faster */
+#define MIN_NOISE_FLOOR          5.0f
+#define VAD_NOISE_MULT           1.5f     /* Voice activity = noise_floor × this */
+#define CRY_BAND_RATIO_BASE      0.10f    /* Base cry band ratio threshold */
+#define CONFIRM_COUNT            2          /* 2 consecutive detections to trigger */
+#define CLEAR_COUNT              3          /* 3 consecutive negatives to clear */
 
 /* Periodicity */
 #define ENERGY_HISTORY_LEN       20
@@ -141,36 +141,18 @@ static void fft_compute(const float *input, float *out_real, float *out_imag, in
 
 /* ── Spectrum to UI bins ────────────────────────────────── */
 
+/* Peak tracker for auto-scaling spectrum display */
+static float s_spectrum_peak = 0.01f;
+
 static void spectrum_to_ui_bins(const float *mag, int num_mag_bins, uint8_t *out, int num_out)
 {
-    /* Map NUM_BINS FFT magnitude bins → CRY_SPECTRUM_BINS for display */
-    /* Use logarithmic grouping: lower frequencies get more resolution */
-    float max_val = 1.0f;
-
-    /* Group FFT bins into display bins */
+    /* Group NUM_BINS FFT bins → CRY_SPECTRUM_BINS display bars */
     int bins_per_group = num_mag_bins / num_out;
     if (bins_per_group < 1) bins_per_group = 1;
 
-    for (int i = 0; i < num_out; i++) {
-        int start = 1 + i * bins_per_group;  /* skip DC */
-        int end = start + bins_per_group;
-        if (end > num_mag_bins) end = num_mag_bins;
-        if (i == num_out - 1) end = num_mag_bins; /* last bin gets remainder */
-
-        float sum = 0.0f;
-        for (int b = start; b < end; b++) {
-            sum += mag[b];
-        }
-        float avg = sum / (end - start);
-        if (avg > max_val) max_val = avg;
-        out[i] = 0; /* temporary */
-        /* Store float temporarily via a trick — we'll normalize in second pass */
-        ((float *)out)[0] = 0; /* can't do this, use separate array */
-    }
-
-    /* Two-pass: first find max, then normalize */
     float group_vals[CRY_SPECTRUM_BINS];
-    max_val = 0.001f;
+    float frame_peak = 0.01f;
+
     for (int i = 0; i < num_out; i++) {
         int start = 1 + i * bins_per_group;
         int end = start + bins_per_group;
@@ -178,16 +160,28 @@ static void spectrum_to_ui_bins(const float *mag, int num_mag_bins, uint8_t *out
         if (i == num_out - 1) end = num_mag_bins;
 
         float sum = 0.0f;
+        int count = 0;
         for (int b = start; b < end; b++) {
             sum += mag[b];
+            count++;
         }
-        group_vals[i] = sum / (end - start);
-        if (group_vals[i] > max_val) max_val = group_vals[i];
+        group_vals[i] = count > 0 ? sum / count : 0.0f;
+        if (group_vals[i] > frame_peak) frame_peak = group_vals[i];
     }
 
+    /* Slowly decay the peak tracker for auto-scaling */
+    if (frame_peak > s_spectrum_peak) {
+        s_spectrum_peak = frame_peak;
+    } else {
+        s_spectrum_peak = s_spectrum_peak * 0.95f + frame_peak * 0.05f;
+    }
+    if (s_spectrum_peak < 0.01f) s_spectrum_peak = 0.01f;
+
+    /* Normalize to 0-255 using tracked peak */
     for (int i = 0; i < num_out; i++) {
-        float normalized = group_vals[i] / max_val * 255.0f;
-        out[i] = (uint8_t)(normalized > 255.0f ? 255 : normalized);
+        float normalized = group_vals[i] / s_spectrum_peak * 255.0f;
+        if (normalized > 255.0f) normalized = 255.0f;
+        out[i] = (uint8_t)normalized;
     }
 }
 
@@ -268,6 +262,10 @@ static bool analyze_audio_block(const int16_t *audio, size_t num_samples)
     float vad_threshold = s_noise_floor * VAD_NOISE_MULT;
     s_status.noise_floor = s_noise_floor;
     s_status.threshold = vad_threshold;
+
+    ESP_LOGI(TAG, "block RMS=%.0f nf=%.0f thr=%.0f %s",
+             block_rms, s_noise_floor, vad_threshold,
+             block_rms < vad_threshold ? "(silence)" : "(ACTIVE)");
 
     if (block_rms < vad_threshold) {
         /* Silence — adapt noise floor */

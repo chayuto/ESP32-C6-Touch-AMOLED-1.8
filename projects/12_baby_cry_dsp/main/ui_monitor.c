@@ -248,14 +248,15 @@ void ui_monitor_timer_cb(lv_timer_t *timer)
         lv_obj_set_style_bg_color(s_bar_audio, lv_color_make(0, 180, 60), LV_PART_INDICATOR);
     }
 
-    /* ── Audio level bar ────────────────────────────── */
+    /* ── Audio level bar (auto-scaled to actual mic range) ── */
     int16_t rms = audio_capture_get_rms();
-    int level = rms / 327;
+    /* Auto-scale: map 0-500 RMS to 0-100 bar (MEMS mic typical range) */
+    int level = rms / 5;
     if (level > 100) level = 100;
     lv_bar_set_value(s_bar_audio, level, LV_ANIM_OFF);
 
-    snprintf(buf, sizeof(buf), "Level: %d  RMS: %.0f  NF: %.0f",
-             level, status.rms_energy, status.noise_floor);
+    snprintf(buf, sizeof(buf), "Lv:%d RMS:%.0f NF:%.0f Raw:%d",
+             level, status.rms_energy, status.noise_floor, rms);
     lv_label_set_text(s_lbl_rms, buf);
 
     /* ── FFT Spectrum bars ──────────────────────────── */

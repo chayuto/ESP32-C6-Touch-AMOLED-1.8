@@ -35,7 +35,7 @@ static const char *TAG = "audio";
 
 /* ── Ring Buffer ────────────────────────────────────────── */
 
-#define RING_BUF_SAMPLES  8192  /* ~0.5s at 16kHz */
+#define RING_BUF_SAMPLES  25600  /* ~1.6s at 16kHz — must be > ANALYSIS_SAMPLES (24000) */
 
 static int16_t  s_ring_buf[RING_BUF_SAMPLES];
 static volatile size_t s_write_pos = 0;
@@ -210,8 +210,37 @@ static esp_err_t es8311_codec_init(void)
         return ESP_FAIL;
     }
 
-    /* Set microphone gain — 24 dB for typical MEMS mic */
-    esp_codec_dev_set_in_gain(codec, 24.0);
+    /* Set microphone gain:
+     * esp_codec_dev_set_in_gain only sets PGA (max 30dB).
+     * For full gain chain we also need ADC digital volume via direct I2C register writes.
+     * ES8311 gain chain: PGA (0-30dB) → ADC → Digital Volume (-95.5 to +32dB) */
+    esp_codec_dev_set_in_gain(codec, 30.0);  /* Max PGA gain */
+    ESP_LOGI(TAG, "PGA gain set to 30 dB");
+
+    /* Boost ADC digital volume via direct I2C register write.
+     * Reg 0x17 (ADC_VOLUME): 0xBF=0dB, 0xFF=+32dB, 0x00=-95.5dB
+     * Set to 0xDF = +16dB (above 0dB default) */
+    {
+        i2c_master_dev_handle_t es_dev = NULL;
+        i2c_device_config_t es_cfg = {
+            .dev_addr_length = I2C_ADDR_BIT_LEN_7,
+            .device_address = 0x18,  /* 7-bit address for direct I2C */
+            .scl_speed_hz = 100000,
+        };
+        if (i2c_master_bus_add_device(i2c_bus, &es_cfg, &es_dev) == ESP_OK) {
+            /* Reg 0x14: PGA gain + mic select. 0x1A = analog mic, max PGA */
+            uint8_t reg14[] = {0x14, 0x1A};
+            i2c_master_transmit(es_dev, reg14, 2, 100);
+            /* Reg 0x17: ADC volume = 0xCF (+8dB digital boost, halved from +16dB) */
+            uint8_t reg17[] = {0x17, 0xCF};
+            i2c_master_transmit(es_dev, reg17, 2, 100);
+            /* Reg 0x16 bits[2:0]: ADC gain scale. 0x03 = 18dB (halved from 24dB) */
+            uint8_t reg16[] = {0x16, 0x23};
+            i2c_master_transmit(es_dev, reg16, 2, 100);
+            i2c_master_bus_rm_device(es_dev);
+            ESP_LOGI(TAG, "ES8311 direct: PGA=max, ADC vol=+8dB, gain scale=18dB");
+        }
+    }
 
     ESP_LOGI(TAG, "ES8311 codec initialized: %d Hz, 16-bit, mic gain 24dB", SAMPLE_RATE);
     return ESP_OK;
@@ -235,13 +264,14 @@ static void audio_capture_task(void *arg)
     }
 
     int16_t mono_buf[I2S_READ_SAMPLES];
+    int log_counter = 0;
 
     while (1) {
         size_t bytes_read = 0;
         esp_err_t ret = i2s_channel_read(s_rx_handle, stereo_buf, I2S_READ_BYTES,
                                           &bytes_read, pdMS_TO_TICKS(1000));
         if (ret != ESP_OK || bytes_read == 0) {
-            ESP_LOGW(TAG, "I2S read failed or empty");
+            ESP_LOGW(TAG, "I2S read: ret=%s bytes=%u", esp_err_to_name(ret), (unsigned)bytes_read);
             continue;
         }
 
@@ -265,6 +295,24 @@ static void audio_capture_task(void *arg)
 
         /* Write to ring buffer */
         ring_write(mono_buf, mono_count);
+
+        /* Debug log every ~3 seconds */
+        log_counter++;
+        if (log_counter % 200 == 1) {
+            /* Check both channels to find where mic data is */
+            int64_t sum_l = 0, sum_r = 0;
+            for (size_t i = 0; i < mono_count && i < 256; i++) {
+                int32_t l = stereo_buf[i * 2];
+                int32_t r = stereo_buf[i * 2 + 1];
+                sum_l += l * l;
+                sum_r += r * r;
+            }
+            int rms_l = (int)sqrtf((float)sum_l / mono_count);
+            int rms_r = (int)sqrtf((float)sum_r / mono_count);
+            ESP_LOGI(TAG, "capture: bytes=%u mono=%u rms_L=%d rms_R=%d ring=%u",
+                     (unsigned)bytes_read, (unsigned)mono_count,
+                     rms_l, rms_r, (unsigned)ring_available());
+        }
 
         /* Signal data ready */
         if (s_data_ready) {
