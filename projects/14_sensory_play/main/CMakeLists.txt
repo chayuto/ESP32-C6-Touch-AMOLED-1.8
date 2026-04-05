@@ -1,0 +1,19 @@
+idf_component_register(
+    SRCS
+        "main.c"
+        "imu_manager.c"
+        "audio_output.c"
+        "particle_engine.c"
+        "mode_manager.c"
+        "mode_snow_globe.c"
+        "mode_dance.c"
+        "mode_music.c"
+    INCLUDE_DIRS "."
+    REQUIRES
+        amoled_driver
+        nvs_flash
+        esp_timer
+        esp_system
+        freertos
+        driver
+)
