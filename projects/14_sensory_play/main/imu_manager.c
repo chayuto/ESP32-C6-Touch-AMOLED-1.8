@@ -92,14 +92,16 @@ static void imu_task(void *arg)
         /* Motion energy (smoothed) */
         s_energy_avg = ENERGY_LPF * s_energy_avg + (1.0f - ENERGY_LPF) * shake_mag;
 
-        /* Tilt: normalize gravity vector to get device orientation.
-         * When device is flat face-up: grav_x≈0, grav_y≈0, grav_z≈9.81
-         * Tilt right: grav_x > 0. Tilt forward: grav_y > 0. */
+        /* Tilt: normalize gravity vector → screen coordinates.
+         * The QMI8658 is mounted rotated 90° CCW on the back of the PCB
+         * relative to the portrait display. Mapping (verified on hardware):
+         *   screen_x = -chip_y   (tilt right → positive screen X)
+         *   screen_y =  chip_x   (tilt forward/top drops → positive screen Y) */
         float grav_len = sqrtf(s_grav_x * s_grav_x + s_grav_y * s_grav_y + s_grav_z * s_grav_z);
         float tilt_x = 0.0f, tilt_y = 0.0f;
         if (grav_len > 1.0f) {
-            tilt_x = s_grav_x / grav_len;
-            tilt_y = s_grav_y / grav_len;
+            tilt_x = -s_grav_y / grav_len;
+            tilt_y = s_grav_x / grav_len;
             /* Clamp */
             if (tilt_x > 1.0f) tilt_x = 1.0f;
             if (tilt_x < -1.0f) tilt_x = -1.0f;
