@@ -64,7 +64,7 @@ static const char *TAG = "cry_det";
 /* ── Hard gates (must pass ALL before scoring) ──────────── */
 #define GATE_MIN_RMS_MULT        2.5f    /* RMS must be > noise_floor * this */
 #define GATE_MIN_CRY_RATIO       0.08f   /* Minimum cry band energy ratio */
-#define GATE_MAX_LOW_RATIO        0.35f   /* Maximum bass energy (rejects adult speech) */
+#define GATE_MAX_LOW_RATIO       0.50f   /* Maximum bass energy — relaxed from 0.35 for burst cries */
 
 /* ── Harmonic verification (stricter than v2) ───────────── */
 #define HARMONIC_MIN_RATIO       0.35f   /* 2nd harmonic >= 35% of F0 (was 20%) */
@@ -75,7 +75,7 @@ static const char *TAG = "cry_det";
 #define CRY_RATIO_THRESH_2       0.25f   /* Strong cry band energy */
 #define HIGH_BAND_MIN_RATIO      0.08f   /* Baby cry formant region */
 #define CREST_MIN                6.0f    /* Raised from 4.0 — was always passing */
-#define LOW_BAND_MAX_RATIO       0.12f   /* Stricter low rejection for scoring */
+#define LOW_BAND_MAX_RATIO       0.20f   /* Low rejection for scoring — relaxed from 0.12 for burst cries */
 
 /* Scoring weights — rebalanced based on data */
 #define SCORE_CRY_RATIO_1        20      /* cry band present (was 15) */
@@ -102,6 +102,12 @@ static const char *TAG = "cry_det";
 /* State machine */
 #define CONFIRM_COUNT            4
 #define CLEAR_COUNT              4
+
+/* Burst detection — single high-confidence block triggers a "burst" event
+ * without requiring 4 consecutive blocks. Catches short cry bursts that
+ * self-resolve before the sustained-cry state machine can confirm. */
+#define BURST_SCORE_THRESHOLD    80      /* Higher than TRIGGER to avoid noise */
+#define BURST_COOLDOWN_US        (5 * 1000000LL)  /* 5 sec between burst events */
 
 /* Periodicity */
 #define ENERGY_HISTORY_LEN       20
@@ -613,6 +619,19 @@ static void update_state_machine(bool is_cry)
         if (s_negative_count >= CLEAR_COUNT && s_status.state == CRY_STATE_DETECTED) {
             s_status.state = CRY_STATE_IDLE;
             ESP_LOGI(TAG, "Cry event ended");
+        }
+    }
+
+    /* Burst detection: single high-score block while not already in DETECTED state.
+     * Catches short cry bursts that never reach CONFIRM_COUNT. */
+    if (s_status.state != CRY_STATE_DETECTED &&
+        s_status.score >= BURST_SCORE_THRESHOLD) {
+        int64_t now = esp_timer_get_time();
+        if (now - s_status.last_burst_time > BURST_COOLDOWN_US) {
+            s_status.burst_count++;
+            s_status.last_burst_time = now;
+            ESP_LOGW(TAG, "*** SHORT CRY BURST #%lu (score=%d) ***",
+                     (unsigned long)s_status.burst_count, s_status.score);
         }
     }
 

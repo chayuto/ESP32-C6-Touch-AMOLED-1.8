@@ -29,11 +29,11 @@ ESP32-C6-Touch-AMOLED-1.8/
 - **Display:** 1.8" AMOLED, SH8601, 368×448 portrait, QSPI 40MHz (SCLK=0, D0=1, D1=2, D2=3, D3=4, CS=5)
 - **Touch:** FT3168 capacitive, I2C 0x38 (SDA=8, SCL=7, INT=15)
 - **PMIC:** AXP2101, I2C 0x34 — manages all power rails, battery charge/discharge
-- **IMU:** QMI8658, I2C 0x6B — 6-axis accelerometer + gyroscope
+- **IMU:** QMI8658, I2C 0x6B — 6-axis accelerometer + gyroscope, mounted 90° CCW on PCB back
 - **RTC:** PCF85063, I2C 0x51 — with backup battery pads
 - **Audio:** ES8311, I2C 0x18 (control) + I2S (MCK=19, BCK=20, WS=22, DI=21, DO=23)
 - **IO Expander:** TCA9554/XCA9554, I2C 0x20 — P4=display power, P5=touch power
-- **SD Card:** SDMMC (CLK=11, CMD=10, DATA=18, CS=6)
+- **SD Card:** SPI-only on SPI2_HOST (CLK=11, CMD=10, DATA=18, CS=6) — NO native SDMMC host on C6
 - **Button:** GPIO 9 (BOOT button) — pull-up, LOW when pressed
 - **PWR Button:** via AXP2101 — power ON/OFF, configurable press actions
 - **No RGB LED** on this board (unlike LCD-1.47 which has WS2812)
@@ -230,6 +230,8 @@ Headroom:                  ~168 KB (tight — avoid large heap allocations)
 - **`esp_codec_dev` backward compat**: Check `CONFIG_CODEC_I2C_BACKWARD_COMPATIBLE` — if enabled, uses legacy I2C driver which conflicts with new `i2c_master` driver. Default is `n` (new driver) in recent versions.
 - **GPIO 9 BOOT button**: Safe to use as user button after boot. Active LOW, external pull-up on board. Strapping pin — only matters during power-on.
 - **Speaker amplifier**: NS4150B Class-D amp, enable via TCA9554 IO expander pin P7 (EXTO7).
+- **QMI8658 axis mapping**: Chip is mounted 90° CCW on the PCB back. For portrait display: `screen_x = -chip_y`, `screen_y = chip_x`. Verified on hardware in project 14.
+- **SD card shares SPI2 with display**: ESP32-C6 has no SDMMC host (only SDIO slave). SD card uses SDSPI on SPI2_HOST — same bus as the QSPI display. Cannot access both simultaneously. Use `amoled_release_spi()` / `amoled_reclaim_spi()` for runtime switching, or access SD before display init.
 
 ## Agent Skills
 

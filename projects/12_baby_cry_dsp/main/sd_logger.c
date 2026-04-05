@@ -176,8 +176,10 @@ void sd_logger_log(const char *event, const char *timestamp,
     if (s_state != SD_STATE_MOUNTED) return;
 
     bool is_cry = (strcmp(event, "cry") == 0);
+    bool is_burst = (strcmp(event, "burst") == 0);
+    bool is_immediate = is_cry || is_burst;
 
-    if (!is_cry) {
+    if (!is_immediate) {
         /* Rate-limit periodic logs */
         int64_t now = esp_timer_get_time();
         if (now - s_last_periodic_log < PERIODIC_LOG_US) return;
@@ -192,6 +194,10 @@ void sd_logger_log(const char *event, const char *timestamp,
         s_cry_log_count++;
         ESP_LOGW(TAG, "CRY #%lu logged (%s)",
                  (unsigned long)status->cry_count, timestamp);
+    } else if (is_burst) {
+        s_cry_log_count++;
+        ESP_LOGW(TAG, "BURST #%lu logged (%s)",
+                 (unsigned long)status->burst_count, timestamp);
     } else {
         s_metrics_count++;
         int64_t now = esp_timer_get_time();

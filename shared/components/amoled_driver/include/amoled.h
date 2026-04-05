@@ -3,6 +3,7 @@
 #include "esp_err.h"
 #include "esp_lcd_panel_io.h"
 #include "esp_lcd_panel_ops.h"
+#include "esp_io_expander.h"
 #include "driver/i2c_master.h"
 
 #ifdef __cplusplus
@@ -39,6 +40,9 @@ esp_lcd_panel_handle_t amoled_get_panel(void);
 
 /** Get the panel IO handle. */
 esp_lcd_panel_io_handle_t amoled_get_panel_io(void);
+
+/** Get the TCA9554 IO expander handle (for P7 speaker amp, etc.). */
+esp_io_expander_handle_t amoled_get_io_expander(void);
 
 /** Set AMOLED brightness via SH8601 register 0x51. level: 0-255. */
 esp_err_t amoled_set_brightness(uint8_t level);

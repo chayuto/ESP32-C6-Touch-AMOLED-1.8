@@ -20,9 +20,10 @@ static const char *TAG = "amoled";
 #define LCD_HOST  SPI2_HOST
 #define LCD_BIT_PER_PIXEL  16
 
-static i2c_master_bus_handle_t   s_i2c_bus  = NULL;
-static esp_lcd_panel_handle_t    s_panel    = NULL;
-static esp_lcd_panel_io_handle_t s_panel_io = NULL;
+static i2c_master_bus_handle_t   s_i2c_bus      = NULL;
+static esp_lcd_panel_handle_t    s_panel        = NULL;
+static esp_lcd_panel_io_handle_t s_panel_io     = NULL;
+static esp_io_expander_handle_t  s_io_expander  = NULL;
 
 /* ── AXP2101 registers ───────────────────────────────────── */
 #define AXP2101_ADDR            0x34
@@ -155,21 +156,20 @@ esp_err_t amoled_init(void)
 
     /* ── 3. TCA9554 IO Expander ──────────────────────────────── */
     ESP_LOGI(TAG, "TCA9554 init (addr=0x20)");
-    esp_io_expander_handle_t io_expander = NULL;
     ESP_RETURN_ON_ERROR(
         esp_io_expander_new_i2c_tca9554(s_i2c_bus,
-            ESP_IO_EXPANDER_I2C_TCA9554_ADDRESS_000, &io_expander),
+            ESP_IO_EXPANDER_I2C_TCA9554_ADDRESS_000, &s_io_expander),
         TAG, "TCA9554 create");
 
     /* Power cycle: LOW → 200ms → HIGH */
-    esp_io_expander_set_dir(io_expander,
+    esp_io_expander_set_dir(s_io_expander,
         IO_EXPANDER_PIN_NUM_4 | IO_EXPANDER_PIN_NUM_5, IO_EXPANDER_OUTPUT);
-    esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_4, 0);
-    esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_5, 0);
+    esp_io_expander_set_level(s_io_expander, IO_EXPANDER_PIN_NUM_4, 0);
+    esp_io_expander_set_level(s_io_expander, IO_EXPANDER_PIN_NUM_5, 0);
     ESP_LOGI(TAG, "TCA9554 P4/P5 LOW — power cycling display+touch");
     vTaskDelay(pdMS_TO_TICKS(200));
-    esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_4, 1);
-    esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_5, 1);
+    esp_io_expander_set_level(s_io_expander, IO_EXPANDER_PIN_NUM_4, 1);
+    esp_io_expander_set_level(s_io_expander, IO_EXPANDER_PIN_NUM_5, 1);
     ESP_LOGI(TAG, "TCA9554 P4/P5 HIGH — display+touch powered");
 
     /* ── 4. QSPI bus ─────────────────────────────────────────── */
@@ -232,6 +232,11 @@ esp_lcd_panel_handle_t amoled_get_panel(void)
 esp_lcd_panel_io_handle_t amoled_get_panel_io(void)
 {
     return s_panel_io;
+}
+
+esp_io_expander_handle_t amoled_get_io_expander(void)
+{
+    return s_io_expander;
 }
 
 esp_err_t amoled_set_brightness(uint8_t level)
