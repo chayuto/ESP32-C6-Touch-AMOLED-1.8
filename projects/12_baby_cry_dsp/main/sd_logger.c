@@ -69,26 +69,38 @@ static void ensure_header(const char *path, const char *header)
     }
 }
 
-/* Copy a file from src to dst (appending to dst) */
-static bool copy_file_append(const char *src, const char *dst)
+/* Copy data rows from src to dst (appending). Skips header lines.
+ * If dst doesn't exist, writes header first. Returns number of data rows copied. */
+static int copy_data_rows(const char *src, const char *dst, const char *header)
 {
     FILE *fin = fopen(src, "r");
-    if (!fin) return false;
+    if (!fin) return 0;
+
+    /* Check if dst needs a header */
+    struct stat st;
+    bool need_header = (stat(dst, &st) != 0 || st.st_size == 0);
 
     FILE *fout = fopen(dst, "a");
-    if (!fout) { fclose(fin); return false; }
+    if (!fout) { fclose(fin); return 0; }
 
-    char buf[256];
-    size_t total = 0;
+    if (need_header && header) {
+        fprintf(fout, "%s\n", header);
+    }
+
+    char buf[512];
+    int rows = 0;
     while (fgets(buf, sizeof(buf), fin)) {
+        /* Skip header lines (start with "timestamp" or are empty) */
+        if (strncmp(buf, "timestamp", 9) == 0) continue;
+        if (buf[0] == '\n' || buf[0] == '\r') continue;
         fputs(buf, fout);
-        total += strlen(buf);
+        rows++;
     }
 
     fclose(fin);
     fclose(fout);
-    ESP_LOGI(TAG, "Copied %u bytes: %s -> %s", (unsigned)total, src, dst);
-    return true;
+    ESP_LOGI(TAG, "Copied %d data rows: %s -> %s", rows, src, dst);
+    return rows;
 }
 
 /* ── SPIFFS Init ─────────────────────────────────────────── */
@@ -125,15 +137,21 @@ void sd_logger_init(void)
 
 void sd_logger_log_cry(uint32_t event_num, const char *timestamp)
 {
-    if (s_state != SD_STATE_MOUNTED) return;
+    if (s_state != SD_STATE_MOUNTED) {
+        ESP_LOGW(TAG, "Cry #%lu NOT logged — SPIFFS not mounted", (unsigned long)event_num);
+        return;
+    }
 
     FILE *f = fopen(CRY_LOG, "a");
-    if (!f) return;
+    if (!f) {
+        ESP_LOGE(TAG, "Failed to open %s", CRY_LOG);
+        return;
+    }
     fprintf(f, "%s,%lu,cry_detected\n", timestamp ? timestamp : "unknown",
             (unsigned long)event_num);
     fclose(f);
     s_cry_log_count++;
-    ESP_LOGI(TAG, "Logged cry #%lu", (unsigned long)event_num);
+    ESP_LOGW(TAG, "CRY #%lu logged to SPIFFS (%s)", (unsigned long)event_num, timestamp);
 }
 
 /* ── Periodic Metrics Logging ────────────────────────────── */
@@ -214,31 +232,32 @@ bool sd_logger_export_to_sd(void)
 
     ESP_LOGI(TAG, "SD mounted: %s", card->cid.name);
 
-    /* 4. Copy SPIFFS logs to SD */
-    bool ok = true;
-    ok &= copy_file_append(CRY_LOG, SD_MOUNT "/cry.csv");
-    ok &= copy_file_append(METRICS_LOG, SD_MOUNT "/metrics.csv");
+    /* 4. Copy SPIFFS data rows to SD (skip headers, no duplicates) */
+    int cry_rows = copy_data_rows(CRY_LOG, SD_MOUNT "/cry.csv",
+                                   "timestamp,event_num,note");
+    int met_rows = copy_data_rows(METRICS_LOG, SD_MOUNT "/metrics.csv",
+                                   METRICS_HEADER);
 
-    if (ok) {
-        ESP_LOGI(TAG, "Export complete — clearing SPIFFS logs");
-        /* Truncate SPIFFS logs after successful export */
-        ensure_header(CRY_LOG, "timestamp,event_num,note");
-        ensure_header(METRICS_LOG, METRICS_HEADER);
-        /* Overwrite (truncate) the files */
+    ESP_LOGI(TAG, "Exported %d cry rows, %d metrics rows to SD", cry_rows, met_rows);
+
+    /* Only clear SPIFFS if we actually exported something */
+    if (cry_rows > 0 || met_rows > 0) {
         FILE *f = fopen(CRY_LOG, "w");
         if (f) { fprintf(f, "timestamp,event_num,note\n"); fclose(f); }
         f = fopen(METRICS_LOG, "w");
         if (f) { fprintf(f, "%s\n", METRICS_HEADER); fclose(f); }
+        ESP_LOGI(TAG, "SPIFFS logs cleared after export");
     }
 
-    if (ok) s_sd_export_count++;
+    s_sd_export_count++;
 
     /* 5. Unmount SD + free SPI2 */
     esp_vfs_fat_sdcard_unmount(SD_MOUNT, card);
     spi_bus_free(SPI2_HOST);
 
-    ESP_LOGI(TAG, "=== SD export %s, SPI2 free for display init ===", ok ? "OK" : "FAILED");
-    return ok;
+    bool exported = (cry_rows > 0 || met_rows > 0);
+    ESP_LOGI(TAG, "=== SD export done (%d+%d rows), SPI2 free ===", cry_rows, met_rows);
+    return exported;
 }
 
 sd_state_t sd_logger_get_state(void)
