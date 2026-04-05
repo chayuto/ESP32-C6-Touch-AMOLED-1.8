@@ -1,6 +1,11 @@
 # 12_baby_cry_dsp — Baby Cry Detection (Pure DSP)
 
-Baby cry detection using pure DSP on the ESP32-C6-Touch-AMOLED-1.8 board. No ML model required — detects crying through FFT frequency analysis, adaptive thresholds, and temporal pattern recognition.
+Baby cry detection using pure DSP on the ESP32-C6-Touch-AMOLED-1.8 board. No ML model
+required — detects crying through FFT frequency analysis, harmonic verification,
+gated multi-feature scoring, and temporal pattern recognition.
+
+For the full research alignment and academic citations, see
+[DETECTION_METHODOLOGY.md](DETECTION_METHODOLOGY.md).
 
 ## How It Works
 
@@ -13,15 +18,20 @@ Baby cry detection using pure DSP on the ESP32-C6-Touch-AMOLED-1.8 board. No ML 
                                          |         |
                                       [skip]   [512-pt FFT]
                                                    |
-                                         [Cry Band Analysis]
-                                         (250-600 Hz ratio)
-                                                   |
-                                      [Periodicity Detection]
-                                      (cry-pause-cry pattern)
+                                        [Hard Gates]
+                                        RMS / cry_ratio / low_ratio
+                                         |         |
+                                       fail      pass
+                                     (score=0)     |
+                                         [Gated Multi-Feature Scoring]
+                                         cry band + harmonics + F0 +
+                                         formants + crest + low reject +
+                                         periodicity → score 0-100
                                                    |
                                        [State Machine + Alert]
+                                       (trigger >= 65, clear < 45)
                                                    |
-                           [AMOLED Display] + [SD Card Log] + [Serial Log]
+                           [AMOLED Display] + [SPIFFS Log] + [Serial Log]
 ```
 
 ## Features
@@ -31,19 +41,31 @@ Baby cry detection using pure DSP on the ESP32-C6-Touch-AMOLED-1.8 board. No ML 
 | **FFT Spectrum** | Real-time 32-bar spectrum visualization on AMOLED, cry band highlighted |
 | **Adaptive Detection** | Noise floor auto-adjusts to ambient level, 2x sensitivity over static threshold |
 | **NTP Time Sync** | Opportunistic SNTP sync (pool.ntp.org), timestamps for cry events |
-| **SD Card Logging** | CSV log of cry events with timestamps, opportunistic (no crash if absent) |
+| **Data Logging** | Continuous SPIFFS logging (27-col CSV), SD card export at boot |
 | **Battery Monitoring** | AXP2101 voltage, percentage, charge state on display |
 | **Brightness Control** | BOOT button (GPIO 9) cycles 4 levels: dim(1) -> low(40) -> medium(120) -> bright(220) |
 | **Power Management** | Long-press PWR button (2.5s) for hardware shutdown via AXP2101 |
 | **Build Version** | Compile timestamp shown on display for firmware identification |
 
-## Detection Algorithm
+## Detection Algorithm (v3)
 
-1. **Adaptive Energy VAD** — learns ambient noise floor, only analyzes when audio exceeds `noise_floor x 2`
-2. **512-point FFT** — Hanning-windowed, 50% overlap (32ms frames, 16ms hop)
-3. **Cry Band Ratio** — energy in 250-600 Hz / total energy. Baby crying has strong fundamental (F0) at 300-450 Hz
-4. **Periodicity Detection** — tracks cry-pause-cry rhythm at ~0.5-1 Hz via energy envelope transitions
-5. **Temporal Smoothing** — 2 consecutive positive detections to alert, 3 negatives to clear
+1. **Adaptive Energy VAD** — EMA noise floor, analyzes when RMS exceeds `noise_floor x 1.5`
+2. **512-point FFT** — Hanning-windowed, 50% overlap (32 ms frames, 16 ms hop)
+3. **Hard Gates** — three mandatory preconditions block scoring if not met:
+   - RMS > noise_floor * 2.5 (reject near-silence)
+   - cry_ratio > 0.08 (reject sounds with no cry-band energy)
+   - low_ratio < 0.35 (reject bass-heavy adult speech/music)
+4. **Multi-Feature Scoring** (0-100 weighted sum):
+   - Cry band energy ratio (350-550 Hz) — 30 pts max
+   - F0 + harmonic verification + cry dominance — 20 pts
+   - Formant energy (1-3.5 kHz) — 10 pts
+   - Spectral crest (tonality) — 5 pts
+   - Low-frequency rejection (<250 Hz) — 20 pts
+   - Cry-pause periodicity — 10 pts
+5. **Temporal Smoothing** — 4 consecutive positive blocks to trigger, 4 to clear, with hysteresis (trigger >= 65, clear < 45)
+
+See [DETECTION_METHODOLOGY.md](DETECTION_METHODOLOGY.md) for research citations
+and detailed rationale behind each feature.
 
 ## Display Layout
 
@@ -111,13 +133,14 @@ If flash fails (board unresponsive): hold BOOT button, press PWR button, release
 ## Project Structure
 
 ```
+DETECTION_METHODOLOGY.md  — Research alignment, academic citations, design rationale
 main/
   main.c              — Startup, WiFi, LVGL task, button handler
   audio_capture.c/h   — ES8311 via esp_codec_dev, I2S 16kHz, ring buffer
-  cry_detector.c/h    — FFT, adaptive threshold, periodicity, spectrum export
+  cry_detector.c/h    — FFT, gated multi-feature scoring, harmonic verification
   ui_monitor.c/h      — LVGL UI with spectrum bars, status grid, build version
   ntp_time.c/h        — Opportunistic SNTP sync (AEST timezone)
-  sd_logger.c/h       — Opportunistic SD card CSV logging
+  sd_logger.c/h       — SPIFFS logging + SD card export (27-column CSV)
   Kconfig.projbuild   — WiFi config
   idf_component.yml   — Dependencies
 ```

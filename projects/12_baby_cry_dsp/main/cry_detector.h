@@ -40,6 +40,10 @@ typedef struct {
     bool        gated;           /**< True if hard gates blocked scoring */
     int         pos_streak;      /**< Consecutive positive detections */
     int         neg_streak;      /**< Consecutive negative detections */
+    /* v3.1 Torres HCBC features */
+    float       f0_variance;     /**< F0 bin variance across frames (low = stable pitch) */
+    float       voiced_ratio;    /**< Fraction of frames with detectable F0 (0.0-1.0) */
+    int         max_consec_f0;   /**< Longest consecutive F0 run (frames) */
 } cry_detector_status_t;
 
 esp_err_t cry_detector_init(void);

@@ -1,6 +1,22 @@
 /*
  * cry_detector.c — Baby cry detection v3 (FFT + gated multi-feature scoring)
  *
+ * Research alignment and citations: see DETECTION_METHODOLOGY.md
+ *
+ * Key references:
+ *   - F0 range 350-600 Hz: Michelsson et al. (2002), Wasz-Hockert et al. (1968)
+ *   - Harmonic verification: Torres et al. (2017) Harmonic Ratio Accumulation
+ *   - Physioacoustic model: Golub & Corwin (1985)
+ *   - Spectral crest: Peeters (2004), MPEG-7 ISO/IEC 15938
+ *   - VAD gating pattern: Sohn, Kim & Sung (1999)
+ *
+ * v3.1 additions (Torres et al. HCBC-inspired features):
+ *   - F0 stability: variance of F0 across frames — low = sustained cry pitch
+ *   - Voiced frame ratio: % of frames with detectable F0 (simpler than harmonic_pct)
+ *   - Max consecutive F0 run: longest streak of frames with cry-band F0
+ *   - New scoring: f0_stability(10), voiced_ratio(5), consec_f0(5)
+ *   - Total possible score raised to 120 (thresholds unchanged at 65/45)
+ *
  * v3 changes (data-driven from real household logging):
  *   - Hard gates: minimum RMS, minimum cry_ratio, maximum low_ratio
  *     → prevents scoring near-silence or bass-heavy sounds
@@ -70,6 +86,15 @@ static const char *TAG = "cry_det";
 #define SCORE_CREST              5       /* tonal (was 10 — always passed) */
 #define SCORE_LOW_REJECT         20      /* little low-freq = not speech (was 10) */
 #define SCORE_PERIODICITY        10      /* cry-pause pattern (was 15 — always passed) */
+
+/* v3.1 Torres-inspired features */
+#define SCORE_F0_STABILITY       10      /* Low F0 variance = sustained pitch (Torres HCBC) */
+#define SCORE_VOICED_RATIO       5       /* High voiced frame % (Torres voiced/unvoiced) */
+#define SCORE_CONSEC_F0          5       /* Long consecutive F0 run (Torres consecutive F0) */
+
+#define F0_VARIANCE_MAX          4.0f    /* Max F0 bin variance to count as "stable" */
+#define VOICED_RATIO_MIN         0.60f   /* Min fraction of frames with F0 detected */
+#define CONSEC_F0_MIN            4       /* Min consecutive frames with cry-band F0 */
 
 #define TRIGGER_THRESHOLD        65      /* Score to trigger (was 55) */
 #define CLEAR_THRESHOLD          45      /* Score to clear (was 25 — unreachable!) */
@@ -337,7 +362,8 @@ static int detect_periodicity(void)
 
 static int compute_cry_score(float cry_ratio, float low_ratio, float high_ratio,
                              float crest, bool harmonic_verified, bool f0_found,
-                             bool cry_dominant, int periodicity)
+                             bool cry_dominant, int periodicity,
+                             float f0_variance, float voiced_ratio, int max_consec_f0)
 {
     int score = 0;
 
@@ -363,6 +389,20 @@ static int compute_cry_score(float cry_ratio, float low_ratio, float high_ratio,
 
     /* Cry-pause periodicity — raised threshold */
     if (periodicity >= PERIODICITY_THRESHOLD) score += SCORE_PERIODICITY;
+
+    /* v3.1 Torres HCBC features */
+
+    /* F0 stability: baby cries hold a steady pitch within each burst.
+     * Speech/music F0 jumps around between phonemes/notes. */
+    if (f0_found && f0_variance < F0_VARIANCE_MAX) score += SCORE_F0_STABILITY;
+
+    /* Voiced frame ratio: baby cries are predominantly voiced (periodic).
+     * Household noise (fan, clatter, water) is mostly unvoiced. */
+    if (voiced_ratio >= VOICED_RATIO_MIN) score += SCORE_VOICED_RATIO;
+
+    /* Consecutive F0 run: baby cry bursts produce sustained F0 for 4+ frames.
+     * Random sounds may hit cry-band F0 in scattered frames but not consecutively. */
+    if (max_consec_f0 >= CONSEC_F0_MIN) score += SCORE_CONSEC_F0;
 
     return score;
 }
@@ -404,6 +444,9 @@ static bool analyze_audio_block(const int16_t *audio, size_t num_samples)
         s_status.f0_hz = 0;
         s_status.cry_dominant = false;
         s_status.gated = true;  /* gated by VAD */
+        s_status.f0_variance = 0;
+        s_status.voiced_ratio = 0;
+        s_status.max_consec_f0 = 0;
 
         memset(s_avg_spectrum, 0, sizeof(s_avg_spectrum));
         spectrum_to_ui_bins(s_avg_spectrum, NUM_BINS, s_status.spectrum, CRY_SPECTRUM_BINS);
@@ -422,6 +465,9 @@ static bool analyze_audio_block(const int16_t *audio, size_t num_samples)
     int   cry_dominant_count = 0;
     int   frame_count = 0;
     float f0_bin_sum = 0.0f;
+    float f0_bin_sum_sq = 0.0f;   /* v3.1: for F0 variance */
+    int   cur_consec_f0 = 0;      /* v3.1: current consecutive F0 run */
+    int   max_consec_f0 = 0;      /* v3.1: longest consecutive F0 run */
     memset(s_avg_spectrum, 0, sizeof(s_avg_spectrum));
 
     for (size_t offset = 0; offset + FFT_SIZE <= num_samples; offset += HOP_SIZE) {
@@ -437,6 +483,11 @@ static bool analyze_audio_block(const int16_t *audio, size_t num_samples)
         if (result.f0_bin > 0) {
             f0_found_count++;
             f0_bin_sum += result.f0_bin;
+            f0_bin_sum_sq += (float)result.f0_bin * result.f0_bin;
+            cur_consec_f0++;
+            if (cur_consec_f0 > max_consec_f0) max_consec_f0 = cur_consec_f0;
+        } else {
+            cur_consec_f0 = 0;
         }
         if (result.harmonic_verified) harmonic_yes_count++;
         if (result.cry_dominant) cry_dominant_count++;
@@ -464,6 +515,18 @@ static bool analyze_audio_block(const int16_t *audio, size_t num_samples)
     bool cry_dom = (frame_count > 0) && (cry_dominant_count > frame_count / 2);
     float avg_f0_bin = (f0_found_count > 0) ? f0_bin_sum / f0_found_count : 0.0f;
 
+    /* v3.1: F0 variance (in bins^2) — low = stable pitch = cry-like */
+    float f0_var = 0.0f;
+    if (f0_found_count >= 2) {
+        float mean = f0_bin_sum / f0_found_count;
+        float mean_sq = f0_bin_sum_sq / f0_found_count;
+        f0_var = mean_sq - mean * mean;
+        if (f0_var < 0.0f) f0_var = 0.0f;  /* numerical safety */
+    }
+
+    /* v3.1: voiced frame ratio */
+    float voiced_ratio = (frame_count > 0) ? (float)f0_found_count / frame_count : 0.0f;
+
     /* Store debug fields */
     s_status.cry_band_ratio = avg_cry_ratio;
     s_status.low_ratio = avg_low_ratio;
@@ -472,6 +535,9 @@ static bool analyze_audio_block(const int16_t *audio, size_t num_samples)
     s_status.harmonic_pct = (frame_count > 0) ? (harmonic_yes_count * 100 / frame_count) : 0;
     s_status.f0_hz = (int)(avg_f0_bin * SAMPLE_RATE / FFT_SIZE + 0.5f);
     s_status.cry_dominant = cry_dom;
+    s_status.f0_variance = f0_var;
+    s_status.voiced_ratio = voiced_ratio;
+    s_status.max_consec_f0 = max_consec_f0;
 
     /* Record energy for periodicity */
     s_energy_history[s_energy_hist_idx] = block_rms;
@@ -503,7 +569,8 @@ static bool analyze_audio_block(const int16_t *audio, size_t num_samples)
         score = 0;
     } else {
         score = compute_cry_score(avg_cry_ratio, avg_low_ratio, avg_high_ratio,
-                                  avg_crest, harmonics_ok, f0_ok, cry_dom, periodicity);
+                                  avg_crest, harmonics_ok, f0_ok, cry_dom, periodicity,
+                                  f0_var, voiced_ratio, max_consec_f0);
     }
     s_status.score = score;
 
@@ -515,10 +582,11 @@ static bool analyze_audio_block(const int16_t *audio, size_t num_samples)
         is_cry = (score >= TRIGGER_THRESHOLD);
     }
 
-    ESP_LOGI(TAG, "RMS=%.0f s=%d cr=%.2f lo=%.2f hi=%.2f C=%.1f h=%d%% f0=%dHz dom=%d prd=%d %s%s-> %s",
+    ESP_LOGI(TAG, "RMS=%.0f s=%d cr=%.2f lo=%.2f hi=%.2f C=%.1f h=%d%% f0=%dHz dom=%d prd=%d fv=%.1f vr=%.0f%% cf=%d %s%s-> %s",
              block_rms, score, avg_cry_ratio, avg_low_ratio, avg_high_ratio,
              avg_crest, s_status.harmonic_pct, s_status.f0_hz,
              cry_dom ? 1 : 0, periodicity,
+             f0_var, voiced_ratio * 100.0f, max_consec_f0,
              gated ? "GATED:" : "", gated ? gate_reason : "",
              is_cry ? "CRY" : "no");
 

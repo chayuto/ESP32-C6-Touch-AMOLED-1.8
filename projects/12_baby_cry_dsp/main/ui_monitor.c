@@ -24,7 +24,6 @@
 #include "esp_timer.h"
 #include "esp_heap_caps.h"
 #include "esp_wifi.h"
-#include "driver/gpio.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -194,10 +193,10 @@ void ui_monitor_init(void)
                                 LV_ALIGN_TOP_LEFT, MARGIN, y, "Events: 0");
     y += 24;
 
-    /* Button debug */
+    /* Detection metrics (Torres features + score) */
     s_lbl_btn = create_label(s_scr, &lv_font_montserrat_14,
                               lv_color_make(180, 180, 0),
-                              LV_ALIGN_TOP_LEFT, MARGIN, y, "BTN: 0  Bright: 200");
+                              LV_ALIGN_TOP_LEFT, MARGIN, y, "H:0% C:0.0 Fv:0.0 Cf:0");
     y += 20;
 
     /* Log counters */
@@ -287,8 +286,11 @@ void ui_monitor_timer_cb(lv_timer_t *timer)
     }
 
     /* ── Detection detail ───────────────────────────── */
-    snprintf(buf, sizeof(buf), "Cry: %.0f%%  Period: %d  Thr: %.0f",
-             status.cry_band_ratio * 100.0f, status.periodicity, status.threshold);
+    snprintf(buf, sizeof(buf), "S:%d Cry:%.0f%% Lo:%.0f%% F0:%dHz V:%.0f%%%s",
+             status.score, status.cry_band_ratio * 100.0f,
+             status.low_ratio * 100.0f, status.f0_hz,
+             status.voiced_ratio * 100.0f,
+             status.gated ? " GATED" : "");
     lv_label_set_text(s_lbl_detail, buf);
 
     /* ── Battery ──────────────────────────────────���─── */
@@ -334,12 +336,11 @@ void ui_monitor_timer_cb(lv_timer_t *timer)
         lv_obj_set_style_text_color(s_lbl_sd, lv_color_make(255, 80, 0), 0);
     }
 
-    /* ── SD retry + periodic metrics log ───────────── */
+    /* ── Logging (unified: periodic + cry events) ──── */
     sd_logger_check();
     {
         char ts[16];
         ntp_time_get_str(ts, sizeof(ts));
-        const char *state_str = (status.state == CRY_STATE_DETECTED) ? "crying" : "idle";
 
         /* WiFi RSSI */
         wifi_ap_record_t ap_info;
@@ -348,28 +349,26 @@ void ui_monitor_timer_cb(lv_timer_t *timer)
             rssi = ap_info.rssi;
         }
 
-        sd_logger_log_metrics(ts, status.rms_energy, status.cry_band_ratio,
-                              status.noise_floor, status.threshold, status.periodicity,
-                              state_str, status.cry_count,
-                              status.score, status.low_ratio, status.high_ratio,
-                              status.crest, status.harmonic_pct,
-                              status.f0_hz, status.cry_dominant, status.gated,
-                              status.pos_streak, status.neg_streak,
-                              batt.voltage_mv, batt.percentage, batt.charging, batt.vbus_present,
-                              (uint32_t)esp_get_free_heap_size(),
-                              (uint32_t)esp_get_minimum_free_heap_size(),
-                              rssi, (uint8_t)s_btn_brightness);
+        /* Periodic metrics (rate-limited inside sd_logger_log) */
+        sd_logger_log("periodic", ts, &status,
+                      batt.voltage_mv, batt.percentage, batt.charging, batt.vbus_present,
+                      (uint32_t)esp_get_free_heap_size(),
+                      (uint32_t)esp_get_minimum_free_heap_size(),
+                      rssi, (uint8_t)s_btn_brightness);
+
+        /* Cry event snapshot (immediate, not rate-limited) */
+        if (status.cry_count > s_last_logged_cry) {
+            s_last_logged_cry = status.cry_count;
+            sd_logger_log("cry", ts, &status,
+                          batt.voltage_mv, batt.percentage, batt.charging, batt.vbus_present,
+                          (uint32_t)esp_get_free_heap_size(),
+                          (uint32_t)esp_get_minimum_free_heap_size(),
+                          rssi, (uint8_t)s_btn_brightness);
+        }
     }
 
     /* ── Cry event stats ────────────────────────────── */
     if (status.cry_count > 0) {
-        /* Log to SD on new cry event */
-        if (status.cry_count > s_last_logged_cry) {
-            s_last_logged_cry = status.cry_count;
-            char ts[20] = "unknown";
-            ntp_time_get_str(ts, sizeof(ts));
-            sd_logger_log_cry(status.cry_count, ts);
-        }
 
         int64_t elapsed_us = esp_timer_get_time() - status.last_cry_time;
         int elapsed_s = (int)(elapsed_us / 1000000);
@@ -399,9 +398,12 @@ void ui_monitor_timer_cb(lv_timer_t *timer)
              (unsigned long)sd_logger_get_sd_export_count());
     lv_label_set_text(s_lbl_logs, buf);
 
-    /* ── Button debug ───────────────────────────────── */
-    snprintf(buf, sizeof(buf), "BTN: %d  Bright: %d  GPIO9: %d",
-             s_btn_count, s_btn_brightness, gpio_get_level(GPIO_NUM_9));
+    /* ── Detection metrics (Torres features) ──────── */
+    snprintf(buf, sizeof(buf), "H:%d%% C:%.1f Fv:%.1f Cf:%d Prd:%d%s",
+             status.harmonic_pct, status.crest,
+             status.f0_variance, status.max_consec_f0,
+             status.periodicity,
+             status.cry_dominant ? " DOM" : "");
     lv_label_set_text(s_lbl_btn, buf);
 }
 
