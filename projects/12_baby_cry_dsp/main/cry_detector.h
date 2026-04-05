@@ -44,6 +44,9 @@ typedef struct {
     float       f0_variance;     /**< F0 bin variance across frames (low = stable pitch) */
     float       voiced_ratio;    /**< Fraction of frames with detectable F0 (0.0-1.0) */
     int         max_consec_f0;   /**< Longest consecutive F0 run (frames) */
+    /* v3.2 burst detection */
+    uint32_t    burst_count;     /**< Short cry bursts (single high-score block) */
+    int64_t     last_burst_time; /**< us since boot */
 } cry_detector_status_t;
 
 esp_err_t cry_detector_init(void);

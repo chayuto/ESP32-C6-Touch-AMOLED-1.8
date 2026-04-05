@@ -72,6 +72,7 @@ static lv_obj_t *s_spec_container = NULL;
 static char s_ip_str[20] = "";
 static bool s_connecting = true;
 static uint32_t s_last_logged_cry = 0;
+static uint32_t s_last_logged_burst = 0;
 
 /* ── Helpers ──────────────────────────────────────────────── */
 
@@ -365,6 +366,16 @@ void ui_monitor_timer_cb(lv_timer_t *timer)
                           (uint32_t)esp_get_minimum_free_heap_size(),
                           rssi, (uint8_t)s_btn_brightness);
         }
+
+        /* Burst event snapshot (short cry that didn't sustain) */
+        if (status.burst_count > s_last_logged_burst) {
+            s_last_logged_burst = status.burst_count;
+            sd_logger_log("burst", ts, &status,
+                          batt.voltage_mv, batt.percentage, batt.charging, batt.vbus_present,
+                          (uint32_t)esp_get_free_heap_size(),
+                          (uint32_t)esp_get_minimum_free_heap_size(),
+                          rssi, (uint8_t)s_btn_brightness);
+        }
     }
 
     /* ── Cry event stats ────────────────────────────── */
@@ -384,10 +395,14 @@ void ui_monitor_timer_cb(lv_timer_t *timer)
             strftime(ts_str, sizeof(ts_str), " (%H:%M)", &ti);
         }
 
-        snprintf(buf, sizeof(buf), "Events: %lu  Last: %dm%02ds ago%s",
-                 (unsigned long)status.cry_count, min, sec, ts_str);
+        snprintf(buf, sizeof(buf), "Cry:%lu Burst:%lu  Last: %dm%02ds ago%s",
+                 (unsigned long)status.cry_count,
+                 (unsigned long)status.burst_count, min, sec, ts_str);
+    } else if (status.burst_count > 0) {
+        snprintf(buf, sizeof(buf), "Cry:0 Burst:%lu  Monitoring...",
+                 (unsigned long)status.burst_count);
     } else {
-        snprintf(buf, sizeof(buf), "Events: 0  Monitoring...");
+        snprintf(buf, sizeof(buf), "Cry:0 Burst:0  Monitoring...");
     }
     lv_label_set_text(s_lbl_stats, buf);
 
