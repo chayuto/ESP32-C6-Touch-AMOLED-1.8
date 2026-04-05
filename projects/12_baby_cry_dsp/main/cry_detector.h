@@ -29,6 +29,17 @@ typedef struct {
     uint8_t     cry_bin_low;     /**< First bin in cry band (for UI highlight) */
     uint8_t     cry_bin_high;    /**< Last bin in cry band */
     int         periodicity;     /**< Last periodicity count */
+    /* v3 scoring debug fields */
+    int         score;           /**< Multi-feature score (0-100) */
+    float       low_ratio;       /**< Energy < 250 Hz / total */
+    float       high_ratio;      /**< Energy 1-3.5 kHz / total */
+    float       crest;           /**< Spectral crest factor */
+    int         harmonic_pct;    /**< % of frames with verified harmonics */
+    int         f0_hz;           /**< Detected F0 frequency in Hz */
+    bool        cry_dominant;    /**< Cry band energy > low band energy */
+    bool        gated;           /**< True if hard gates blocked scoring */
+    int         pos_streak;      /**< Consecutive positive detections */
+    int         neg_streak;      /**< Consecutive negative detections */
 } cry_detector_status_t;
 
 esp_err_t cry_detector_init(void);

@@ -41,7 +41,9 @@ static const char *TAG = "logger";
 #define SD_CS        6
 
 #define METRICS_HEADER "timestamp,uptime_s,rms,cry_ratio,noise_floor,threshold,periodicity," \
-                       "state,cry_count,batt_mv,batt_pct,charging,usb_power," \
+                       "state,cry_count,score,low_ratio,high_ratio,crest,harmonic_pct," \
+                       "f0_hz,cry_dominant,gated,pos_streak,neg_streak," \
+                       "batt_mv,batt_pct,charging,usb_power," \
                        "free_heap,min_heap,wifi_rssi,brightness"
 
 #ifndef CONFIG_LOG_INTERVAL_SEC
@@ -159,6 +161,10 @@ void sd_logger_log_cry(uint32_t event_num, const char *timestamp)
 void sd_logger_log_metrics(const char *timestamp, float rms, float cry_ratio,
                            float noise_floor, float threshold, int periodicity,
                            const char *state, uint32_t cry_count,
+                           int score, float low_ratio, float high_ratio,
+                           float crest, int harmonic_pct,
+                           int f0_hz, bool cry_dominant, bool gated,
+                           int pos_streak, int neg_streak,
                            uint16_t batt_mv, uint8_t batt_pct, bool charging, bool usb,
                            uint32_t free_heap, uint32_t min_heap, int wifi_rssi,
                            uint8_t brightness)
@@ -173,12 +179,15 @@ void sd_logger_log_metrics(const char *timestamp, float rms, float cry_ratio,
     if (!f) return;
 
     uint32_t uptime_s = (uint32_t)(now / 1000000LL);
-    fprintf(f, "%s,%lu,%.1f,%.4f,%.1f,%.1f,%d,%s,%lu,%u,%u,%d,%d,%lu,%lu,%d,%u\n",
+    fprintf(f, "%s,%lu,%.1f,%.4f,%.1f,%.1f,%d,%s,%lu,%d,%.4f,%.4f,%.1f,%d,%d,%d,%d,%d,%d,%u,%u,%d,%d,%lu,%lu,%d,%u\n",
             timestamp ? timestamp : "unknown",
             (unsigned long)uptime_s,
             rms, cry_ratio, noise_floor, threshold, periodicity,
             state ? state : "unknown",
             (unsigned long)cry_count,
+            score, low_ratio, high_ratio, crest, harmonic_pct,
+            f0_hz, cry_dominant ? 1 : 0, gated ? 1 : 0,
+            pos_streak, neg_streak,
             batt_mv, batt_pct, charging ? 1 : 0, usb ? 1 : 0,
             (unsigned long)free_heap, (unsigned long)min_heap,
             wifi_rssi, brightness);

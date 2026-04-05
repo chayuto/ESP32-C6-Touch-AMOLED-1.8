@@ -24,6 +24,10 @@ void sd_logger_log_cry(uint32_t event_num, const char *timestamp);
 void sd_logger_log_metrics(const char *timestamp, float rms, float cry_ratio,
                            float noise_floor, float threshold, int periodicity,
                            const char *state, uint32_t cry_count,
+                           int score, float low_ratio, float high_ratio,
+                           float crest, int harmonic_pct,
+                           int f0_hz, bool cry_dominant, bool gated,
+                           int pos_streak, int neg_streak,
                            uint16_t batt_mv, uint8_t batt_pct, bool charging, bool usb,
                            uint32_t free_heap, uint32_t min_heap, int wifi_rssi,
                            uint8_t brightness);
