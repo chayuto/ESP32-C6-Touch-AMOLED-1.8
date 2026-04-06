@@ -14,11 +14,12 @@
 #include "song_data.h"
 #include "ui.h"
 #include "amoled.h"
-#include "amoled_touch.h"
 #include "amoled_lvgl.h"
+#include "amoled_touch.h"
 
 #include "driver/gpio.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "nvs_flash.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -88,22 +89,6 @@ static void boot_button_poll(void)
             ESP_LOGI(TAG, "Long press: child lock %s", locked ? "OFF" : "ON");
         }
     }
-}
-
-/* ── Touch ────────────────────────────────────────────── */
-
-static void check_touch(esp_lcd_touch_handle_t tp)
-{
-    if (!tp) return;
-    esp_lcd_touch_read_data(tp);
-
-    uint16_t x, y;
-    uint8_t count = 0;
-    esp_lcd_touch_get_coordinates(tp, &x, &y, NULL, &count, 1);
-    /* Touch is handled by LVGL's indev driver registered in amoled_lvgl_init */
-    (void)x;
-    (void)y;
-    (void)count;
 }
 
 /* ── LVGL Task ────────────────────────────────────────── */

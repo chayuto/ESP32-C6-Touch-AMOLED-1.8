@@ -304,7 +304,7 @@ static void build_lock_overlay(lv_obj_t *parent)
     lv_obj_add_flag(s_lock_overlay, LV_OBJ_FLAG_CLICKABLE); /* absorb touches */
     lv_obj_clear_flag(s_lock_overlay, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t *lock_icon = create_label(s_lock_overlay, LV_SYMBOL_LOCK,
+    lv_obj_t *lock_icon = create_label(s_lock_overlay, LV_SYMBOL_EYE_CLOSE,
                                         &lv_font_montserrat_40, COL_LOCK_TEXT);
     lv_obj_align(lock_icon, LV_ALIGN_CENTER, 0, -30);
 
