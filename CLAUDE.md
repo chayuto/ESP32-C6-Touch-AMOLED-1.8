@@ -100,7 +100,24 @@ idf.py -C projects/<name> -p /dev/cu.usbmodem1101 flash
 
 # Set target (one time only per project, wipes build dir)
 idf.py -C projects/<name> set-target esp32c6
+
+# Monitor serial output (use IDF venv python — idf.py monitor needs TTY)
+~/.espressif/python_env/idf5.5_py3.14_env/bin/python -c "
+import serial, time
+ser = serial.Serial('/dev/cu.usbmodem3101', 115200, timeout=1)
+ser.dtr=False; ser.rts=True; time.sleep(0.1); ser.rts=False; time.sleep(0.5)
+start=time.time()
+while time.time()-start<10:
+    d=ser.read(ser.in_waiting or 1)
+    if d: print(d.decode('utf-8',errors='replace'),end='')
+ser.close()
+"
 ```
+
+**Serial monitor notes:**
+- `idf.py monitor` does NOT work in non-TTY environments (Claude Code, scripts)
+- System `python3` does NOT have pyserial — must use IDF venv python
+- USB port varies: check `ls /dev/cu.usb*` first
 
 ## Each Project's CMakeLists.txt Must Include
 

@@ -1,0 +1,22 @@
+idf_component_register(
+    SRCS
+        "main.c"
+        "ble_relay.c"
+        "packet_buffer.c"
+        "telemetry.c"
+        "sd_logger.c"
+        "ui_dashboard.c"
+    INCLUDE_DIRS
+        "."
+    REQUIRES
+        amoled_driver
+        nvs_flash
+        bt
+        esp_timer
+        esp_system
+        freertos
+        driver
+        spiffs
+        fatfs
+        sdmmc
+)
