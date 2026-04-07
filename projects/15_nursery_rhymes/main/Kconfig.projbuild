@@ -1,0 +1,109 @@
+menu "Nursery Rhyme Song Selection"
+
+    config SONG_INCLUDE_ALL
+        bool "Include all songs (default)"
+        default y
+        help
+            When enabled, all 20 songs are included. Disable to select individual songs.
+
+    config SONG_TWINKLE
+        bool "1. Twinkle Twinkle Little Star"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_MARY
+        bool "2. Mary Had a Little Lamb"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_BAA_BAA
+        bool "3. Baa Baa Black Sheep"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_LONDON_BRIDGE
+        bool "4. London Bridge Is Falling Down"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_ROW_BOAT
+        bool "5. Row Row Row Your Boat"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_JACK_JILL
+        bool "6. Jack and Jill"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_HUMPTY
+        bool "7. Humpty Dumpty"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_ITSY_BITSY
+        bool "8. Itsy Bitsy Spider"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_OLD_MACDONALD
+        bool "9. Old MacDonald Had a Farm"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_HICKORY
+        bool "10. Hickory Dickory Dock"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_THREE_BLIND_MICE
+        bool "11. Three Blind Mice"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_HOT_CROSS_BUNS
+        bool "12. Hot Cross Buns"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_FRERE_JACQUES
+        bool "13. Frere Jacques"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_YANKEE_DOODLE
+        bool "14. Yankee Doodle"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_POP_WEASEL
+        bool "15. Pop Goes the Weasel"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_ROCK_A_BYE
+        bool "16. Rock-a-Bye Baby"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_HUSH_LITTLE_BABY
+        bool "17. Hush Little Baby"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_WHEELS_BUS
+        bool "18. Wheels on the Bus"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_HEAD_SHOULDERS
+        bool "19. Head Shoulders Knees and Toes"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_HAPPY_KNOW_IT
+        bool "20. If You're Happy and You Know It"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+endmenu

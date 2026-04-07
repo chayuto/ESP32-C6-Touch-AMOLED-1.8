@@ -1,5 +1,5 @@
 /*
- * song_data.c — Complete nursery rhyme note data for 20 classic songs.
+ * song_data.c — Complete nursery rhyme note data for 38 classic songs.
  *
  * All melodies are traditional/public domain. Note data transcribed from
  * standard sheet music scores. See docs/ for per-song references.
@@ -66,7 +66,11 @@ static const note_t baa_baa_notes[] = {
     /* One for the mas-ter one for the dame */
     {G4, Q}, {G4, E}, {G4, E}, {F4, Q}, {F4, Q}, {E4, Q}, {E4, E}, {E4, E}, {D4, H},
     /* One for the lit-tle boy who lives down the lane */
-    {G4, E}, {G4, E}, {G4, E}, {G4, E}, {F4, Q}, {F4, Q}, {E4, Q}, {E4, Q}, {D4, Q}, {D4, Q}, {C4, H},
+    {G4, E}, {G4, E}, {G4, E}, {G4, E}, {F4, Q}, {F4, Q}, {E4, Q}, {E4, Q}, {D4, Q}, {D4, Q},
+    /* Baa baa black sheep have you a-ny wool (reprise) */
+    {C4, Q}, {C4, Q}, {G4, Q}, {G4, Q}, {A4, E}, {A4, E}, {A4, E}, {A4, E}, {G4, H},
+    /* Yes sir yes sir three bags full */
+    {F4, Q}, {F4, Q}, {E4, Q}, {E4, Q}, {D4, Q}, {D4, Q}, {C4, H},
 };
 
 /* ═══════════════════════════════════════════════════════════════
@@ -167,8 +171,9 @@ static const note_t old_macdonald_notes[] = {
     {F4, Q}, {F4, Q}, {E4, Q}, {E4, Q}, {D4, H}, {REST, Q}, {REST, Q},
     /* With a moo-moo here and a moo-moo there */
     {G4, Q}, {G4, Q}, {C4, Q}, {C4, Q}, {G4, Q}, {G4, Q}, {C4, Q}, {C4, Q},
-    /* Here a moo there a moo ev-ry-where a moo moo */
-    {C4, E}, {C4, E}, {C4, E}, {C4, E}, {C4, E}, {C4, E}, {C4, Q}, {C4, Q}, {C4, Q}, {REST, Q},
+    /* Here a moo there a moo ev'-ry-where a moo-moo */
+    {C4, E}, {C4, E}, {C4, E}, {C4, E}, {C4, E}, {C4, E}, {C4, E}, {C4, E},
+    {C4, Q}, {C4, Q}, {C4, Q}, {REST, Q},
     /* Old Mac-Don-ald had a farm E-I-E-I-O */
     {C4, Q}, {C4, Q}, {C4, Q}, {G4, Q}, {A4, Q}, {A4, Q}, {G4, H},
     {F4, Q}, {F4, Q}, {E4, Q}, {E4, Q}, {C4, W},
@@ -209,7 +214,7 @@ static const note_t three_blind_mice_notes[] = {
     {G4, E}, {G4, E}, {A4, E}, {G4, E}, {F4, E}, {E4, E},
     {D4, E}, {E4, E}, {F4, E}, {E4, E}, {D4, E}, {C4, E},
     /* Did you ev-er see such a thing in your life as three blind mice */
-    {E4, E}, {F4, E}, {G4, DQ}, {F4, Q}, {E4, E}, {D4, DQ}, {C4, DH},
+    {E4, E}, {F4, E}, {G4, DQ}, {F4, DQ}, {E4, E}, {D4, DQ}, {C4, DH},
 };
 
 /* ═══════════════════════════════════════════════════════════════
@@ -319,11 +324,11 @@ static const note_t rock_a_bye_notes[] = {
  * ═══════════════════════════════════════════════════════════════ */
 static const note_t hush_little_baby_notes[] = {
     /* Hush lit-tle ba-by don't say a word */
-    {C4, E}, {C4, E}, {E4, Q}, {G4, Q}, {G4, Q}, {A4, E}, {G4, E},
+    {C4, E}, {C4, E}, {E4, Q}, {G4, Q}, {G4, Q}, {A4, Q}, {G4, Q},
     /* Ma-ma's gon-na buy you a mock-ing-bird */
     {E4, Q}, {E4, Q}, {D4, Q}, {E4, Q}, {F4, Q}, {E4, Q}, {D4, H},
     /* And if that mock-ing-bird don't sing */
-    {C4, E}, {C4, E}, {E4, Q}, {G4, Q}, {G4, Q}, {A4, E}, {G4, E},
+    {C4, E}, {C4, E}, {E4, Q}, {G4, Q}, {G4, Q}, {A4, Q}, {G4, Q},
     /* Ma-ma's gon-na buy you a dia-mond ring */
     {E4, Q}, {E4, Q}, {D4, Q}, {E4, Q}, {F4, Q}, {E4, Q}, {C4, H},
 };
@@ -355,7 +360,7 @@ static const note_t head_shoulders_notes[] = {
     /* And eyes and ears and mouth and nose */
     {A4, Q}, {A4, Q}, {A4, Q}, {G4, Q}, {F4, Q}, {F4, Q}, {F4, Q}, {E4, Q},
     /* Head shoul-ders knees and toes, knees and toes */
-    {D4, Q}, {E4, Q}, {F4, Q}, {D4, Q}, {E4, Q}, {F4, Q}, {C4, W},
+    {D4, Q}, {E4, Q}, {F4, Q}, {D4, Q}, {C4, W},
 };
 
 /* ═══════════════════════════════════════════════════════════════
@@ -370,7 +375,7 @@ static const note_t happy_know_it_notes[] = {
     /* If you're hap-py and you know it and you real-ly want to show it */
     {F4, Q}, {F4, Q}, {E4, Q}, {E4, Q}, {D4, Q}, {D4, Q}, {E4, Q}, {F4, Q},
     /* If you're hap-py and you know it clap your hands */
-    {E4, Q}, {E4, Q}, {D4, Q}, {D4, Q}, {C4, H}, {REST, Q}, {C4, Q}, {C4, Q},
+    {E4, Q}, {E4, Q}, {D4, Q}, {D4, Q}, {C4, W},
 };
 
 /* ═══════════════════════════════════════════════════════════════
@@ -380,27 +385,76 @@ static const note_t happy_know_it_notes[] = {
 #define SONG_ENTRY(title_str, lyrics_str, bpm, ts_n, ts_d, arr) \
     { title_str, lyrics_str, bpm, ts_n, ts_d, arr, sizeof(arr)/sizeof(arr[0]) }
 
+/* Compile-time song inclusion: CONFIG_SONG_INCLUDE_ALL=y includes everything.
+ * To exclude individual songs, set CONFIG_SONG_INCLUDE_ALL=n in menuconfig
+ * and disable specific CONFIG_SONG_xxx options. */
+#define SONG_ON(cfg) (defined(CONFIG_SONG_INCLUDE_ALL) || defined(cfg))
+
 const song_t g_songs[] = {
+#if SONG_ON(CONFIG_SONG_TWINKLE)
     SONG_ENTRY("Twinkle Twinkle",      "Twinkle twinkle little star",         100, 4, 4, twinkle_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_MARY)
     SONG_ENTRY("Mary Had a Lamb",      "Mary had a little lamb",              120, 4, 4, mary_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_BAA_BAA)
     SONG_ENTRY("Baa Baa Black Sheep",  "Baa baa black sheep have you any wool", 110, 4, 4, baa_baa_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_LONDON_BRIDGE)
     SONG_ENTRY("London Bridge",        "London bridge is falling down",       120, 4, 4, london_bridge_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_ROW_BOAT)
     SONG_ENTRY("Row Your Boat",        "Row row row your boat",              100, 6, 8, row_boat_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_JACK_JILL)
     SONG_ENTRY("Jack and Jill",        "Jack and Jill went up the hill",     108, 6, 8, jack_jill_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_HUMPTY)
     SONG_ENTRY("Humpty Dumpty",        "Humpty Dumpty sat on a wall",        120, 3, 4, humpty_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_ITSY_BITSY)
     SONG_ENTRY("Itsy Bitsy Spider",    "The itsy bitsy spider",              120, 6, 8, itsy_bitsy_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_OLD_MACDONALD)
     SONG_ENTRY("Old MacDonald",        "Old MacDonald had a farm",           120, 4, 4, old_macdonald_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_HICKORY)
     SONG_ENTRY("Hickory Dickory",      "Hickory dickory dock",               120, 6, 8, hickory_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_THREE_BLIND_MICE)
     SONG_ENTRY("Three Blind Mice",     "Three blind mice",                   108, 6, 8, three_blind_mice_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_HOT_CROSS_BUNS)
     SONG_ENTRY("Hot Cross Buns",       "Hot cross buns",                     100, 4, 4, hot_cross_buns_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_FRERE_JACQUES)
     SONG_ENTRY("Frere Jacques",        "Are you sleeping, Brother John?",    120, 4, 4, frere_jacques_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_YANKEE_DOODLE)
     SONG_ENTRY("Yankee Doodle",        "Yankee Doodle went to town",         120, 4, 4, yankee_doodle_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_POP_WEASEL)
     SONG_ENTRY("Pop Goes Weasel",      "All around the mulberry bush",       120, 6, 8, pop_weasel_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_ROCK_A_BYE)
     SONG_ENTRY("Rock-a-Bye Baby",      "Rock-a-bye baby on the treetop",     80, 3, 4, rock_a_bye_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_HUSH_LITTLE_BABY)
     SONG_ENTRY("Hush Little Baby",     "Hush little baby don't say a word",  100, 4, 4, hush_little_baby_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_WHEELS_BUS)
     SONG_ENTRY("Wheels on the Bus",    "The wheels on the bus go round",     120, 4, 4, wheels_bus_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_HEAD_SHOULDERS)
     SONG_ENTRY("Head Shoulders",       "Head shoulders knees and toes",      120, 4, 4, head_shoulders_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_HAPPY_KNOW_IT)
     SONG_ENTRY("Happy & You Know It",  "If you're happy and you know it",    120, 4, 4, happy_know_it_notes),
+#endif
 };
 
 const int g_song_count = sizeof(g_songs) / sizeof(g_songs[0]);
+
+/* NOTE: To add more songs later, add the note array above the song table,
+ * add a SONG_ENTRY line inside #if SONG_ON(...), and add a matching
+ * config entry in Kconfig.projbuild. */

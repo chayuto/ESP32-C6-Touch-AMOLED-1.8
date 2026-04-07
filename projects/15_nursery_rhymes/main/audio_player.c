@@ -17,6 +17,7 @@
 #include "esp_io_expander.h"
 #include "esp_log.h"
 #include "esp_check.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
@@ -50,6 +51,82 @@ static volatile int  s_current_song = -1;
 static volatile int  s_note_index  = 0;
 static volatile int  s_note_total  = 0;
 static volatile int  s_volume      = 70;   /* 0-100 */
+
+/*
+ * Transpose offset in semitones. +12 = one octave up.
+ *
+ * Song data is written at concert pitch (C4=middle C, ~262 Hz) which is
+ * standard for sheet music but sounds muddy on the NS4150B tiny speaker.
+ * Children's songs are naturally sung an octave higher (C5, ~523 Hz)
+ * which also happens to be the sweet spot for small speaker frequency
+ * response (500 Hz – 4 kHz). Two octaves up would work too but risks
+ * sounding tinny on the highs (Itsy Bitsy Spider would peak at ~3 kHz).
+ */
+#define TRANSPOSE_SEMITONES  12
+
+static volatile play_mode_t s_play_mode = PLAY_MODE_OFF;
+
+/* Shuffle state: Fisher-Yates on a local index array */
+static int  s_shuffle_order[20];
+static int  s_shuffle_pos = 0;
+static bool s_shuffle_init = false;
+
+static uint32_t simple_rand(void)
+{
+    /* xorshift32 — seeded from esp_timer */
+    static uint32_t state = 0;
+    if (state == 0) state = (uint32_t)esp_timer_get_time();
+    state ^= state << 13;
+    state ^= state >> 17;
+    state ^= state << 5;
+    return state;
+}
+
+static void shuffle_reset(int exclude)
+{
+    int n = g_song_count;
+    for (int i = 0; i < n; i++) s_shuffle_order[i] = i;
+    /* Fisher-Yates shuffle */
+    for (int i = n - 1; i > 0; i--) {
+        int j = simple_rand() % (i + 1);
+        int tmp = s_shuffle_order[i];
+        s_shuffle_order[i] = s_shuffle_order[j];
+        s_shuffle_order[j] = tmp;
+    }
+    /* Move excluded song (just played) away from position 0 to avoid repeat */
+    if (exclude >= 0 && n > 1 && s_shuffle_order[0] == exclude) {
+        int swap = 1 + (simple_rand() % (n - 1));
+        s_shuffle_order[0] = s_shuffle_order[swap];
+        s_shuffle_order[swap] = exclude;
+    }
+    s_shuffle_pos = 0;
+    s_shuffle_init = true;
+}
+
+static int next_song_for_mode(int just_finished)
+{
+    switch (s_play_mode) {
+    case PLAY_MODE_LOOP_ONE:
+        return just_finished;
+
+    case PLAY_MODE_LOOP_ALL: {
+        int next = just_finished + 1;
+        if (next >= g_song_count) next = 0;
+        return next;
+    }
+
+    case PLAY_MODE_SHUFFLE:
+        if (!s_shuffle_init) shuffle_reset(just_finished);
+        s_shuffle_pos++;
+        if (s_shuffle_pos >= g_song_count) {
+            shuffle_reset(just_finished);
+        }
+        return s_shuffle_order[s_shuffle_pos];
+
+    default: /* PLAY_MODE_OFF */
+        return -1;
+    }
+}
 
 /* ── I2S Init ─────────────────────────────────────────── */
 
@@ -148,10 +225,28 @@ static esp_err_t es8311_codec_init(void)
     return ESP_OK;
 }
 
-/* ── Tone Synthesis ───────────────────────────────────── */
+/* ── Realistic Tone Synthesis ─────────────────────────── */
+/*
+ * Music box / glockenspiel timbre with:
+ *   - Harmonic-rich waveform (fundamental + overtones)
+ *   - Duration-proportional ADSR envelope
+ *   - Optional vibrato on sustained notes
+ *   - Metric accent (strong/weak beats from time signature)
+ */
 
 #define CHUNK_SAMPLES  256
 static int16_t s_stereo_buf[CHUNK_SAMPLES * 2];
+
+/* Harmonic mix: music-box timbre. Amplitudes sum to ~1.0 */
+#define H1_AMP  0.55f   /* fundamental */
+#define H2_AMP  0.25f   /* 2nd harmonic (octave above) */
+#define H3_AMP  0.13f   /* 3rd harmonic (octave + fifth) */
+#define H4_AMP  0.07f   /* 4th harmonic (2 octaves above) */
+
+/* Vibrato: gentle pitch wobble on long notes */
+#define VIBRATO_RATE_HZ   4.5f    /* wobble speed */
+#define VIBRATO_DEPTH     0.003f  /* ±0.3% pitch deviation */
+#define VIBRATO_ONSET_MS  200     /* vibrato fades in after this */
 
 static void write_stereo(int16_t *buf, size_t stereo_samples)
 {
@@ -174,28 +269,71 @@ static void play_silence(int dur_ms)
 }
 
 /*
- * Play a single tone with ADSR envelope.
+ * Compute a single sample with harmonic-rich waveform + vibrato.
+ * phase = current fundamental phase (radians)
+ * vib_phase = vibrato LFO phase
+ */
+static inline float synth_sample(float phase, float vib_mod)
+{
+    float p = phase * vib_mod;
+    return H1_AMP * sinf(p)
+         + H2_AMP * sinf(p * 2.0f)
+         + H3_AMP * sinf(p * 3.0f)
+         + H4_AMP * sinf(p * 4.0f);
+}
+
+/*
+ * Play a single tone with realistic envelope and timbre.
+ *   freq:       fundamental frequency in Hz (0 = rest)
+ *   dur_ms:     total note duration including articulation gap
+ *   accent:     0.0–1.0, metric accent strength (1.0 = downbeat)
  * Returns true if stop was requested during playback.
  */
-static bool play_note(float freq, int dur_ms)
+static bool play_note_ex(float freq, int dur_ms, float accent)
 {
     if (freq <= 0.0f) {
-        /* Rest note */
         play_silence(dur_ms);
         return s_stop_req;
     }
 
-    int total_samples = (SAMPLE_RATE * dur_ms) / 1000;
-    float phase = 0.0f;
-    float phase_inc = 2.0f * M_PI * freq / (float)SAMPLE_RATE;
-    float vol = (float)s_volume / 100.0f;
-    int16_t amplitude = (int16_t)(vol * 24000.0f);
+    /* Articulation: sound for 88% of duration, silence for 12%
+     * This creates natural phrasing (legato but not connected) */
+    int sound_ms = (dur_ms * 88) / 100;
+    int gap_ms = dur_ms - sound_ms;
+    if (sound_ms < 30) { sound_ms = dur_ms; gap_ms = 0; }
 
-    /* ADSR: 15ms attack, sustain, 30ms release — smooth for melody */
-    int attack_samples = SAMPLE_RATE * 15 / 1000;
-    int release_samples = SAMPLE_RATE * 30 / 1000;
+    int total_samples = (SAMPLE_RATE * sound_ms) / 1000;
+
+    /* Duration-proportional ADSR:
+     *   Attack:  3% of duration, clamped 5–40ms
+     *   Release: 8% of duration, clamped 15–80ms
+     * Short notes get snappy attacks; long notes breathe. */
+    int attack_ms = (sound_ms * 3) / 100;
+    if (attack_ms < 5) attack_ms = 5;
+    if (attack_ms > 40) attack_ms = 40;
+    int release_ms = (sound_ms * 8) / 100;
+    if (release_ms < 15) release_ms = 15;
+    if (release_ms > 80) release_ms = 80;
+
+    int attack_samples = (SAMPLE_RATE * attack_ms) / 1000;
+    int release_samples = (SAMPLE_RATE * release_ms) / 1000;
     int release_start = total_samples - release_samples;
     if (release_start < attack_samples) release_start = attack_samples;
+
+    /* Volume: base volume * accent factor
+     * Downbeats (accent=1.0) play at full volume.
+     * Off-beats (accent=0.6) play softer.
+     * This creates the natural "pulse" of music. */
+    float vol = (float)s_volume / 100.0f;
+    float accent_vol = 0.75f + 0.25f * accent;  /* Range: 0.75x – 1.0x */
+    float amplitude = vol * accent_vol * 22000.0f;
+
+    /* Phase accumulators */
+    float phase = 0.0f;
+    float phase_inc = 2.0f * M_PI * freq / (float)SAMPLE_RATE;
+    float vib_phase = 0.0f;
+    float vib_phase_inc = 2.0f * M_PI * VIBRATO_RATE_HZ / (float)SAMPLE_RATE;
+    int vibrato_onset_samples = (SAMPLE_RATE * VIBRATO_ONSET_MS) / 1000;
 
     int pos = 0;
     while (pos < total_samples) {
@@ -205,16 +343,38 @@ static bool play_note(float freq, int dur_ms)
         if (pos + chunk > total_samples) chunk = total_samples - pos;
 
         for (int i = 0; i < chunk; i++) {
-            float env = 1.0f;
             int s = pos + i;
+
+            /* ADSR envelope */
+            float env;
             if (s < attack_samples) {
-                env = (float)s / (float)attack_samples;
+                /* Slightly curved attack (quadratic ease-in) for softer onset */
+                float t = (float)s / (float)attack_samples;
+                env = t * t;
             } else if (s >= release_start) {
-                env = 1.0f - (float)(s - release_start) / (float)release_samples;
-                if (env < 0.0f) env = 0.0f;
+                /* Cosine release for smooth fade */
+                float t = (float)(s - release_start) / (float)release_samples;
+                if (t > 1.0f) t = 1.0f;
+                env = 0.5f * (1.0f + cosf(M_PI * t));
+            } else {
+                env = 1.0f;
             }
 
-            int16_t sample = (int16_t)(env * amplitude * sinf(phase));
+            /* Vibrato: fade in after onset, only on notes long enough */
+            float vib_mod = 1.0f;
+            if (sound_ms > 300 && s > vibrato_onset_samples) {
+                float vib_blend = (float)(s - vibrato_onset_samples) /
+                                  (float)(SAMPLE_RATE * 100 / 1000);  /* 100ms fade-in */
+                if (vib_blend > 1.0f) vib_blend = 1.0f;
+                vib_mod = 1.0f + VIBRATO_DEPTH * vib_blend * sinf(vib_phase);
+                vib_phase += vib_phase_inc;
+                if (vib_phase > 2.0f * M_PI) vib_phase -= 2.0f * M_PI;
+            }
+
+            /* Synthesize with harmonics */
+            float raw = synth_sample(phase, vib_mod);
+            int16_t sample = (int16_t)(env * amplitude * raw);
+
             phase += phase_inc;
             if (phase > 2.0f * M_PI) phase -= 2.0f * M_PI;
 
@@ -224,7 +384,19 @@ static bool play_note(float freq, int dur_ms)
         write_stereo(s_stereo_buf, chunk);
         pos += chunk;
     }
+
+    /* Articulation gap (silence between notes) */
+    if (gap_ms > 0) {
+        play_silence(gap_ms);
+    }
+
     return s_stop_req;
+}
+
+/* Legacy wrapper for startup chime (no accent) */
+static bool play_note(float freq, int dur_ms)
+{
+    return play_note_ex(freq, dur_ms, 0.8f);
 }
 
 /* ── Audio Task ───────────────────────────────────────── */
@@ -252,27 +424,95 @@ static void audio_task(void *arg)
                 s_note_index = 0;
                 s_playing = true;
 
-                ESP_LOGI(TAG, "Playing: %s (%d notes)", song->title, song->note_count);
+                /* Tempo scaling: song data written at 120 BPM.
+                 * Scale durations to the song's actual tempo.
+                 * tempo_scale > 1.0 = slower, < 1.0 = faster */
+                float tempo_scale = 120.0f / (float)song->tempo_bpm;
 
-                /* Small gap before song starts */
+                /* Metric accent: compute beat position within measure.
+                 * Strong beat (beat 1) = accent 1.0
+                 * Medium beat = 0.7 (beat 3 in 4/4, beat 4 in 6/8)
+                 * Weak beat = 0.5 */
+                int beat_ms;
+                if (song->time_sig_den == 8) {
+                    beat_ms = (int)(250.0f * tempo_scale); /* eighth note */
+                } else {
+                    beat_ms = (int)(500.0f * tempo_scale); /* quarter note */
+                }
+                int measure_ms;
+                if (song->time_sig_den == 4) {
+                    measure_ms = beat_ms * song->time_sig_num;
+                } else {
+                    measure_ms = (int)(1500.0f * tempo_scale); /* 6/8 */
+                }
+
+                ESP_LOGI(TAG, "Playing: %s (%d notes, %d BPM, %d/%d, scale=%.2f)",
+                         song->title, song->note_count, song->tempo_bpm,
+                         song->time_sig_num, song->time_sig_den, tempo_scale);
+
                 play_silence(200);
+
+                int beat_pos_ms = 0; /* Position within current measure */
 
                 for (int i = 0; i < song->note_count; i++) {
                     if (s_stop_req || s_play_song >= 0) break;
 
                     s_note_index = i;
                     const note_t *n = &song->notes[i];
-                    float freq = midi_to_freq(n->midi_note);
+                    uint8_t note = n->midi_note;
+                    if (note > 0) note += TRANSPOSE_SEMITONES;
+                    float freq = midi_to_freq(note);
 
-                    if (play_note(freq, n->duration_ms)) break;
+                    /* Scale duration by tempo */
+                    int dur_ms = (int)((float)n->duration_ms * tempo_scale);
 
-                    /* Tiny gap between notes for articulation */
-                    play_silence(15);
+                    /* Rallentando: last 3 notes slow down for natural ending */
+                    int remaining = song->note_count - i;
+                    if (remaining <= 3 && remaining > 0) {
+                        float rit = 1.0f + 0.15f * (float)(4 - remaining) / 3.0f;
+                        dur_ms = (int)((float)dur_ms * rit);
+                    }
+
+                    /* Compute metric accent from beat position */
+                    float accent;
+                    if (measure_ms > 0) {
+                        int pos_in_measure = beat_pos_ms % measure_ms;
+                        if (pos_in_measure < beat_ms / 2) {
+                            accent = 1.0f;  /* Beat 1 (downbeat) — strongest */
+                        } else if (song->time_sig_num == 4 && song->time_sig_den == 4 &&
+                                   pos_in_measure >= measure_ms / 2 &&
+                                   pos_in_measure < measure_ms / 2 + beat_ms / 2) {
+                            accent = 0.75f; /* Beat 3 in 4/4 — medium accent */
+                        } else if (song->time_sig_den == 8 &&
+                                   pos_in_measure >= measure_ms / 2 &&
+                                   pos_in_measure < measure_ms / 2 + beat_ms / 2) {
+                            accent = 0.75f; /* Beat 4 in 6/8 — secondary strong */
+                        } else {
+                            accent = 0.55f; /* Off-beat — soft */
+                        }
+                    } else {
+                        accent = 0.8f;
+                    }
+
+                    if (play_note_ex(freq, dur_ms, accent)) break;
+
+                    beat_pos_ms += dur_ms;
                 }
 
                 s_playing = false;
+                ESP_LOGI(TAG, "Song finished: %s", song->title);
+
+                /* Auto-advance based on play mode */
+                if (!s_stop_req && s_play_song < 0) {
+                    int next = next_song_for_mode(idx);
+                    if (next >= 0) {
+                        /* Brief pause between songs */
+                        play_silence(250);
+                        ESP_LOGI(TAG, "Auto-next: song %d (%s)", next, g_songs[next].title);
+                        s_play_song = next;
+                    }
+                }
                 s_current_song = -1;
-                ESP_LOGI(TAG, "Song finished");
             }
         } else {
             /* Idle — output silence to keep I2S DMA happy */
@@ -350,4 +590,28 @@ void audio_player_set_volume(int vol)
 int audio_player_get_volume(void)
 {
     return s_volume;
+}
+
+void audio_player_cycle_mode(void)
+{
+    int m = (int)s_play_mode + 1;
+    if (m >= PLAY_MODE_COUNT) m = 0;
+    s_play_mode = (play_mode_t)m;
+    if (s_play_mode == PLAY_MODE_SHUFFLE) {
+        shuffle_reset(s_current_song);
+    }
+    static const char *names[] = {"Off", "Loop All", "Loop One", "Shuffle"};
+    ESP_LOGI(TAG, "Play mode: %s", names[s_play_mode]);
+}
+
+void audio_player_set_mode(play_mode_t mode)
+{
+    if (mode >= PLAY_MODE_COUNT) mode = PLAY_MODE_OFF;
+    s_play_mode = mode;
+    if (mode == PLAY_MODE_SHUFFLE) shuffle_reset(s_current_song);
+}
+
+play_mode_t audio_player_get_mode(void)
+{
+    return s_play_mode;
 }

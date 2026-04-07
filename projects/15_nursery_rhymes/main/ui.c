@@ -54,6 +54,9 @@ static lv_obj_t *s_np_back_btn  = NULL;
 static lv_obj_t *s_np_vol_label = NULL;
 static lv_obj_t *s_np_vol_up    = NULL;
 static lv_obj_t *s_np_vol_dn    = NULL;
+static lv_obj_t *s_np_mode_btn  = NULL;
+static lv_obj_t *s_np_mode_lbl  = NULL;
+static lv_obj_t *s_np_batt_lbl  = NULL;
 
 /* Lock overlay widgets */
 static lv_obj_t *s_lock_label   = NULL;
@@ -173,6 +176,12 @@ static void back_btn_cb(lv_event_t *e)
     audio_player_stop();
 }
 
+static void mode_btn_cb(lv_event_t *e)
+{
+    (void)e;
+    audio_player_cycle_mode();
+}
+
 static void vol_up_cb(lv_event_t *e)
 {
     (void)e;
@@ -242,11 +251,32 @@ static void build_now_playing(lv_obj_t *parent)
     lv_obj_set_style_radius(s_np_progress, 6, 0);
     lv_obj_set_style_radius(s_np_progress, 6, LV_PART_INDICATOR);
 
+    /* Battery gauge (top-right) */
+    s_np_batt_lbl = create_label(s_now_playing, LV_SYMBOL_BATTERY_FULL " 100%",
+                                  &lv_font_montserrat_12, COL_TEXT_DIM);
+    lv_obj_align(s_np_batt_lbl, LV_ALIGN_TOP_RIGHT, -12, 14);
+
+    /* Play mode button (below progress bar) */
+    s_np_mode_btn = lv_obj_create(s_now_playing);
+    lv_obj_remove_style_all(s_np_mode_btn);
+    lv_obj_set_size(s_np_mode_btn, 160, 34);
+    lv_obj_align(s_np_mode_btn, LV_ALIGN_TOP_MID, 0, 240);
+    lv_obj_set_style_bg_color(s_np_mode_btn, COL_ITEM_BG, 0);
+    lv_obj_set_style_bg_opa(s_np_mode_btn, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(s_np_mode_btn, COL_ITEM_PRESSED, LV_STATE_PRESSED);
+    lv_obj_set_style_radius(s_np_mode_btn, 17, 0);
+    lv_obj_add_flag(s_np_mode_btn, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_clear_flag(s_np_mode_btn, LV_OBJ_FLAG_SCROLLABLE);
+    s_np_mode_lbl = create_label(s_np_mode_btn, LV_SYMBOL_RIGHT " Play Once",
+                                  &lv_font_montserrat_14, COL_TEXT);
+    lv_obj_center(s_np_mode_lbl);
+    lv_obj_add_event_cb(s_np_mode_btn, mode_btn_cb, LV_EVENT_CLICKED, NULL);
+
     /* Stop button (large, centered) */
     s_np_stop_btn = lv_obj_create(s_now_playing);
     lv_obj_remove_style_all(s_np_stop_btn);
     lv_obj_set_size(s_np_stop_btn, 80, 80);
-    lv_obj_align(s_np_stop_btn, LV_ALIGN_TOP_MID, 0, 270);
+    lv_obj_align(s_np_stop_btn, LV_ALIGN_TOP_MID, 0, 290);
     lv_obj_set_style_bg_color(s_np_stop_btn, COL_STOP_BTN, 0);
     lv_obj_set_style_bg_opa(s_np_stop_btn, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(s_np_stop_btn, 40, 0);
@@ -261,7 +291,7 @@ static void build_now_playing(lv_obj_t *parent)
     s_np_vol_dn = lv_obj_create(s_now_playing);
     lv_obj_remove_style_all(s_np_vol_dn);
     lv_obj_set_size(s_np_vol_dn, 50, 40);
-    lv_obj_align(s_np_vol_dn, LV_ALIGN_TOP_MID, -80, 380);
+    lv_obj_align(s_np_vol_dn, LV_ALIGN_TOP_MID, -80, 395);
     lv_obj_set_style_bg_color(s_np_vol_dn, COL_ITEM_BG, 0);
     lv_obj_set_style_bg_opa(s_np_vol_dn, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(s_np_vol_dn, 8, 0);
@@ -274,12 +304,12 @@ static void build_now_playing(lv_obj_t *parent)
 
     s_np_vol_label = create_label(s_now_playing, "Vol: 70",
                                    &lv_font_montserrat_14, COL_TEXT_DIM);
-    lv_obj_align(s_np_vol_label, LV_ALIGN_TOP_MID, 0, 388);
+    lv_obj_align(s_np_vol_label, LV_ALIGN_TOP_MID, 0, 403);
 
     s_np_vol_up = lv_obj_create(s_now_playing);
     lv_obj_remove_style_all(s_np_vol_up);
     lv_obj_set_size(s_np_vol_up, 50, 40);
-    lv_obj_align(s_np_vol_up, LV_ALIGN_TOP_MID, 80, 380);
+    lv_obj_align(s_np_vol_up, LV_ALIGN_TOP_MID, 80, 395);
     lv_obj_set_style_bg_color(s_np_vol_up, COL_ITEM_BG, 0);
     lv_obj_set_style_bg_opa(s_np_vol_up, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(s_np_vol_up, 8, 0);
@@ -349,12 +379,17 @@ void ui_update(void)
         lv_bar_set_value(s_np_progress, audio_player_progress(), LV_ANIM_ON);
     }
 
-    /* Transition back to song list when song ends */
+    /* Transition back to song list when song ends (only in play-once mode) */
     if (!playing && s_last_playing >= 0) {
-        lv_obj_clear_flag(s_song_list, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(s_now_playing, LV_OBJ_FLAG_HIDDEN);
-        lv_bar_set_value(s_np_progress, 0, LV_ANIM_OFF);
-        s_last_playing = -1;
+        play_mode_t m = audio_player_get_mode();
+        if (m == PLAY_MODE_OFF) {
+            /* No auto-advance — return to list */
+            lv_obj_clear_flag(s_song_list, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(s_now_playing, LV_OBJ_FLAG_HIDDEN);
+            lv_bar_set_value(s_np_progress, 0, LV_ANIM_OFF);
+            s_last_playing = -1;
+        }
+        /* Otherwise stay on now-playing — next song will start shortly */
     }
 
     /* Update volume label */
@@ -365,6 +400,38 @@ void ui_update(void)
         snprintf(buf, sizeof(buf), "Vol: %d", vol);
         lv_label_set_text(s_np_vol_label, buf);
         s_last_vol = vol;
+    }
+
+    /* Update play mode label */
+    static play_mode_t s_last_mode = PLAY_MODE_COUNT;
+    play_mode_t mode = audio_player_get_mode();
+    if (mode != s_last_mode) {
+        static const char *mode_labels[] = {
+            LV_SYMBOL_RIGHT " Play Once",
+            LV_SYMBOL_LOOP " Loop All",
+            LV_SYMBOL_REFRESH " Loop One",
+            LV_SYMBOL_SHUFFLE " Shuffle",
+        };
+        lv_label_set_text(s_np_mode_lbl, mode_labels[mode]);
+        s_last_mode = mode;
+    }
+
+    /* Update battery gauge (every ~2 seconds via counter) */
+    static int s_batt_tick = 0;
+    if (++s_batt_tick >= 20) {  /* 20 × 100ms timer = 2s */
+        s_batt_tick = 0;
+        amoled_battery_info_t batt;
+        if (amoled_get_battery_info(&batt) == ESP_OK) {
+            char buf[24];
+            const char *icon = batt.percentage > 75 ? LV_SYMBOL_BATTERY_FULL :
+                               batt.percentage > 50 ? LV_SYMBOL_BATTERY_3 :
+                               batt.percentage > 25 ? LV_SYMBOL_BATTERY_2 :
+                               batt.percentage > 10 ? LV_SYMBOL_BATTERY_1 :
+                                                      LV_SYMBOL_BATTERY_EMPTY;
+            snprintf(buf, sizeof(buf), "%s %d%%%s", icon, batt.percentage,
+                     batt.charging ? " " LV_SYMBOL_CHARGE : "");
+            lv_label_set_text(s_np_batt_lbl, buf);
+        }
     }
 }
 
