@@ -32,6 +32,9 @@ Built with an **agentic-first development workflow** — each project is develop
 | 11 | [MCP Canvas](projects/11_mcp_canvas/) | MCP server — AI draws to AMOLED over WiFi (12 tools, battery, power) |
 | 12 | [Baby Cry DSP](projects/12_baby_cry_dsp/) | Baby cry detection via pure DSP — FFT spectrum, adaptive threshold, SD logging |
 | 13 | [Baby Cry VAD](projects/13_baby_cry_vad/) | Baby cry detection with VAD gate + DSP (ESP-SR research documented) |
+| 14 | [Sensory Play](projects/14_sensory_play/) | IMU-driven sensory toy — particle physics, tilt gestures, touch keyboard |
+| 15 | [Nursery Rhymes](projects/15_nursery_rhymes/) | Music-box player with realistic synthesis — harmonics, metric accent, vibrato, tempo |
+| 16 | [BitChat Relay](projects/16_bitchat_relay/) | BLE mesh relay for BitChat protocol — opaque forwarding, telemetry dashboard, SD logging |
 
 ### MCP Canvas Demo
 
@@ -42,6 +45,19 @@ An AI agent controls the 368x448 AMOLED display over WiFi using the [Model Conte
 </p>
 
 **12 MCP tools:** `clear_canvas` `draw_rect` `draw_line` `draw_arc` `draw_text` `draw_path` `get_canvas_info` `get_canvas_snapshot` `get_battery_info` `set_brightness` `get_system_info` `power_off`
+
+### Nursery Rhyme Player
+
+20 classic nursery rhymes with a realistic music-box synthesis engine. Demonstrates applied music theory in embedded C:
+
+- **4-harmonic timbre** (fundamental + octave + fifth + double-octave) — sounds like a glockenspiel, not a beep
+- **Tempo-aware playback** — lullabies at 80 BPM, action songs at 120 BPM
+- **Metric accent** — downbeats louder, off-beats softer, derived from time signature (4/4, 3/4, 6/8)
+- **Duration-proportional ADSR** — short notes snap, long notes breathe
+- **Vibrato + rallentando** — pitch wobble on sustained notes, natural slowdown at endings
+- **Rhythm-audited** — automated Python script verifies every song sums to complete measures
+
+Touch UI with song list, now-playing progress, volume, loop/shuffle modes, battery gauge, child lock.
 
 ### Baby Cry Detection
 
@@ -89,7 +105,10 @@ ESP32-C6-Touch-AMOLED-1.8/
 ├── projects/
 │   ├── 11_mcp_canvas/       # MCP server with 12 drawing + device tools
 │   ├── 12_baby_cry_dsp/     # Baby cry detection — pure DSP, FFT spectrum, SD logging
-│   └── 13_baby_cry_vad/     # Baby cry detection — VAD gate + DSP (ESP-SR research)
+│   ├── 13_baby_cry_vad/     # Baby cry detection — VAD gate + DSP (ESP-SR research)
+│   ├── 14_sensory_play/     # IMU-driven sensory toy — particles, tilt, music keyboard
+│   ├── 15_nursery_rhymes/   # Music-box player — harmonic synthesis, music theory
+│   └── 16_bitchat_relay/    # BLE mesh relay — BitChat protocol, AMOLED telemetry
 ├── ref/                     # Vendor reference code (gitignored)
 ├── docs/                    # Board research, reference documents
 ├── .claude/commands/        # Agent skills for Claude Code

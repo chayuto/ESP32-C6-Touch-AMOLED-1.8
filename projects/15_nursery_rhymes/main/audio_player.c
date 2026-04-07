@@ -385,6 +385,23 @@ static bool play_note_ex(float freq, int dur_ms, float accent)
         pos += chunk;
     }
 
+    /* Anti-click: write 2ms of rapid fade to guarantee zero-crossing
+     * before the articulation silence. Prevents DC offset pop. */
+    {
+        int fade_samples = SAMPLE_RATE * 2 / 1000;  /* 2ms = 32 samples */
+        if (fade_samples > CHUNK_SAMPLES) fade_samples = CHUNK_SAMPLES;
+        for (int i = 0; i < fade_samples; i++) {
+            float fade = 1.0f - (float)i / (float)fade_samples;
+            float raw = synth_sample(phase, 1.0f);
+            int16_t sample = (int16_t)(fade * amplitude * 0.1f * raw);
+            phase += phase_inc;
+            if (phase > 2.0f * M_PI) phase -= 2.0f * M_PI;
+            s_stereo_buf[i * 2]     = sample;
+            s_stereo_buf[i * 2 + 1] = sample;
+        }
+        write_stereo(s_stereo_buf, fade_samples);
+    }
+
     /* Articulation gap (silence between notes) */
     if (gap_ms > 0) {
         play_silence(gap_ms);
