@@ -106,4 +106,104 @@ menu "Nursery Rhyme Song Selection"
         default y
         depends on !SONG_INCLUDE_ALL
 
+    config SONG_THIS_OLD_MAN
+        bool "21. This Old Man"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_FARMER_DELL
+        bool "22. The Farmer in the Dell"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_BINGO
+        bool "23. BINGO"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_LITTLE_TEAPOT
+        bool "24. I'm a Little Teapot"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_ALOUETTE
+        bool "25. Alouette"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_OH_SUSANNA
+        bool "26. Oh! Susanna"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_COMING_ROUND
+        bool "27. She'll Be Coming Round the Mountain"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_MUFFIN_MAN
+        bool "28. The Muffin Man"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_SIXPENCE
+        bool "29. Sing a Song of Sixpence"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_CLEMENTINE
+        bool "30. Oh My Darling Clementine"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_DOWN_STATION
+        bool "31. Down by the Station"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_FIVE_DUCKS
+        bool "32. Five Little Ducks"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_BEAR_MOUNTAIN
+        bool "33. The Bear Went Over the Mountain"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_LAVENDERS_BLUE
+        bool "34. Lavender's Blue"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_MY_BONNIE
+        bool "35. My Bonnie"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_POLLY_KETTLE
+        bool "36. Polly Put the Kettle On"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_BO_PEEP
+        bool "37. Little Bo Peep"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_HEY_DIDDLE
+        bool "38. Hey Diddle Diddle"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_SKIP_TO_LOU
+        bool "39. Skip to My Lou"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
+    config SONG_RAILROAD
+        bool "40. I've Been Working on the Railroad"
+        default y
+        depends on !SONG_INCLUDE_ALL
+
 endmenu

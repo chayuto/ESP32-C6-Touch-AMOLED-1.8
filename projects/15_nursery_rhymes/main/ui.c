@@ -67,7 +67,7 @@ static bool s_screen_off   = false;
 static int  s_last_playing = -1;
 
 /* Song list item buttons */
-static lv_obj_t *s_song_btns[20];
+static lv_obj_t *s_song_btns[40];
 
 /* ── Helpers ──────────────────────────────────────────── */
 
@@ -119,7 +119,7 @@ static void build_song_list(lv_obj_t *parent)
     lv_obj_align(title, LV_ALIGN_LEFT_MID, 0, 0);
 
     /* Song buttons */
-    for (int i = 0; i < g_song_count && i < 20; i++) {
+    for (int i = 0; i < g_song_count && i < 40; i++) {
         lv_obj_t *btn = lv_obj_create(s_song_list);
         lv_obj_remove_style_all(btn);
         lv_obj_set_size(btn, SCR_W - 16, 56);

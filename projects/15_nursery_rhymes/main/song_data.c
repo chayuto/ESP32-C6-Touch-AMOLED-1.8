@@ -379,6 +379,387 @@ static const note_t happy_know_it_notes[] = {
 };
 
 /* ═══════════════════════════════════════════════════════════════
+ * 21. This Old Man (Knick-Knack Paddy Whack)
+ *     Key: C major, 4/4, ~120 BPM
+ *     Traditional English counting song
+ *     Src: singing-bell.com, zebrakeys.com
+ * ═══════════════════════════════════════════════════════════════ */
+static const note_t this_old_man_notes[] = {
+    /* This old man, he played one */
+    {G4, Q}, {E4, Q}, {G4, Q}, {G4, Q},
+    /* He played knick-knack on my thumb */
+    {A4, Q}, {G4, Q}, {E4, Q}, {REST, Q},
+    /* With a knick-knack pad-dy whack give the dog a bone */
+    {C4, E}, {D4, E}, {E4, E}, {F4, E}, {E4, E}, {D4, E}, {C4, E}, {E4, E}, {D4, Q}, {G3, Q},
+    /* This old man came roll-ing home */
+    {C4, Q}, {D4, Q}, {E4, Q}, {F4, Q}, {E4, Q}, {D4, Q}, {C4, H},
+};
+
+/* ═══════════════════════════════════════════════════════════════
+ * 22. The Farmer in the Dell
+ *     Key: C major, 6/8, ~120 BPM
+ *     Traditional singing game
+ *     Src: singing-bell.com, musicnotes.com
+ * ═══════════════════════════════════════════════════════════════ */
+static const note_t farmer_dell_notes[] = {
+    /* The far-mer in the dell */
+    {G4, E}, {G4, DQ}, {G4, E}, {A4, E}, {B4, DQ},
+    /* The far-mer in the dell */
+    {B4, E}, {B4, DQ}, {B4, E}, {A4, E}, {B4, DQ},
+    /* Hi-ho the der-ry-o */
+    {C5, DQ}, {B4, E}, {A4, E}, {G4, E},
+    /* The far-mer in the dell */
+    {A4, DQ}, {G4, DQ}, {G4, DH},
+};
+
+/* ═══════════════════════════════════════════════════════════════
+ * 23. BINGO
+ *     Key: G major (transposed to C), 4/4, ~120 BPM
+ *     Traditional spelling song
+ *     Src: bethsnotesplus.com, zebrakeys.com
+ * ═══════════════════════════════════════════════════════════════ */
+static const note_t bingo_notes[] = {
+    /* There was a far-mer had a dog and Bin-go was his name-o */
+    {G4, Q}, {C5, Q}, {C5, Q}, {D5, Q}, {D5, Q}, {E5, Q}, {D5, Q}, {C5, Q},
+    {B4, Q}, {A4, Q}, {B4, Q}, {C5, Q}, {A4, H}, {REST, H},
+    /* B - I - N - G - O */
+    {G4, Q}, {G4, Q}, {A4, Q}, {A4, Q}, {B4, Q}, {B4, Q}, {A4, H},
+    /* B - I - N - G - O */
+    {G4, Q}, {G4, Q}, {A4, Q}, {A4, Q}, {B4, Q}, {B4, Q}, {A4, H},
+    /* And Bin-go was his name-o */
+    {G4, Q}, {C5, Q}, {B4, Q}, {A4, Q}, {G4, W},
+};
+
+/* ═══════════════════════════════════════════════════════════════
+ * 24. I'm a Little Teapot
+ *     Key: C major, 4/4, ~110 BPM
+ *     George Harold Sanders (1939), public domain
+ *     Src: noobnotes.net (verified letter notes)
+ * ═══════════════════════════════════════════════════════════════ */
+static const note_t little_teapot_notes[] = {
+    /* I'm a lit-tle tea-pot short and stout */
+    {C4, Q}, {D4, Q}, {E4, Q}, {F4, Q}, {G4, Q}, {C5, H}, {A4, Q},
+    {C5, Q}, {G4, H}, {REST, Q},
+    /* Here is my han-dle here is my spout */
+    {F4, Q}, {F4, Q}, {F4, Q}, {E4, Q}, {E4, H},
+    {D4, Q}, {D4, Q}, {D4, Q}, {C4, Q},
+    /* When I get all steamed up hear me shout */
+    {C4, Q}, {D4, Q}, {E4, Q}, {F4, Q}, {G4, Q}, {C5, H}, {A4, Q},
+    {C5, Q}, {G4, H}, {REST, Q},
+    /* Tip me o-ver and pour me out */
+    {C5, Q}, {A4, Q}, {G4, Q}, {G4, Q}, {F4, Q}, {E4, Q}, {D4, Q}, {C4, Q},
+};
+
+/* ═══════════════════════════════════════════════════════════════
+ * 25. Alouette
+ *     Key: C major, 4/4, ~120 BPM
+ *     Traditional French-Canadian folk song
+ *     Src: carvedculture.com PD list, bethsnotesplus.com
+ * ═══════════════════════════════════════════════════════════════ */
+static const note_t alouette_notes[] = {
+    /* A-lou-et-te, gen-tille a-lou-et-te */
+    {G4, Q}, {E4, Q}, {F4, Q}, {G4, Q}, {A4, Q}, {A4, Q}, {A4, H},
+    /* A-lou-et-te, je te plu-me-rai */
+    {A4, Q}, {G4, Q}, {F4, Q}, {G4, Q}, {A4, Q}, {G4, Q}, {F4, H},
+    /* Je te plu-me-rai la tete */
+    {F4, E}, {F4, E}, {F4, E}, {F4, E}, {E4, Q}, {F4, Q},
+    /* Je te plu-me-rai la tete */
+    {F4, E}, {F4, E}, {F4, E}, {F4, E}, {E4, Q}, {F4, Q},
+    /* Et la tete! A-lou-ette! Oh — */
+    {G4, Q}, {E4, Q}, {G4, Q}, {E4, Q}, {F4, H},
+    /* A-lou-et-te, gen-tille a-lou-et-te */
+    {G4, Q}, {E4, Q}, {F4, Q}, {G4, Q}, {A4, Q}, {A4, Q}, {A4, H},
+    /* A-lou-et-te, je te plu-me-rai */
+    {A4, Q}, {G4, Q}, {F4, Q}, {G4, Q}, {A4, Q}, {G4, Q}, {F4, H},
+};
+
+/* ═══════════════════════════════════════════════════════════════
+ * 26. Oh! Susanna
+ *     Key: C major, 4/4, ~120 BPM
+ *     Stephen Foster (1848), public domain
+ *     Src: noobnotes.net (verified letter notes)
+ * ═══════════════════════════════════════════════════════════════ */
+static const note_t oh_susanna_notes[] = {
+    /* Oh I come from Al-a-ba-ma with a ban-jo on my knee */
+    {C4, E}, {D4, E}, {E4, Q}, {G4, Q}, {G4, E}, {A4, E}, {G4, Q}, {E4, Q},
+    {C4, E}, {D4, E}, {E4, Q}, {E4, Q}, {D4, Q}, {C4, Q}, {D4, H},
+    /* I'm goin' to Lou'-si-a-na my true love for to see */
+    {C4, E}, {D4, E}, {E4, Q}, {G4, Q}, {G4, E}, {A4, E}, {G4, Q}, {E4, Q},
+    {C4, E}, {D4, E}, {E4, Q}, {E4, Q}, {D4, Q}, {D4, Q}, {C4, H},
+    /* Oh! Su-san-na, oh don't you cry for me */
+    {F4, Q}, {A4, Q}, {A4, Q}, {B4, Q},
+    {C5, Q}, {A4, Q}, {G4, Q}, {E4, H},
+    /* I come from Al-a-ba-ma with a ban-jo on my knee */
+    {C4, E}, {D4, E}, {E4, Q}, {G4, Q}, {G4, E}, {A4, E}, {G4, Q}, {E4, Q},
+    {C4, E}, {D4, E}, {E4, Q}, {E4, Q}, {D4, Q}, {D4, Q}, {C4, W},
+};
+
+/* ═══════════════════════════════════════════════════════════════
+ * 27. She'll Be Coming Round the Mountain
+ *     Key: C major, 4/4, ~120 BPM
+ *     Traditional American folk song
+ *     Src: noobnotes.net (verified letter notes)
+ * ═══════════════════════════════════════════════════════════════ */
+static const note_t coming_round_notes[] = {
+    /* She'll be com-ing round the moun-tain when she comes */
+    {G4, E}, {A4, E}, {C5, Q}, {C5, Q}, {C5, Q}, {C5, Q}, {A4, Q}, {G4, Q},
+    {E4, Q}, {G4, Q}, {C5, W},
+    /* She'll be com-ing round the moun-tain when she comes */
+    {C5, E}, {D5, E}, {E5, Q}, {E5, Q}, {E5, Q}, {E5, Q}, {G5, Q}, {E5, Q},
+    {D5, Q}, {C5, Q}, {D5, W},
+    /* She'll be com-ing round the moun-tain, com-ing round the moun-tain */
+    {G4, E}, {G4, E}, {E5, Q}, {E5, Q}, {E5, Q}, {E5, Q}, {D5, Q}, {C5, Q},
+    {G4, Q}, {C5, Q}, {C5, Q}, {G4, Q}, {REST, Q},
+    /* She'll be com-ing round the moun-tain when she comes */
+    {E5, Q}, {E5, Q}, {E5, Q}, {D5, Q}, {C5, Q}, {B4, Q}, {C5, W},
+};
+
+/* ═══════════════════════════════════════════════════════════════
+ * 28. The Muffin Man
+ *     Key: C major, 4/4, ~112 BPM
+ *     Traditional English (1820)
+ *     Src: musicnotes.com, 8notes.com
+ * ═══════════════════════════════════════════════════════════════ */
+static const note_t muffin_man_notes[] = {
+    /* Oh do you know the muf-fin man, the */
+    {E4, DQ}, {E4, E}, {F4, Q}, {G4, Q}, {G4, Q}, {A4, Q}, {G4, Q},
+    /* muf-fin man, the muf-fin man? */
+    {F4, Q}, {E4, Q}, {D4, Q}, {E4, Q}, {F4, H},
+    /* Oh do you know the muf-fin man who */
+    {E4, DQ}, {E4, E}, {F4, Q}, {G4, Q}, {G4, Q}, {A4, Q}, {G4, Q},
+    /* lives on Dru-ry Lane? */
+    {F4, Q}, {E4, Q}, {D4, Q}, {D4, Q}, {C4, W},
+};
+
+/* ═══════════════════════════════════════════════════════════════
+ * 29. Sing a Song of Sixpence
+ *     Key: C major, 4/4, ~110 BPM
+ *     Traditional English (1744)
+ *     Src: musicnotes.com, bethsnotesplus.com
+ * ═══════════════════════════════════════════════════════════════ */
+static const note_t sixpence_notes[] = {
+    /* Sing a song of six-pence, a pock-et full of rye */
+    {G4, E}, {E4, E}, {E4, Q}, {F4, E}, {D4, E}, {D4, Q},
+    {E4, E}, {F4, E}, {G4, Q}, {A4, H},
+    /* Four and twen-ty black-birds baked in a pie */
+    {G4, E}, {E4, E}, {E4, Q}, {F4, E}, {D4, E}, {D4, Q},
+    {E4, Q}, {D4, Q}, {C4, H},
+    /* When the pie was o-pened the birds be-gan to sing */
+    {G4, E}, {E4, E}, {E4, Q}, {F4, E}, {D4, E}, {D4, Q},
+    {E4, E}, {F4, E}, {G4, Q}, {A4, H},
+    /* Was-n't that a dain-ty dish to set be-fore the king? */
+    {A4, E}, {B4, E}, {C5, Q}, {A4, E}, {B4, E}, {C5, Q},
+    {G4, Q}, {F4, Q}, {E4, Q}, {D4, Q}, {C4, W},
+};
+
+/* ═══════════════════════════════════════════════════════════════
+ * 30. Oh My Darling Clementine
+ *     Key: C major, 3/4, ~100 BPM
+ *     Percy Montrose (1884), public domain
+ *     Src: pianoletternotes.blogspot.com (verified)
+ * ═══════════════════════════════════════════════════════════════ */
+static const note_t clementine_notes[] = {
+    /* Oh my dar-ling, oh my dar-ling */
+    {E4, Q}, {E4, Q}, {E4, Q}, {G4, DH}, {G4, Q}, {G4, Q}, {E4, Q},
+    /* Oh my dar-ling Cle-men-tine */
+    {G4, Q}, {G4, Q}, {A4, Q}, {G4, Q}, {F4, Q}, {E4, Q},
+    /* You are lost and gone for-ev-er */
+    {F4, DH}, {F4, Q}, {F4, Q}, {E4, Q}, {D4, DH},
+    {D4, Q}, {E4, Q}, {F4, Q},
+    /* Dread-ful sor-ry, Cle-men-tine */
+    {F4, Q}, {E4, Q}, {D4, Q}, {E4, DH},
+    {C4, Q}, {C4, Q}, {C4, Q}, {C4, DH},
+};
+
+/* ═══════════════════════════════════════════════════════════════
+ * 31. Down by the Station
+ *     Key: C major, 4/4, ~120 BPM
+ *     Traditional American (early 1900s)
+ *     Src: musicnotes.com, bethsnotesplus.com
+ * ═══════════════════════════════════════════════════════════════ */
+static const note_t down_station_notes[] = {
+    /* Down by the sta-tion ear-ly in the morn-ing */
+    {C4, Q}, {C4, Q}, {E4, Q}, {E4, Q}, {G4, Q}, {G4, Q}, {E4, H},
+    {F4, Q}, {F4, Q}, {E4, Q}, {E4, Q}, {D4, W},
+    /* See the lit-tle puf-fer-bil-lies all in a row */
+    {C4, Q}, {C4, Q}, {E4, Q}, {E4, Q}, {G4, Q}, {G4, Q}, {E4, H},
+    {D4, Q}, {D4, Q}, {D4, Q}, {E4, Q}, {C4, W},
+};
+
+/* ═══════════════════════════════════════════════════════════════
+ * 32. Five Little Ducks
+ *     Key: C major, 4/4, ~110 BPM
+ *     Traditional counting song
+ *     Src: musicnotes.com, bethsnotesplus.com
+ * ═══════════════════════════════════════════════════════════════ */
+static const note_t five_ducks_notes[] = {
+    /* Five lit-tle ducks went out one day */
+    {C4, Q}, {D4, Q}, {E4, Q}, {F4, Q}, {G4, Q}, {G4, Q}, {G4, H},
+    /* O-ver the hills and far a-way */
+    {A4, Q}, {A4, Q}, {G4, H}, {A4, Q}, {A4, Q}, {G4, H},
+    /* Mo-ther duck said quack quack quack quack */
+    {E4, Q}, {E4, Q}, {D4, Q}, {D4, Q}, {C4, Q}, {C4, Q}, {D4, H},
+    /* But on-ly four lit-tle ducks came back */
+    {E4, Q}, {E4, Q}, {F4, Q}, {F4, Q}, {G4, Q}, {F4, Q}, {E4, Q}, {D4, Q}, {C4, W},
+};
+
+/* ═══════════════════════════════════════════════════════════════
+ * 33. The Bear Went Over the Mountain
+ *     Key: C major, 3/4, ~120 BPM
+ *     Traditional (same melody as "For He's a Jolly Good Fellow")
+ *     Src: carvedculture.com PD list, 8notes.com
+ * ═══════════════════════════════════════════════════════════════ */
+static const note_t bear_mountain_notes[] = {
+    /* The bear went o-ver the moun-tain */
+    {C4, Q}, {E4, Q}, {E4, Q}, {E4, Q}, {D4, Q}, {E4, Q},
+    {F4, Q}, {F4, Q}, {F4, Q}, {E4, Q}, {F4, Q}, {G4, Q},
+    /* The bear went o-ver the moun-tain */
+    {A4, Q}, {G4, Q}, {F4, Q}, {E4, Q}, {D4, Q}, {E4, Q},
+    {F4, DH}, {D4, DH},
+    /* To see what he could see */
+    {D4, Q}, {E4, Q}, {F4, Q}, {G4, DH},
+    {C4, Q}, {C4, Q}, {C4, Q}, {C4, DH},
+};
+
+/* ═══════════════════════════════════════════════════════════════
+ * 34. Lavender's Blue
+ *     Key: C major, 3/4 (waltz), ~100 BPM
+ *     Traditional English folk song (1672)
+ *     Src: musicnotes.com, bethsnotesplus.com
+ * ═══════════════════════════════════════════════════════════════ */
+static const note_t lavenders_blue_notes[] = {
+    /* Lav-en-der's blue, dil-ly dil-ly */
+    {C4, Q}, {E4, Q}, {G4, Q}, {G4, H}, {A4, Q},
+    /* Lav-en-der's green */
+    {G4, Q}, {F4, Q}, {E4, Q}, {D4, DH},
+    /* When I am king, dil-ly dil-ly */
+    {D4, Q}, {F4, Q}, {A4, Q}, {A4, H}, {B4, Q},
+    /* You shall be queen */
+    {A4, Q}, {G4, Q}, {F4, Q}, {E4, DH},
+    /* Who told you so, dil-ly dil-ly */
+    {C4, Q}, {E4, Q}, {G4, Q}, {G4, H}, {A4, Q},
+    /* Who told you so? */
+    {G4, Q}, {F4, Q}, {E4, Q}, {D4, DH},
+    /* 'Twas my own heart, dil-ly dil-ly */
+    {D4, Q}, {F4, Q}, {A4, Q}, {A4, H}, {G4, Q},
+    /* That told me so */
+    {F4, Q}, {E4, Q}, {D4, Q}, {C4, DH},
+};
+
+/* ═══════════════════════════════════════════════════════════════
+ * 35. My Bonnie Lies Over the Ocean
+ *     Key: C major, 3/4, ~108 BPM
+ *     Traditional Scottish folk song (1881)
+ *     Src: musicnotes.com, bethsnotesplus.com
+ * ═══════════════════════════════════════════════════════════════ */
+static const note_t my_bonnie_notes[] = {
+    /* My Bon-nie lies o-ver the o-cean */
+    {G4, Q}, {E4, Q}, {G4, Q}, {A4, Q}, {G4, Q}, {E4, Q}, {D4, DH},
+    /* My Bon-nie lies o-ver the sea */
+    {E4, Q}, {C4, Q}, {E4, Q}, {G4, Q}, {F4, Q}, {E4, Q}, {D4, DH},
+    /* My Bon-nie lies o-ver the o-cean */
+    {G4, Q}, {E4, Q}, {G4, Q}, {A4, Q}, {G4, Q}, {E4, Q}, {D4, DH},
+    /* Oh bring back my Bon-nie to me */
+    {E4, Q}, {G4, Q}, {F4, Q}, {E4, Q}, {D4, Q}, {F4, Q}, {E4, DH},
+    /* Bring back, bring back, oh bring back my Bon-nie to me, to me */
+    {C5, Q}, {C5, Q}, {A4, Q}, {G4, Q}, {E4, Q}, {C4, Q},
+    {D4, Q}, {D4, Q}, {E4, Q}, {D4, Q}, {F4, Q}, {E4, Q},
+    /* Bring back, bring back, oh bring back my Bon-nie to me */
+    {C5, Q}, {C5, Q}, {A4, Q}, {G4, Q}, {E4, Q}, {C4, Q},
+    {E4, Q}, {G4, Q}, {F4, Q}, {E4, Q}, {D4, Q}, {D4, Q}, {C4, DH},
+};
+
+/* ═══════════════════════════════════════════════════════════════
+ * 36. Polly Put the Kettle On
+ *     Key: C major, 4/4, ~112 BPM
+ *     Traditional English (1797)
+ *     Src: musicnotes.com, bethsnotesplus.com
+ * ═══════════════════════════════════════════════════════════════ */
+static const note_t polly_kettle_notes[] = {
+    /* Pol-ly put the ket-tle on */
+    {E4, Q}, {E4, E}, {F4, E}, {G4, Q}, {E4, Q},
+    /* Pol-ly put the ket-tle on */
+    {E4, Q}, {E4, E}, {F4, E}, {G4, Q}, {E4, Q},
+    /* Pol-ly put the ket-tle on, we'll all have tea */
+    {E4, Q}, {E4, E}, {F4, E}, {G4, Q}, {E4, Q},
+    {D4, Q}, {F4, Q}, {E4, Q}, {D4, Q}, {C4, W},
+};
+
+/* ═══════════════════════════════════════════════════════════════
+ * 37. Little Bo Peep
+ *     Key: C major, 6/8, ~100 BPM
+ *     Traditional English
+ *     Src: musicnotes.com, 8notes.com
+ * ═══════════════════════════════════════════════════════════════ */
+static const note_t bo_peep_notes[] = {
+    /* Lit-tle Bo Peep has lost her sheep and */
+    {E4, E}, {G4, DQ}, {G4, E}, {A4, E}, {G4, DQ}, {E4, DQ},
+    /* does-n't know where to find them */
+    {D4, E}, {E4, E}, {D4, E}, {C4, E}, {E4, E}, {G4, DQ},
+    /* Leave them a-lone and they'll come home */
+    {E4, E}, {G4, DQ}, {G4, E}, {A4, E}, {G4, DQ}, {E4, DQ},
+    /* Wag-ging their tails be-hind them */
+    {D4, E}, {E4, E}, {G4, E}, {F4, DQ}, {D4, E}, {C4, DH},
+};
+
+/* ═══════════════════════════════════════════════════════════════
+ * 38. Hey Diddle Diddle
+ *     Key: C major, 6/8, ~108 BPM
+ *     Traditional English
+ *     Src: musicnotes.com, bethsnotesplus.com
+ * ═══════════════════════════════════════════════════════════════ */
+static const note_t hey_diddle_notes[] = {
+    /* Hey did-dle did-dle the cat and the fid-dle */
+    {G4, E}, {E4, E}, {E4, E}, {E4, E}, {G4, E}, {G4, E},
+    {A4, E}, {G4, E}, {F4, E}, {E4, E}, {D4, E}, {C4, E},
+    /* The cow jumped o-ver the moon */
+    {D4, E}, {E4, E}, {F4, E}, {G4, DQ}, {G4, DQ},
+    /* The lit-tle dog laughed to see such sport */
+    {G4, E}, {E4, E}, {E4, E}, {E4, E}, {G4, E}, {G4, E},
+    {A4, E}, {G4, E}, {F4, E}, {E4, E}, {D4, E}, {C4, E},
+    /* And the dish ran a-way with the spoon */
+    {D4, E}, {E4, E}, {F4, E}, {E4, Q}, {D4, E}, {C4, DH},
+};
+
+/* ═══════════════════════════════════════════════════════════════
+ * 39. Skip to My Lou
+ *     Key: C major, 4/4, ~120 BPM
+ *     Traditional American folk
+ *     Src: musicnotes.com, bethsnotesplus.com
+ * ═══════════════════════════════════════════════════════════════ */
+static const note_t skip_to_lou_notes[] = {
+    /* Skip skip skip to my Lou */
+    {E4, Q}, {E4, Q}, {E4, Q}, {G4, Q}, {A4, Q}, {A4, Q}, {G4, H},
+    /* Skip skip skip to my Lou */
+    {E4, Q}, {E4, Q}, {E4, Q}, {G4, Q}, {A4, Q}, {A4, Q}, {G4, H},
+    /* Skip skip skip to my Lou */
+    {E4, Q}, {E4, Q}, {E4, Q}, {G4, Q}, {A4, Q}, {A4, Q}, {G4, H},
+    /* Skip to my Lou, my dar-ling */
+    {E4, Q}, {G4, Q}, {F4, Q}, {E4, Q}, {D4, Q}, {E4, Q}, {C4, H},
+};
+
+/* ═══════════════════════════════════════════════════════════════
+ * 40. I've Been Working on the Railroad
+ *     Key: C major, 4/4, ~120 BPM
+ *     Traditional American folk (1894)
+ *     Src: 8notes.com, musicnotes.com
+ * ═══════════════════════════════════════════════════════════════ */
+static const note_t railroad_notes[] = {
+    /* I've been work-ing on the rail-road all the live-long day */
+    {C4, Q}, {E4, Q}, {E4, Q}, {E4, Q}, {E4, DQ}, {F4, E}, {G4, H},
+    {G4, Q}, {F4, Q}, {E4, Q}, {F4, Q}, {G4, W},
+    /* I've been work-ing on the rail-road just to pass the time a-way */
+    {C4, Q}, {E4, Q}, {E4, Q}, {E4, Q}, {E4, DQ}, {F4, E}, {G4, H},
+    {A4, H}, {G4, H}, {E4, W},
+    /* Can't you hear the whis-tle blow-in'? Rise up so ear-ly in the morn */
+    {A4, Q}, {A4, Q}, {A4, Q}, {A4, Q}, {G4, Q}, {E4, Q}, {G4, H},
+    {E4, Q}, {G4, Q}, {A4, Q}, {G4, Q}, {E4, Q}, {D4, Q}, {C4, H},
+    /* Can't you hear the cap-tain shout-in'? Di-nah blow your horn! */
+    {A4, Q}, {A4, Q}, {A4, Q}, {A4, Q}, {G4, Q}, {E4, Q}, {G4, H},
+    {G4, Q}, {F4, Q}, {E4, Q}, {D4, Q}, {C4, W},
+};
+
+/* ═══════════════════════════════════════════════════════════════
  * Song table
  * ═══════════════════════════════════════════════════════════════ */
 
@@ -450,6 +831,66 @@ const song_t g_songs[] = {
 #endif
 #if SONG_ON(CONFIG_SONG_HAPPY_KNOW_IT)
     SONG_ENTRY("Happy & You Know It",  "If you're happy and you know it",    120, 4, 4, happy_know_it_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_THIS_OLD_MAN)
+    SONG_ENTRY("This Old Man",         "This old man, he played one",         120, 4, 4, this_old_man_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_FARMER_DELL)
+    SONG_ENTRY("Farmer in the Dell",   "The farmer in the dell",             120, 6, 8, farmer_dell_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_BINGO)
+    SONG_ENTRY("BINGO",                "There was a farmer had a dog",       120, 4, 4, bingo_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_LITTLE_TEAPOT)
+    SONG_ENTRY("Little Teapot",        "I'm a little teapot short and stout",110, 4, 4, little_teapot_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_ALOUETTE)
+    SONG_ENTRY("Alouette",             "Alouette, gentille alouette",        120, 4, 4, alouette_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_OH_SUSANNA)
+    SONG_ENTRY("Oh! Susanna",          "Oh I come from Alabama",             120, 4, 4, oh_susanna_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_COMING_ROUND)
+    SONG_ENTRY("Coming Round Mountain","She'll be coming round the mountain",120, 4, 4, coming_round_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_MUFFIN_MAN)
+    SONG_ENTRY("The Muffin Man",       "Do you know the muffin man?",        112, 4, 4, muffin_man_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_SIXPENCE)
+    SONG_ENTRY("Sixpence",             "Sing a song of sixpence",            110, 4, 4, sixpence_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_CLEMENTINE)
+    SONG_ENTRY("Clementine",           "Oh my darling Clementine",           100, 3, 4, clementine_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_DOWN_STATION)
+    SONG_ENTRY("Down by the Station",  "Down by the station early morning",  120, 4, 4, down_station_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_FIVE_DUCKS)
+    SONG_ENTRY("Five Little Ducks",    "Five little ducks went out one day", 110, 4, 4, five_ducks_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_BEAR_MOUNTAIN)
+    SONG_ENTRY("Bear Over Mountain",   "The bear went over the mountain",    120, 3, 4, bear_mountain_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_LAVENDERS_BLUE)
+    SONG_ENTRY("Lavender's Blue",      "Lavender's blue, dilly dilly",       100, 3, 4, lavenders_blue_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_MY_BONNIE)
+    SONG_ENTRY("My Bonnie",            "My Bonnie lies over the ocean",      108, 3, 4, my_bonnie_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_POLLY_KETTLE)
+    SONG_ENTRY("Polly Kettle On",      "Polly put the kettle on",            112, 4, 4, polly_kettle_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_BO_PEEP)
+    SONG_ENTRY("Little Bo Peep",       "Little Bo Peep has lost her sheep",  100, 6, 8, bo_peep_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_HEY_DIDDLE)
+    SONG_ENTRY("Hey Diddle Diddle",    "Hey diddle diddle the cat and fiddle",108, 6, 8, hey_diddle_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_SKIP_TO_LOU)
+    SONG_ENTRY("Skip to My Lou",       "Skip skip skip to my Lou",           120, 4, 4, skip_to_lou_notes),
+#endif
+#if SONG_ON(CONFIG_SONG_RAILROAD)
+    SONG_ENTRY("Working on Railroad",  "I've been working on the railroad",  120, 4, 4, railroad_notes),
 #endif
 };
 
