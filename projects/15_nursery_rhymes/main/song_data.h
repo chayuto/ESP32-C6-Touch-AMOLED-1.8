@@ -69,6 +69,14 @@ typedef struct {
     uint16_t duration_ms; /* note duration in ms */
 } note_t;
 
+#define MAX_PHRASES 16
+
+typedef struct {
+    const char   *phrases[MAX_PHRASES];
+    uint8_t       starts[MAX_PHRASES];  /* note index where each phrase begins */
+    uint8_t       count;
+} song_lyrics_t;
+
 typedef struct {
     const char   *title;
     const char   *lyrics_short;  /* first line for display */
@@ -78,6 +86,12 @@ typedef struct {
     const note_t *notes;
     uint16_t      note_count;
 } song_t;
+
+/**
+ * Get the lyric phrase for a given note index within a song.
+ * Returns lyrics_short if no per-phrase data exists for the song.
+ */
+const char *song_get_phrase(int song_index, int note_index);
 
 /* All songs array */
 extern const song_t g_songs[];

@@ -766,6 +766,158 @@ static const note_t railroad_notes[] = {
 #define SONG_ENTRY(title_str, lyrics_str, bpm, ts_n, ts_d, arr) \
     { title_str, lyrics_str, bpm, ts_n, ts_d, arr, sizeof(arr)/sizeof(arr[0]) }
 
+/* Per-phrase lyrics for songs that have them.
+ * Songs with phrase_count=0 just show lyrics_short. */
+
+/* ── Per-phrase lyrics for all 40 songs (auto-generated from C comments) ── */
+
+static const song_lyrics_t s_lyrics[] = {
+    /* 0: Twinkle Twinkle */
+    { .phrases = {"Twinkle twinkle little star", "How I wonder what you are", "Up above the world so high", "Like a diamond in the sky", "Twinkle twinkle little star", "How I wonder what you are"},
+      .starts = {0, 7, 14, 21, 28, 35}, .count = 6 },
+    /* 1: Mary Had a Lamb */
+    { .phrases = {"Mary had a little lamb", "Little lamb, little lamb", "Mary had a little lamb, its", "Fleece was white as snow"},
+      .starts = {0, 7, 13, 21}, .count = 4 },
+    /* 2: Baa Baa Black Sheep */
+    { .phrases = {"Baa baa black sheep, have you any wool?", "Yes sir, yes sir, three bags full", "One for the master, one for the dame", "One for the little boy down the lane", "Baa baa black sheep, have you any wool?", "Yes sir, yes sir, three bags full"},
+      .starts = {0, 9, 16, 25, 35, 44}, .count = 6 },
+    /* 3: London Bridge */
+    { .phrases = {"London bridge is falling down", "Falling down, falling down", "London bridge is falling down", "My fair lady"},
+      .starts = {0, 7, 13, 20}, .count = 4 },
+    /* 4: Row Your Boat */
+    { .phrases = {"Row, row, row your boat", "Gently down the stream", "Merrily merrily merrily merrily", "Life is but a dream"},
+      .starts = {0, 5, 10, 22}, .count = 4 },
+    /* 5: Jack and Jill */
+    { .phrases = {"Jack and Jill went up the hill", "To fetch a pail of water", "Jack fell down and broke his crown", "And Jill came tumbling after"},
+      .starts = {0, 8, 14, 22}, .count = 4 },
+    /* 6: Humpty Dumpty */
+    { .phrases = {"Humpty Dumpty sat on a wall", "Humpty Dumpty had a great fall", "All the king's horses and all the king's men", "Couldn't put Humpty together again"},
+      .starts = {0, 11, 22, 34}, .count = 4 },
+    /* 7: Itsy Bitsy Spider */
+    { .phrases = {"The itsy bitsy spider climbed up the water spout", "Down came the rain and washed the spider out", "Out came the sun and dried up all the rain", "The itsy bitsy spider climbed up the spout again"},
+      .starts = {0, 13, 23, 34}, .count = 4 },
+    /* 8: Old MacDonald */
+    { .phrases = {"Old MacDonald had a farm", "E-I-E-I-O", "And on his farm he had a cow", "E-I-E-I-O", "With a moo-moo here, moo-moo there", "Here a moo, there a moo, everywhere a moo-moo", "Old MacDonald had a farm, E-I-E-I-O"},
+      .starts = {0, 7, 14, 21, 28, 36, 48}, .count = 7 },
+    /* 9: Hickory Dickory */
+    { .phrases = {"Hickory dickory dock", "The mouse ran up the clock", "The clock struck one, the mouse ran down", "Hickory dickory dock"},
+      .starts = {0, 6, 12, 20}, .count = 4 },
+    /* 10: Three Blind Mice */
+    { .phrases = {"Three blind mice", "Three blind mice", "See how they run", "See how they run", "They all ran after the farmer's wife", "She cut off their tails with a carving knife", "Did you ever see such a thing in your life?"},
+      .starts = {0, 3, 6, 10, 14, 26, 38}, .count = 7 },
+    /* 11: Hot Cross Buns */
+    { .phrases = {"Hot cross buns", "Hot cross buns", "One a penny, two a penny", "Hot cross buns"},
+      .starts = {0, 3, 6, 14}, .count = 4 },
+    /* 12: Frere Jacques */
+    { .phrases = {"Frere Jacques", "Frere Jacques", "Dormez-vous?", "Dormez-vous?", "Sonnez les matines", "Sonnez les matines", "Din din don", "Din din don"},
+      .starts = {0, 4, 8, 11, 14, 20, 26, 29}, .count = 8 },
+    /* 13: Yankee Doodle */
+    { .phrases = {"Yankee Doodle went to town", "Riding on a pony", "Stuck a feather in his hat", "And called it macaroni", "Yankee Doodle keep it up", "Yankee Doodle dandy", "Mind the music and the step", "And with the girls be handy"},
+      .starts = {0, 4, 8, 12, 15, 19, 22, 26}, .count = 8 },
+    /* 14: Pop Goes the Weasel */
+    { .phrases = {"All around the mulberry bush", "The monkey chased the weasel", "The monkey thought 'twas all in fun", "Pop goes the weasel!", "A penny for a spool of thread", "A penny for a needle", "That's the way the money goes", "Pop goes the weasel!"},
+      .starts = {0, 6, 10, 16, 20, 26, 30, 36}, .count = 8 },
+    /* 15: Rock-a-Bye Baby */
+    { .phrases = {"Rock-a-bye baby on the tree top", "When the wind blows the cradle will rock", "When the bough breaks the cradle will fall", "And down will come baby, cradle and all"},
+      .starts = {0, 8, 16, 24}, .count = 4 },
+    /* 16: Hush Little Baby */
+    { .phrases = {"Hush little baby, don't say a word", "Mama's gonna buy you a mockingbird", "And if that mockingbird don't sing", "Mama's gonna buy you a diamond ring"},
+      .starts = {0, 7, 14, 21}, .count = 4 },
+    /* 17: Wheels on the Bus */
+    { .phrases = {"The wheels on the bus go round and round", "Round and round, round and round", "The wheels on the bus go round and round", "All through the town"},
+      .starts = {0, 7, 13, 20}, .count = 4 },
+    /* 18: Head Shoulders */
+    { .phrases = {"Head, shoulders, knees and toes", "Head, shoulders, knees and toes", "And eyes and ears and mouth and nose", "Head, shoulders, knees and toes"},
+      .starts = {0, 7, 14, 22}, .count = 4 },
+    /* 19: Happy & You Know It */
+    { .phrases = {"If you're happy and you know it, clap your hands!", "If you're happy and you know it, clap your hands!", "If you're happy and you know it, and you really want to show it", "If you're happy and you know it, clap your hands!"},
+      .starts = {0, 10, 20, 28}, .count = 4 },
+    /* 20: This Old Man */
+    { .phrases = {"This old man, he played one", "He played knick-knack on my thumb", "With a knick-knack paddy whack, give the dog a bone", "This old man came rolling home"},
+      .starts = {0, 4, 8, 18}, .count = 4 },
+    /* 21: Farmer in the Dell */
+    { .phrases = {"The farmer in the dell", "The farmer in the dell", "Hi-ho the derry-o", "The farmer in the dell"},
+      .starts = {0, 5, 10, 14}, .count = 4 },
+    /* 22: BINGO */
+    { .phrases = {"There was a farmer had a dog and Bingo was his name-o", "B-I-N-G-O!", "B-I-N-G-O!", "And Bingo was his name-o!"},
+      .starts = {0, 14, 21, 28}, .count = 4 },
+    /* 23: Little Teapot */
+    { .phrases = {"I'm a little teapot, short and stout", "Here is my handle, here is my spout", "When I get all steamed up, hear me shout:", "Tip me over and pour me out!"},
+      .starts = {0, 10, 19, 29}, .count = 4 },
+    /* 24: Alouette */
+    { .phrases = {"Alouette, gentille alouette", "Alouette, je te plumerai", "Je te plumerai la tete", "Je te plumerai la tete", "Et la tete! Alouette!", "Alouette, gentille alouette", "Alouette, je te plumerai"},
+      .starts = {0, 7, 14, 20, 26, 31, 38}, .count = 7 },
+    /* 25: Oh! Susanna */
+    { .phrases = {"Oh I come from Alabama with a banjo on my knee", "I'm goin' to Louisiana, my true love for to see", "Oh! Susanna, oh don't you cry for me", "I come from Alabama with a banjo on my knee"},
+      .starts = {0, 15, 30, 38}, .count = 4 },
+    /* 26: Coming Round the Mountain */
+    { .phrases = {"She'll be coming round the mountain when she comes", "She'll be coming round the mountain when she comes", "She'll be coming round the mountain, coming round the mountain", "She'll be coming round the mountain when she comes"},
+      .starts = {0, 11, 22, 35}, .count = 4 },
+    /* 27: The Muffin Man */
+    { .phrases = {"Oh, do you know the muffin man?", "The muffin man, the muffin man?", "Oh, do you know the muffin man", "Who lives on Drury Lane?"},
+      .starts = {0, 7, 12, 19}, .count = 4 },
+    /* 28: Sixpence */
+    { .phrases = {"Sing a song of sixpence, a pocket full of rye", "Four and twenty blackbirds baked in a pie", "When the pie was opened, the birds began to sing", "Wasn't that a dainty dish to set before the king?"},
+      .starts = {0, 10, 19, 29}, .count = 4 },
+    /* 29: Clementine */
+    { .phrases = {"Oh my darling, oh my darling", "Oh my darling Clementine", "You are lost and gone forever", "Dreadful sorry, Clementine"},
+      .starts = {0, 7, 13, 21}, .count = 4 },
+    /* 30: Down by the Station */
+    { .phrases = {"Down by the station, early in the morning", "See the little pufferbillies all in a row"},
+      .starts = {0, 12}, .count = 2 },
+    /* 31: Five Little Ducks */
+    { .phrases = {"Five little ducks went out one day", "Over the hills and far away", "Mother duck said quack quack quack quack", "But only four little ducks came back"},
+      .starts = {0, 7, 13, 20}, .count = 4 },
+    /* 32: Bear Over Mountain */
+    { .phrases = {"The bear went over the mountain", "The bear went over the mountain", "To see what he could see"},
+      .starts = {0, 12, 20}, .count = 3 },
+    /* 33: Lavender's Blue */
+    { .phrases = {"Lavender's blue, dilly dilly", "Lavender's green", "When I am king, dilly dilly", "You shall be queen", "Who told you so, dilly dilly?", "Who told you so?", "'Twas my own heart, dilly dilly", "That told me so"},
+      .starts = {0, 5, 9, 14, 18, 23, 27, 32}, .count = 8 },
+    /* 34: My Bonnie */
+    { .phrases = {"My Bonnie lies over the ocean", "My Bonnie lies over the sea", "My Bonnie lies over the ocean", "Oh bring back my Bonnie to me", "Bring back, bring back", "Oh bring back my Bonnie to me"},
+      .starts = {0, 7, 14, 21, 28, 40}, .count = 6 },
+    /* 35: Polly Kettle On */
+    { .phrases = {"Polly put the kettle on", "Polly put the kettle on", "Polly put the kettle on, we'll all have tea"},
+      .starts = {0, 5, 10}, .count = 3 },
+    /* 36: Little Bo Peep */
+    { .phrases = {"Little Bo Peep has lost her sheep", "And doesn't know where to find them", "Leave them alone and they'll come home", "Wagging their tails behind them"},
+      .starts = {0, 6, 12, 18}, .count = 4 },
+    /* 37: Hey Diddle Diddle */
+    { .phrases = {"Hey diddle diddle, the cat and the fiddle", "The cow jumped over the moon", "The little dog laughed to see such sport", "And the dish ran away with the spoon"},
+      .starts = {0, 12, 17, 29}, .count = 4 },
+    /* 38: Skip to My Lou */
+    { .phrases = {"Skip, skip, skip to my Lou", "Skip, skip, skip to my Lou", "Skip, skip, skip to my Lou", "Skip to my Lou, my darling"},
+      .starts = {0, 7, 14, 21}, .count = 4 },
+    /* 39: Working on the Railroad */
+    { .phrases = {"I've been working on the railroad, all the livelong day", "I've been working on the railroad, just to pass the time away", "Can't you hear the whistle blowin'? Rise up so early in the morn", "Can't you hear the captain shoutin'? Dinah, blow your horn!"},
+      .starts = {0, 12, 22, 36}, .count = 4 },
+};
+
+/* All 40 songs have lyrics — 1:1 mapping */
+static const int8_t s_lyrics_map[] = {
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+    10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+    20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+    30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+};
+
+const char *song_get_phrase(int song_index, int note_index)
+{
+    if (song_index < 0 || song_index >= g_song_count) return "";
+    if (song_index < (int)(sizeof(s_lyrics_map)/sizeof(s_lyrics_map[0])) &&
+        s_lyrics_map[song_index] >= 0) {
+        const song_lyrics_t *lyr = &s_lyrics[s_lyrics_map[song_index]];
+        /* Find which phrase contains this note index */
+        for (int i = lyr->count - 1; i >= 0; i--) {
+            if (note_index >= lyr->starts[i]) {
+                return lyr->phrases[i];
+            }
+        }
+    }
+    return g_songs[song_index].lyrics_short;
+}
+
 /* Compile-time song inclusion: CONFIG_SONG_INCLUDE_ALL=y includes everything.
  * To exclude individual songs, set CONFIG_SONG_INCLUDE_ALL=n in menuconfig
  * and disable specific CONFIG_SONG_xxx options. */

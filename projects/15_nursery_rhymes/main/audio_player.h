@@ -47,6 +47,12 @@ void audio_player_set_volume(int vol);
 /** Get volume 0-100. */
 int audio_player_get_volume(void);
 
+/** Returns true if a song is queued to play next (pending start). */
+bool audio_player_is_song_queued(void);
+
+/** Returns current note index (0-based). */
+int audio_player_note_index(void);
+
 /** Cycle to next play mode (OFF -> LOOP_ALL -> LOOP_ONE -> SHUFFLE -> OFF). */
 void audio_player_cycle_mode(void);
 

@@ -57,6 +57,8 @@ static lv_obj_t *s_np_vol_dn    = NULL;
 static lv_obj_t *s_np_mode_btn  = NULL;
 static lv_obj_t *s_np_mode_lbl  = NULL;
 static lv_obj_t *s_np_batt_lbl  = NULL;
+static lv_obj_t *s_np_prev_btn  = NULL;
+static lv_obj_t *s_np_next_btn  = NULL;
 
 /* Lock overlay widgets */
 static lv_obj_t *s_lock_label   = NULL;
@@ -176,6 +178,26 @@ static void back_btn_cb(lv_event_t *e)
     audio_player_stop();
 }
 
+static void prev_btn_cb(lv_event_t *e)
+{
+    (void)e;
+    int cur = audio_player_current_song();
+    if (cur < 0) cur = 0;
+    int prev = cur - 1;
+    if (prev < 0) prev = g_song_count - 1;
+    audio_player_play(prev);
+}
+
+static void next_btn_cb(lv_event_t *e)
+{
+    (void)e;
+    int cur = audio_player_current_song();
+    if (cur < 0) cur = 0;
+    int next = cur + 1;
+    if (next >= g_song_count) next = 0;
+    audio_player_play(next);
+}
+
 static void mode_btn_cb(lv_event_t *e)
 {
     (void)e;
@@ -272,7 +294,22 @@ static void build_now_playing(lv_obj_t *parent)
     lv_obj_center(s_np_mode_lbl);
     lv_obj_add_event_cb(s_np_mode_btn, mode_btn_cb, LV_EVENT_CLICKED, NULL);
 
-    /* Stop button (large, centered) */
+    /* Transport controls: [Prev] [Stop] [Next] */
+    s_np_prev_btn = lv_obj_create(s_now_playing);
+    lv_obj_remove_style_all(s_np_prev_btn);
+    lv_obj_set_size(s_np_prev_btn, 60, 60);
+    lv_obj_align(s_np_prev_btn, LV_ALIGN_TOP_MID, -90, 300);
+    lv_obj_set_style_bg_color(s_np_prev_btn, COL_ITEM_BG, 0);
+    lv_obj_set_style_bg_opa(s_np_prev_btn, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(s_np_prev_btn, COL_ITEM_PRESSED, LV_STATE_PRESSED);
+    lv_obj_set_style_radius(s_np_prev_btn, 30, 0);
+    lv_obj_add_flag(s_np_prev_btn, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_clear_flag(s_np_prev_btn, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_t *prev_lbl = create_label(s_np_prev_btn, LV_SYMBOL_PREV,
+                                       &lv_font_montserrat_22, COL_TEXT);
+    lv_obj_center(prev_lbl);
+    lv_obj_add_event_cb(s_np_prev_btn, prev_btn_cb, LV_EVENT_CLICKED, NULL);
+
     s_np_stop_btn = lv_obj_create(s_now_playing);
     lv_obj_remove_style_all(s_np_stop_btn);
     lv_obj_set_size(s_np_stop_btn, 80, 80);
@@ -286,6 +323,21 @@ static void build_now_playing(lv_obj_t *parent)
                                        &lv_font_montserrat_28, COL_TEXT);
     lv_obj_center(stop_lbl);
     lv_obj_add_event_cb(s_np_stop_btn, stop_btn_cb, LV_EVENT_CLICKED, NULL);
+
+    s_np_next_btn = lv_obj_create(s_now_playing);
+    lv_obj_remove_style_all(s_np_next_btn);
+    lv_obj_set_size(s_np_next_btn, 60, 60);
+    lv_obj_align(s_np_next_btn, LV_ALIGN_TOP_MID, 90, 300);
+    lv_obj_set_style_bg_color(s_np_next_btn, COL_ITEM_BG, 0);
+    lv_obj_set_style_bg_opa(s_np_next_btn, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(s_np_next_btn, COL_ITEM_PRESSED, LV_STATE_PRESSED);
+    lv_obj_set_style_radius(s_np_next_btn, 30, 0);
+    lv_obj_add_flag(s_np_next_btn, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_clear_flag(s_np_next_btn, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_t *next_lbl = create_label(s_np_next_btn, LV_SYMBOL_NEXT,
+                                       &lv_font_montserrat_22, COL_TEXT);
+    lv_obj_center(next_lbl);
+    lv_obj_add_event_cb(s_np_next_btn, next_btn_cb, LV_EVENT_CLICKED, NULL);
 
     /* Volume controls */
     s_np_vol_dn = lv_obj_create(s_now_playing);
@@ -374,22 +426,27 @@ void ui_update(void)
         s_last_playing = cur;
     }
 
-    /* Update progress bar */
-    if (playing) {
+    /* Update progress bar and live lyrics */
+    if (playing && cur >= 0) {
         lv_bar_set_value(s_np_progress, audio_player_progress(), LV_ANIM_ON);
+
+        /* Update subtitle with current phrase lyrics */
+        const char *phrase = song_get_phrase(cur, audio_player_note_index());
+        lv_label_set_text(s_np_lyrics, phrase);
     }
 
-    /* Transition back to song list when song ends (only in play-once mode) */
+    /* Transition back to song list when song ends.
+     * Stay on now-playing if: loop/shuffle is active, or a song is
+     * queued (prev/next pressed, or auto-advance pending). */
     if (!playing && s_last_playing >= 0) {
-        play_mode_t m = audio_player_get_mode();
-        if (m == PLAY_MODE_OFF) {
-            /* No auto-advance — return to list */
+        bool stay = (audio_player_get_mode() != PLAY_MODE_OFF) ||
+                    audio_player_is_song_queued();
+        if (!stay) {
             lv_obj_clear_flag(s_song_list, LV_OBJ_FLAG_HIDDEN);
             lv_obj_add_flag(s_now_playing, LV_OBJ_FLAG_HIDDEN);
             lv_bar_set_value(s_np_progress, 0, LV_ANIM_OFF);
             s_last_playing = -1;
         }
-        /* Otherwise stay on now-playing — next song will start shortly */
     }
 
     /* Update volume label */

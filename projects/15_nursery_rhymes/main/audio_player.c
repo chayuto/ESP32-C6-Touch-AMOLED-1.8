@@ -609,6 +609,16 @@ int audio_player_get_volume(void)
     return s_volume;
 }
 
+bool audio_player_is_song_queued(void)
+{
+    return s_play_song >= 0;
+}
+
+int audio_player_note_index(void)
+{
+    return s_note_index;
+}
+
 void audio_player_cycle_mode(void)
 {
     int m = (int)s_play_mode + 1;
