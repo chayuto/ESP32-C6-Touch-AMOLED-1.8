@@ -2,6 +2,11 @@
 
 Source: Official `pin_config.h` from [waveshareteam/ESP32-C6-Touch-AMOLED-1.8](https://github.com/waveshareteam/ESP32-C6-Touch-AMOLED-1.8)
 
+> **SD card + display note:** the pin sets are disjoint, but both peripherals
+> share `SPI2_HOST` and cannot be used concurrently. See
+> [`18-sd-display-spi-sharing.md`](18-sd-display-spi-sharing.md) for the full
+> explanation and the Waveshare support exchange.
+
 ---
 
 ## 1. Official pin_config.h (Verbatim)
