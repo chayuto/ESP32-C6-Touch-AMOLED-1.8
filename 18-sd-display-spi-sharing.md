@@ -33,9 +33,13 @@ drivers hold the host simultaneously.
   while reading/writing the SD card.
 - **Runtime time-multiplexing works.** Release the host from the display
   driver (`spi_bus_remove_device` + `spi_bus_free`), initialize SDSPI, do SD
-  I/O, tear SDSPI down, then reinitialize the display bus. The
-  `amoled_release_spi()` / `amoled_reclaim_spi()` helper pattern in this repo
-  exists for exactly this.
+  I/O, tear SDSPI down, then reinitialize the display bus. Concrete
+  implementation in this repo:
+  - `shared/components/amoled_driver/src/amoled.c:251` — `amoled_release_spi()`
+  - `shared/components/amoled_driver/src/amoled.c:276` — `amoled_reclaim_spi()`
+  - `projects/16_bitchat_relay/main/main.c:73` — state machine showing the
+    DISPLAY → RELEASED → SD_ACTIVE → RELEASED → DISPLAY transitions in
+    production use.
 - **Boot-time batch access is simpler.** If SD access is only needed to load
   assets once, do it *before* `amoled_init()` and never switch again.
 - **Display will be frozen** (no refreshes, no partial updates) for the entire

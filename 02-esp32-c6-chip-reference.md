@@ -398,7 +398,12 @@ GPIO12 and GPIO13 default to USB Serial/JTAG mode. If you reconfigure them for o
 
 ### 12.3 Limited SPI buses
 
-Only SPI2 is available for user peripherals (SPI0 and SPI1 are reserved for flash). If your application needs to communicate with multiple SPI devices, they must share SPI2 with chip-select multiplexing.
+Only SPI2 is available for user peripherals (SPI0 and SPI1 are reserved for flash — confirmed by `SOC_SPI_PERIPH_NUM = 2` in `components/soc/esp32c6/include/soc/soc_caps.h`, and `SPI3_HOST` being `#if`-guarded out in `components/hal/include/hal/spi_types.h`).
+
+Multiple SPI devices on SPI2 fall into two cases:
+
+- **Same bus topology (e.g. two 1-bit SPI sensors):** share SPI2 with chip-select multiplexing. Both devices are attached to the same `spi_bus_config_t` with different CS lines, and the driver arbitrates.
+- **Different bus topologies (e.g. QSPI AMOLED + 1-bit SDSPI SD card on this board):** CS multiplexing is **not sufficient** — the drivers require incompatible bus configurations (4 data lines vs 1) on the same host. You must free the bus from one driver (`spi_bus_free(SPI2_HOST)`) before initializing the other. See [`18-sd-display-spi-sharing.md`](18-sd-display-spi-sharing.md) for the full analysis and the `amoled_release_spi()` / `amoled_reclaim_spi()` helpers in `shared/components/amoled_driver/`.
 
 ### 12.4 No PSRAM means memory discipline
 
