@@ -244,8 +244,9 @@ static void process_incoming_packet(const uint8_t *data, uint16_t len,
         return;
     }
 
-    /* Make a mutable copy, decrement TTL, and relay */
-    uint8_t relay_buf[PACKET_MAX_SIZE];
+    /* Make a mutable copy, decrement TTL, and relay.
+     * Static buffer — safe because NimBLE host callbacks are single-threaded. */
+    static uint8_t relay_buf[PACKET_MAX_SIZE];
     if (len > PACKET_MAX_SIZE) return;
     memcpy(relay_buf, data, len);
     decrement_ttl(relay_buf, len);
@@ -292,16 +293,13 @@ static int gatt_chr_access(uint16_t conn_handle, uint16_t attr_handle,
         uint16_t len = OS_MBUF_PKTLEN(om);
 
         if (len > 0 && len <= PACKET_MAX_SIZE) {
-            uint8_t buf[PACKET_MAX_SIZE];
-            uint16_t copied = 0;
+            static uint8_t buf[PACKET_MAX_SIZE];
             os_mbuf_copydata(om, 0, len, buf);
-            copied = len;
 
-            /* Get connection RSSI */
             int8_t rssi = 0;
             ble_gap_conn_rssi(conn_handle, &rssi);
 
-            process_incoming_packet(buf, copied, conn_handle, rssi);
+            process_incoming_packet(buf, len, conn_handle, rssi);
         }
         return 0;
     }
@@ -460,7 +458,7 @@ static int gap_event_handler(struct ble_gap_event *event, void *arg)
         uint16_t len = OS_MBUF_PKTLEN(om);
 
         if (len > 0 && len <= PACKET_MAX_SIZE) {
-            uint8_t buf[PACKET_MAX_SIZE];
+            static uint8_t buf[PACKET_MAX_SIZE];
             os_mbuf_copydata(om, 0, len, buf);
 
             int8_t rssi = 0;
