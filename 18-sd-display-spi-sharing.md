@@ -49,19 +49,30 @@ drivers hold the host simultaneously.
 ## 3. Waveshare Support Exchange
 
 We contacted Waveshare (ticket **#235269**, replying engineer **赵玉娇 / Zhao
-Yujiao**, 2026-04-05 → 2026-04-10) to confirm the intended usage pattern. The
-thread did not produce a clear answer — their replies addressed the
-pin/chip-select level, not the SPI peripheral host level we asked about.
+Yujiao**, 2026-04-05 → 2026-04-18) to confirm the intended usage pattern. The
+first two replies addressed the pin/chip-select level, not the SPI peripheral
+host level we asked about. After we quoted ESP-IDF source (`soc_caps.h` /
+`spi_types.h`) to pin the question to SoC internals, support confirmed
+directly on 2026-04-14:
+
+> "The screen and the SD card on this development board cannot be used
+> simultaneously. When you need to access one resource, you must first
+> release the other."
+
+This matches the time-multiplexing approach implemented in
+`amoled_release_spi` / `amoled_reclaim_spi` and used by project 16. A
+follow-up also confirmed that the sibling **ESP32-S3-Touch-AMOLED-1.8** does
+not have this limitation — the S3 exposes two user-available SPI hosts
+(SPI2 + SPI3) and a real SDMMC controller, so SD and QSPI display can live on
+separate buses.
 
 Full verbatim transcript and assessment:
 [`docs/waveshare-support/235269-sd-display-spi-sharing.md`](docs/waveshare-support/235269-sd-display-spi-sharing.md).
 
-**Short version:** support claimed "QSPI and SPI are different, CS selects the
-device, no conflict." That is wrong for ESP32-C6, where QSPI and 1-bit SPI are
-modes of the same SPI2 controller. The time-multiplexing approach stands on
-ESP-IDF docs for `spi_bus_free` and SDSPI host init, not on vendor
-confirmation. For future C6 SPI peripheral questions, go straight to
-ESP-IDF docs and the esp-idf GitHub issue tracker.
+**Takeaway for future C6 SPI questions:** first-line support defaults to
+pin-level answers. To get a SoC-internals answer out of the vendor, cite
+ESP-IDF source directly. The time-multiplexing approach stands on both
+ESP-IDF docs (`spi_bus_free`, SDSPI host init) and vendor confirmation.
 
 ## 4. See Also
 

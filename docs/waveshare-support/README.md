@@ -34,6 +34,6 @@ were useful — without re-running round-trips that take days.
 
 ## Index
 
-| Ticket  | Topic                                 | Replying engineer | Dates                    | Outcome         | File                                                                 |
-|---------|---------------------------------------|-------------------|--------------------------|-----------------|----------------------------------------------------------------------|
-| #235269 | SD card + AMOLED display SPI2 sharing | 赵玉娇 (Zhao Yujiao) | 2026-04-05 → 2026-04-10  | Unclear / wrong | [235269-sd-display-spi-sharing.md](235269-sd-display-spi-sharing.md) |
+| Ticket  | Topic                                 | Replying engineer | Dates                    | Outcome                               | File                                                                 |
+|---------|---------------------------------------|-------------------|--------------------------|---------------------------------------|----------------------------------------------------------------------|
+| #235269 | SD card + AMOLED display SPI2 sharing | 赵玉娇 (Zhao Yujiao) | 2026-04-05 → 2026-04-18  | Confirmed after ESP-IDF-source escalation | [235269-sd-display-spi-sharing.md](235269-sd-display-spi-sharing.md) |
