@@ -1,0 +1,13 @@
+menu "PixelPet"
+
+    config PIXELPET_TIME_SCALE
+        int "Game-time scale factor"
+        range 1 3600
+        default 360
+        help
+            Multiplier between real seconds and game seconds. With the
+            default of 360, ten real seconds equals about one game hour
+            so the full life cycle is observable in an afternoon. Set to
+            1 for "real-time" play (one game day = one real day).
+
+endmenu

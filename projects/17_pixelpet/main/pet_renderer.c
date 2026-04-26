@@ -26,12 +26,25 @@ static lv_obj_t *s_zzz;        /* sleep indicator */
 static lv_obj_t *s_halo;       /* death indicator */
 static lv_obj_t *s_poops[3];
 
-static pet_stage_t s_stage = STAGE_EGG;
-static pet_mood_t  s_mood  = MOOD_NEUTRAL;
-static int         s_frame = 0;
+static pet_stage_t       s_stage      = STAGE_EGG;
+static pet_adult_form_t  s_adult_form = ADULT_HAPPY;
+static pet_mood_t        s_mood       = MOOD_NEUTRAL;
+static int               s_frame      = 0;
+
+/* Adult form palette — only used when stage == STAGE_ADULT */
+static lv_color_t adult_color(pet_adult_form_t f)
+{
+    switch (f) {
+    case ADULT_HAPPY:   return lv_color_hex(0x80FFB0);   /* bright mint */
+    case ADULT_LAZY:    return lv_color_hex(0xFFE08A);   /* pale yellow */
+    case ADULT_NAUGHTY: return lv_color_hex(0xFF7A6E);   /* coral red */
+    case ADULT_SICK:    return lv_color_hex(0x8FBC8F);   /* sickly green */
+    default:            return lv_color_hex(0xA2D2FF);
+    }
+}
 
 /* Colour palette, deliberately retro and chunky */
-static lv_color_t stage_body_color(pet_stage_t s, pet_mood_t m)
+static lv_color_t stage_body_color(pet_stage_t s, pet_mood_t m, pet_adult_form_t f)
 {
     if (m == MOOD_SICK) return lv_color_hex(0x8FBC8F);   /* pale green */
     if (m == MOOD_DEAD) return lv_color_hex(0x404040);   /* grey */
@@ -40,7 +53,7 @@ static lv_color_t stage_body_color(pet_stage_t s, pet_mood_t m)
     case STAGE_BABY:   return lv_color_hex(0xFFC8DD);   /* pink blob */
     case STAGE_CHILD:  return lv_color_hex(0xFFAFCC);
     case STAGE_TEEN:   return lv_color_hex(0xCDB4DB);   /* lavender */
-    case STAGE_ADULT:  return lv_color_hex(0xA2D2FF);
+    case STAGE_ADULT:  return adult_color(f);
     case STAGE_SENIOR: return lv_color_hex(0xBDE0FE);
     case STAGE_DEAD:   return lv_color_hex(0x404040);
     default:           return lv_color_hex(0xFFFFFF);
@@ -204,10 +217,20 @@ void pet_renderer_set_state(const pet_state_t *p)
         int sz = stage_body_size(stage);
         lv_obj_set_size(s_body, sz, sz);
     }
-    s_stage = stage;
-    s_mood  = mood;
+    s_stage      = stage;
+    s_adult_form = p->adult_form;
+    s_mood       = mood;
 
-    lv_obj_set_style_bg_color(s_body, stage_body_color(stage, mood), 0);
+    lv_obj_set_style_bg_color(s_body, stage_body_color(stage, mood, p->adult_form), 0);
+
+    /* Adult naughty form: tilt eyes slightly to look mischievous */
+    if (stage == STAGE_ADULT && p->adult_form == ADULT_NAUGHTY) {
+        lv_obj_set_style_transform_angle(s_eye_l, 150, 0);
+        lv_obj_set_style_transform_angle(s_eye_r, -150, 0);
+    } else {
+        lv_obj_set_style_transform_angle(s_eye_l, 0, 0);
+        lv_obj_set_style_transform_angle(s_eye_r, 0, 0);
+    }
 
     /* Egg: hide face */
     bool show_face = (stage != STAGE_EGG);

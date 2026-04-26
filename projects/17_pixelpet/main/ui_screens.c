@@ -37,6 +37,10 @@ static lv_obj_t *s_bar_energy;
 /* Sleep screen toggle label */
 static lv_obj_t *s_sleep_btn_label;
 
+/* Memorial overlay (shown automatically when stage == STAGE_DEAD) */
+static lv_obj_t *s_memorial;
+static lv_obj_t *s_memorial_lifespan;
+
 static lv_obj_t *make_screen(lv_obj_t *parent)
 {
     lv_obj_t *scr = lv_obj_create(parent);
@@ -178,6 +182,54 @@ static void power_off_cb(lv_event_t *e)
     power_manager_power_off();
 }
 
+static void rebirth_cb(lv_event_t *e)
+{
+    (void)e;
+    if (!s_pet) return;
+    pet_save_clear();
+    pet_state_init_new(s_pet);
+    s_pet->hatched_unix     = rtc_manager_now_unix();
+    s_pet->last_update_unix = s_pet->hatched_unix;
+    pet_save_commit(s_pet);
+    ui_screens_apply_state(s_pet);
+    ui_screens_show(SCREEN_STATUS);
+}
+
+static void build_memorial(lv_obj_t *parent)
+{
+    s_memorial = lv_obj_create(parent);
+    lv_obj_remove_style_all(s_memorial);
+    lv_obj_set_size(s_memorial, LV_PCT(100), LV_PCT(100));
+    lv_obj_set_style_bg_color(s_memorial, lv_color_hex(0x101820), 0);
+    lv_obj_set_style_bg_opa(s_memorial, LV_OPA_COVER, 0);
+    lv_obj_clear_flag(s_memorial, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(s_memorial, LV_OBJ_FLAG_HIDDEN);
+
+    lv_obj_t *rip = lv_label_create(s_memorial);
+    lv_label_set_text(rip, "R.I.P.");
+    lv_obj_set_style_text_color(rip, lv_color_hex(0xFFE066), 0);
+    lv_obj_set_style_text_font(rip, &lv_font_montserrat_28, 0);
+    lv_obj_align(rip, LV_ALIGN_TOP_MID, 0, 60);
+
+    s_memorial_lifespan = lv_label_create(s_memorial);
+    lv_label_set_text(s_memorial_lifespan, "lived 0 days");
+    lv_obj_set_style_text_color(s_memorial_lifespan, lv_color_hex(0xCCCCCC), 0);
+    lv_obj_set_style_text_font(s_memorial_lifespan, &lv_font_montserrat_20, 0);
+    lv_obj_align(s_memorial_lifespan, LV_ALIGN_TOP_MID, 0, 110);
+
+    lv_obj_t *halo = lv_obj_create(s_memorial);
+    lv_obj_remove_style_all(halo);
+    lv_obj_set_size(halo, 80, 12);
+    lv_obj_set_style_radius(halo, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_opa(halo, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_color(halo, lv_color_hex(0xFFE066), 0);
+    lv_obj_set_style_border_width(halo, 4, 0);
+    lv_obj_align(halo, LV_ALIGN_CENTER, 0, -20);
+
+    make_action_btn(s_memorial, "Hatch new pet", lv_color_hex(0x06D6A0),
+                    240, 80, rebirth_cb, NULL);
+}
+
 static void build_sleep_screen(lv_obj_t *scr)
 {
     make_title(scr, "SLEEP", lv_color_hex(0x8866FF));
@@ -203,6 +255,8 @@ void ui_screens_init(lv_obj_t *parent, pet_state_t *pet)
     s_screens[SCREEN_PLAY]  = make_screen(parent); build_play_screen(s_screens[SCREEN_PLAY]);
     s_screens[SCREEN_CLEAN] = make_screen(parent); build_clean_screen(s_screens[SCREEN_CLEAN]);
     s_screens[SCREEN_SLEEP] = make_screen(parent); build_sleep_screen(s_screens[SCREEN_SLEEP]);
+
+    build_memorial(parent);
 
     for (int i = 0; i < SCREEN_COUNT; i++) {
         lv_obj_add_flag(s_screens[i], LV_OBJ_FLAG_HIDDEN);
@@ -252,5 +306,22 @@ void ui_screens_apply_state(const pet_state_t *p)
 
     if (s_sleep_btn_label) {
         lv_label_set_text(s_sleep_btn_label, p->is_sleeping ? "Wake up" : "Tuck in");
+    }
+
+    /* Memorial overlay tracks the dead-or-alive state automatically. */
+    if (s_memorial) {
+        if (p->stage == STAGE_DEAD) {
+            int64_t age_s = rtc_manager_now_unix() - p->hatched_unix;
+            if (age_s < 0) age_s = 0;
+            char buf[40];
+            if (age_s < 3600)        snprintf(buf, sizeof(buf), "lived %llds", age_s);
+            else if (age_s < 86400)  snprintf(buf, sizeof(buf), "lived %lldh", age_s / 3600);
+            else                     snprintf(buf, sizeof(buf), "lived %lldd", age_s / 86400);
+            lv_label_set_text(s_memorial_lifespan, buf);
+            lv_obj_clear_flag(s_memorial, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_move_foreground(s_memorial);
+        } else {
+            lv_obj_add_flag(s_memorial, LV_OBJ_FLAG_HIDDEN);
+        }
     }
 }

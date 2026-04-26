@@ -17,6 +17,10 @@ static const char *TAG = "stat_engine";
 #define CONFIG_PIXELPET_TIME_SCALE 360   /* 1 real-sec ≈ 6 game-min during dev */
 #endif
 
+/* Senior pets are calmer — decay runs at 70% of normal speed. */
+#define SENIOR_SCALE_NUM 7
+#define SENIOR_SCALE_DEN 10
+
 /* Per-(scaled-)second decay; integer math, accumulator carried in *_acc fields
  * is overkill for a Phase 3 toy, so we just step by ticks. */
 
@@ -37,8 +41,12 @@ void stat_engine_decay(pet_state_t *p, int64_t dt_s)
 {
     if (p->stage == STAGE_EGG || p->stage == STAGE_DEAD) return;
 
-    /* Convert real-time to "game-seconds" using the dev time scale. */
+    /* Convert real-time to "game-seconds" using the dev time scale.
+     * Senior pets decay slower — they have earned the right to a quiet life. */
     int64_t game_seconds = dt_s * CONFIG_PIXELPET_TIME_SCALE;
+    if (p->stage == STAGE_SENIOR) {
+        game_seconds = (game_seconds * SENIOR_SCALE_NUM) / SENIOR_SCALE_DEN;
+    }
     if (game_seconds <= 0) return;
 
     /* Hunger:  -1 per 30 game-min  = -1 per 1800 game-s */
