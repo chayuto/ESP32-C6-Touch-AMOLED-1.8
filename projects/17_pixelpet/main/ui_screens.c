@@ -12,6 +12,7 @@
 #include "stat_engine.h"
 #include "pet_save.h"
 #include "rtc_manager.h"
+#include "minigame_catch.h"
 #include "esp_log.h"
 #include <stdio.h>
 
@@ -145,11 +146,19 @@ static void build_feed_screen(lv_obj_t *scr)
                     care_cb, (void *)(uintptr_t)CARE_FEED_SNACK);
 }
 
+static void minigame_cb(lv_event_t *e)
+{
+    (void)e;
+    minigame_catch_start();
+}
+
 static void build_play_screen(lv_obj_t *scr)
 {
     make_title(scr, "PLAY", lv_color_hex(0xFF4488));
-    make_action_btn(scr, "Play with pet", lv_color_hex(0xEF476F), 260, 20,
+    make_action_btn(scr, "Quick play",  lv_color_hex(0xEF476F), 220, -40,
                     care_cb, (void *)(uintptr_t)CARE_PLAY);
+    make_action_btn(scr, "Catch apples", lv_color_hex(0xFFD166), 220,  60,
+                    minigame_cb, NULL);
 }
 
 static void build_clean_screen(lv_obj_t *scr)

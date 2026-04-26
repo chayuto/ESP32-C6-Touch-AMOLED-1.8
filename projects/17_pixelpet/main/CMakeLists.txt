@@ -9,6 +9,8 @@ idf_component_register(
         "audio_output.c"
         "rtc_manager.c"
         "pet_save.c"
+        "imu_manager.c"
+        "minigame_catch.c"
     INCLUDE_DIRS "."
     REQUIRES
         amoled_driver

@@ -1,10 +1,9 @@
 /*
- * main.c — PixelPet (Phase 4: NVS save + PCF85063 RTC + offline aging)
+ * main.c — PixelPet (Phase 5: IMU + minigame)
  *
- * Boot sequence loads the saved pet, asks the RTC for the current wall
- * clock, computes the time elapsed since `last_update_unix`, and runs the
- * decay engine forward by exactly that delta — so a pet left switched off
- * for hours wakes up genuinely older and hungrier.
+ * Adds the QMI8658 IMU and a tilt-controlled apple-catching minigame.
+ * The animation timer checks whether the minigame is active and routes
+ * tick updates accordingly.
  */
 
 #include "amoled.h"
@@ -18,6 +17,8 @@
 #include "audio_jingles.h"
 #include "rtc_manager.h"
 #include "pet_save.h"
+#include "imu_manager.h"
+#include "minigame_catch.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -31,6 +32,7 @@
 static const char *TAG = "main";
 
 static pet_state_t s_pet;
+static bool s_imu_ok = false;
 
 /* ── BOOT button ───────────────────────────────────────── */
 
@@ -94,14 +96,37 @@ static void pet_boot_load_or_create(void)
 
 /* ── LVGL timers ───────────────────────────────────────── */
 
+static void apply_minigame_score(int score)
+{
+    int boost = score * 3;
+    if (boost > 50) boost = 50;
+    int new_happy = s_pet.happy + boost;
+    s_pet.happy = (new_happy > 100) ? 100 : (uint8_t)new_happy;
+    s_pet.energy = (s_pet.energy > 15) ? s_pet.energy - 15 : 0;
+    s_pet.care_score += (uint32_t)score;
+    audio_jingles_play(JINGLE_HAPPY);
+    pet_save_request();
+    ESP_LOGI(TAG, "minigame score %d → +%d happy", score, boost);
+}
+
 static void anim_timer_cb(lv_timer_t *t)
 {
-    pet_renderer_tick();
-    ui_screens_apply_state(&s_pet);
+    if (minigame_catch_is_active()) {
+        imu_state_t imu = {0};
+        if (s_imu_ok) imu_manager_get_state(&imu);
+        int score = minigame_catch_tick(&imu);
+        if (score >= 0) apply_minigame_score(score);
+    } else {
+        pet_renderer_tick();
+        ui_screens_apply_state(&s_pet);
+    }
 }
 
 static void stat_tick_cb(lv_timer_t *t)
 {
+    /* Pause decay during the minigame so stats don't drift mid-round. */
+    if (minigame_catch_is_active()) { pet_save_pump(&s_pet); return; }
+
     int64_t now = rtc_manager_now_unix();
     int64_t dt  = now - s_pet.last_update_unix;
     if (dt > 0) {
@@ -113,14 +138,11 @@ static void stat_tick_cb(lv_timer_t *t)
     pet_save_pump(&s_pet);
 }
 
-/* ── LVGL task ─────────────────────────────────────────── */
-
 static void lvgl_task(void *arg)
 {
     ESP_LOGI(TAG, "LVGL task started");
     lv_timer_create(anim_timer_cb,  33,   NULL);
     lv_timer_create(stat_tick_cb,   1000, NULL);
-
     while (1) {
         boot_button_poll();
         vTaskDelay(pdMS_TO_TICKS(10));
@@ -132,46 +154,36 @@ static void lvgl_task(void *arg)
 
 void app_main(void)
 {
-    ESP_LOGI(TAG, "=== PixelPet (Phase 4) ===");
+    ESP_LOGI(TAG, "=== PixelPet (Phase 5) ===");
     ESP_LOGI(TAG, "Free heap: %lu bytes", (unsigned long)esp_get_free_heap_size());
 
     esp_log_level_set("lcd_panel.io.i2c", ESP_LOG_NONE);
     esp_log_level_set("FT5x06", ESP_LOG_NONE);
     esp_log_level_set("I2C_If", ESP_LOG_WARN);
 
-    /* 1. NVS */
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
         ESP_ERROR_CHECK(nvs_flash_init());
     }
 
-    /* 2. BOOT button */
     boot_button_init();
 
-    /* 3. Display + I2C bus */
     ESP_ERROR_CHECK(amoled_init());
 
-    /* 4. RTC (must be after amoled_init for the I2C bus) */
-    esp_err_t rtc_ret = rtc_manager_init();
-    if (rtc_ret != ESP_OK) {
-        ESP_LOGE(TAG, "RTC init failed: %s — pet aging will be wrong",
-                 esp_err_to_name(rtc_ret));
+    if (rtc_manager_init() != ESP_OK) {
+        ESP_LOGE(TAG, "RTC init failed — pet aging will be wrong");
     }
 
-    /* 5. Load or create pet — runs decay across the missing time */
     pet_boot_load_or_create();
 
-    /* 6. Touch + LVGL */
     esp_lcd_touch_handle_t touch = NULL;
-    esp_err_t touch_ret = amoled_touch_init(&touch);
-    if (touch_ret != ESP_OK) {
-        ESP_LOGW(TAG, "Touch init failed (%s)", esp_err_to_name(touch_ret));
+    if (amoled_touch_init(&touch) != ESP_OK) {
+        ESP_LOGW(TAG, "touch init failed");
         touch = NULL;
     }
     ESP_ERROR_CHECK(amoled_lvgl_init(amoled_get_panel(), touch));
 
-    /* 7. Audio (best-effort) */
     if (audio_output_init() == ESP_OK) {
         audio_output_amp_enable(true);
         audio_output_start_task();
@@ -179,14 +191,19 @@ void app_main(void)
         ESP_LOGW(TAG, "audio not available — running silent");
     }
 
-    /* 8. UI */
+    if (imu_manager_init() == ESP_OK) {
+        imu_manager_start_task();
+        s_imu_ok = true;
+    } else {
+        ESP_LOGW(TAG, "IMU not available — minigame will use neutral tilt");
+    }
+
     ui_screens_init(lv_scr_act(), &s_pet);
+    minigame_catch_init(lv_scr_act());
     ui_screens_apply_state(&s_pet);
 
-    /* 9. LVGL task */
     xTaskCreate(lvgl_task, "lvgl", 8192, NULL, 2, NULL);
 
-    /* 10. Brightness */
     amoled_set_brightness(150);
 
     ESP_LOGI(TAG, "PixelPet running. Free heap: %lu (min %lu)",
