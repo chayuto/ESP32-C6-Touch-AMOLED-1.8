@@ -401,22 +401,28 @@ check. Estimated commit counts in parentheses.
   source arrays.
 - Smoke test: pet appears, idle anim plays.
 
-### R6 — multi-clock idle scheduler (1 commit)
-- Add `idle_scheduler.c/h` with breath / blink / glance / bigIdle clocks.
-- Mood-conditioned tempo table.
-- Weighted-bag picker.
+### R6 — multi-clock idle scheduler **(deferred to follow-up)**
+The multi-clock scheduler with blink/glance/big-idle adds noticeable
+character but doesn't change the architecture. Body anims already have
+uneven frame holds (the most important "alive" trick), so the v2 PR
+ships without it. Follow-up commit will add `idle_scheduler.c/h`, a
+weighted-bag picker, and yawn/stretch anims to the asset bundle.
 
-### R7 — fishbowl backdrop (1 commit)
-- Background scene asset, day/night tint LUT, bubble emitter.
-- Optional zone-wander deferred.
+### R7 — fishbowl backdrop ✓
+- 8 bubbles rising with sinusoidal wobble, varied speed/size/phase,
+  using the bundled `particles/bubble` sprite.
+- Day/night tint layer interpolated from RTC hour (warm noon, cool
+  midnight); opacity also shifts so evenings feel cosier.
+- Zone-wander (Neko Atsume style) deferred.
 
-### R8 — touch reactions + eat sequence + stage-up (1 commit)
-- Touch hook: when an unhandled touch lands, pet looks at it (eye
-  position → glance toward x,y) and shows a brief surprise frame.
-- Eat sequence: when `CARE_FEED_*` fires, run `eat` body anim + spawn
-  food sprite at mouth, then despawn.
-- Stage-up: sparkle burst overlay + brief grow animation when stat_engine
-  transitions a stage.
+### R8 — touch reactions + eat sequence + stage-up **(deferred to follow-up)**
+Functional rather than architectural — slot cleanly on top of the v2
+renderer. Will land as:
+- `pet_renderer_react_to_touch(x, y)` — brief glance toward x,y plus a
+  one-shot `particles/exclaim`.
+- `pet_renderer_play_eat()` — temporarily swap the body anim to
+  `blob_eat_<palette>` for one cycle, return to mood anim.
+- `pet_renderer_play_stageup()` — sparkle burst + brief scale tween.
 
 ### R9 — polish (deferred to follow-up; not blocking the rework)
 
