@@ -1,9 +1,9 @@
 /*
- * main.c — PixelPet (Phase 2: pet state + procedural renderer + stat bars)
+ * main.c — PixelPet (Phase 3: stat engine + care actions + jingles)
  *
- * Brings up display + touch + LVGL, instantiates a fresh egg, animates the
- * procedural pet, and drops stats slowly so we can see the bars move.
- * Real RTC, NVS persistence, audio, and IMU land in later phases.
+ * Runs the time-based decay engine, lets the player feed/play/clean/sleep
+ * the pet via the touch screens, and plays chiptune jingles for events.
+ * Real RTC-based persistence and IMU mini-games arrive in later phases.
  */
 
 #include "amoled.h"
@@ -12,6 +12,9 @@
 #include "ui_screens.h"
 #include "pet_renderer.h"
 #include "pet_state.h"
+#include "stat_engine.h"
+#include "audio_output.h"
+#include "audio_jingles.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -24,7 +27,6 @@
 
 static const char *TAG = "main";
 
-/* Phase 2 holds pet state in RAM only; Phase 4 will load/save NVS. */
 static pet_state_t s_pet;
 
 /* ── BOOT button ───────────────────────────────────────── */
@@ -69,18 +71,14 @@ static void anim_timer_cb(lv_timer_t *t)
     ui_screens_apply_state(&s_pet);
 }
 
-/* Debug stat tick — Phase 3 will replace with proper time-aware decay. */
-static void debug_stat_tick_cb(lv_timer_t *t)
+static void stat_tick_cb(lv_timer_t *t)
 {
-    if (s_pet.hunger > 0) s_pet.hunger--;
-    if (s_pet.happy  > 0 && (esp_timer_get_time() / 1000000) % 2 == 0) s_pet.happy--;
-    if (s_pet.energy > 0 && (esp_timer_get_time() / 1000000) % 3 == 0) s_pet.energy--;
+    int64_t now_us = esp_timer_get_time();
+    int64_t dt_us  = now_us - s_pet.last_update_unix;
+    s_pet.last_update_unix = now_us;
 
-    /* Auto-hatch after 10s for Phase 2 demo */
-    if (s_pet.stage == STAGE_EGG) {
-        int64_t age_s = (esp_timer_get_time() - s_pet.hatched_unix) / 1000000;
-        if (age_s > 10) s_pet.stage = STAGE_BABY;
-    }
+    stat_engine_decay(&s_pet, dt_us);
+    stat_engine_check_transitions(&s_pet, now_us);
 }
 
 /* ── LVGL task ─────────────────────────────────────────── */
@@ -88,8 +86,8 @@ static void debug_stat_tick_cb(lv_timer_t *t)
 static void lvgl_task(void *arg)
 {
     ESP_LOGI(TAG, "LVGL task started");
-    lv_timer_create(anim_timer_cb,        33,   NULL);  /* ~30 Hz */
-    lv_timer_create(debug_stat_tick_cb,   1000, NULL);  /* 1 Hz   */
+    lv_timer_create(anim_timer_cb,  33,   NULL);  /* 30 Hz animation */
+    lv_timer_create(stat_tick_cb,   1000, NULL);  /* 1 Hz decay      */
 
     while (1) {
         boot_button_poll();
@@ -102,7 +100,7 @@ static void lvgl_task(void *arg)
 
 void app_main(void)
 {
-    ESP_LOGI(TAG, "=== PixelPet (Phase 2) ===");
+    ESP_LOGI(TAG, "=== PixelPet (Phase 3) ===");
     ESP_LOGI(TAG, "Free heap: %lu bytes", (unsigned long)esp_get_free_heap_size());
 
     esp_log_level_set("lcd_panel.io.i2c", ESP_LOG_NONE);
@@ -128,20 +126,27 @@ void app_main(void)
 
     ESP_ERROR_CHECK(amoled_lvgl_init(amoled_get_panel(), touch));
 
-    /* Initialise pet — fresh egg, in-memory only for Phase 2 */
+    /* Audio is best-effort; if init fails, jingles silently no-op. */
+    esp_err_t audio_ret = audio_output_init();
+    if (audio_ret == ESP_OK) {
+        audio_output_amp_enable(true);
+        audio_output_start_task();
+    } else {
+        ESP_LOGW(TAG, "Audio init failed (%s) — running silent", esp_err_to_name(audio_ret));
+    }
+
     pet_state_init_new(&s_pet);
     s_pet.hatched_unix     = esp_timer_get_time();
     s_pet.last_update_unix = s_pet.hatched_unix;
 
-    ui_screens_init(lv_scr_act());
+    ui_screens_init(lv_scr_act(), &s_pet);
     ui_screens_apply_state(&s_pet);
 
     xTaskCreate(lvgl_task, "lvgl", 8192, NULL, 2, NULL);
 
     amoled_set_brightness(150);
 
-    ESP_LOGI(TAG, "PixelPet running — egg will hatch in 10s");
-    ESP_LOGI(TAG, "Free heap: %lu (min %lu)",
+    ESP_LOGI(TAG, "PixelPet running. Free heap: %lu (min %lu)",
              (unsigned long)esp_get_free_heap_size(),
              (unsigned long)esp_get_minimum_free_heap_size());
 }

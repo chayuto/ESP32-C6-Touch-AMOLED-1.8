@@ -1,13 +1,15 @@
 /*
- * ui_screens.c — Phase 2: status screen wired to pet_renderer + stat bars.
+ * ui_screens.c — Phase 3: care buttons on every screen wired to stat_engine.
  *
- * Five screens cycled by BOOT button. Status hosts the live pet sprite and
- * three stat bars (hunger / happy / energy). Other screens stay placeholders
- * until phases 3-5.
+ * Status screen hosts the live pet sprite and stat bars. Other screens host
+ * the action buttons that call back into the stat engine. After every care
+ * action, the active screen refreshes immediately so the player sees the
+ * change land before decay drifts the bars again.
  */
 
 #include "ui_screens.h"
 #include "pet_renderer.h"
+#include "stat_engine.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include <stdio.h>
@@ -20,15 +22,19 @@ static const char *SCREEN_NAMES[SCREEN_COUNT] = {
 
 static lv_obj_t *s_screens[SCREEN_COUNT];
 static screen_id_t s_current = SCREEN_STATUS;
+static pet_state_t *s_pet;
 
-/* Status screen widgets */
+/* Status widgets */
 static lv_obj_t *s_lbl_stage;
 static lv_obj_t *s_lbl_age;
 static lv_obj_t *s_bar_hunger;
 static lv_obj_t *s_bar_happy;
 static lv_obj_t *s_bar_energy;
 
-static lv_obj_t *make_stub_screen(lv_obj_t *parent, const char *name, lv_color_t accent)
+/* Sleep screen toggle label */
+static lv_obj_t *s_sleep_btn_label;
+
+static lv_obj_t *make_screen(lv_obj_t *parent)
 {
     lv_obj_t *scr = lv_obj_create(parent);
     lv_obj_remove_style_all(scr);
@@ -36,26 +42,65 @@ static lv_obj_t *make_stub_screen(lv_obj_t *parent, const char *name, lv_color_t
     lv_obj_set_style_bg_color(scr, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
     lv_obj_clear_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
+    return scr;
+}
 
+static lv_obj_t *make_title(lv_obj_t *scr, const char *name, lv_color_t accent)
+{
     lv_obj_t *title = lv_label_create(scr);
     lv_label_set_text(title, name);
     lv_obj_set_style_text_color(title, accent, 0);
     lv_obj_set_style_text_font(title, &lv_font_montserrat_28, 0);
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 24);
-
-    lv_obj_t *hint = lv_label_create(scr);
-    lv_label_set_text(hint, "press BOOT for next");
-    lv_obj_set_style_text_color(hint, lv_color_hex(0x808080), 0);
-    lv_obj_set_style_text_font(hint, &lv_font_montserrat_14, 0);
-    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -24);
-
-    return scr;
+    return title;
 }
 
-static lv_obj_t *make_stat_bar(lv_obj_t *parent, lv_color_t color, int y_offset)
+static lv_obj_t *make_action_btn(lv_obj_t *parent, const char *label,
+                                 lv_color_t color, int width, int y_offset,
+                                 lv_event_cb_t cb, void *user)
 {
+    lv_obj_t *btn = lv_btn_create(parent);
+    lv_obj_set_size(btn, width, 64);
+    lv_obj_align(btn, LV_ALIGN_CENTER, 0, y_offset);
+    lv_obj_set_style_bg_color(btn, color, 0);
+    lv_obj_set_style_radius(btn, 12, 0);
+    lv_obj_add_event_cb(btn, cb, LV_EVENT_CLICKED, user);
+
+    lv_obj_t *lbl = lv_label_create(btn);
+    lv_label_set_text(lbl, label);
+    lv_obj_set_style_text_color(lbl, lv_color_black(), 0);
+    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_20, 0);
+    lv_obj_center(lbl);
+    return btn;
+}
+
+/* ── Care callbacks ────────────────────────────────────── */
+
+static void care_cb(lv_event_t *e)
+{
+    care_action_t action = (care_action_t)(uintptr_t)lv_event_get_user_data(e);
+    if (!s_pet) return;
+    bool ok = stat_engine_apply_care(s_pet, action);
+    ESP_LOGI(TAG, "care %s -> %s", care_action_name(action), ok ? "ok" : "noop");
+    ui_screens_apply_state(s_pet);
+    /* Pop back to status so the player sees the result */
+    if (action != CARE_SLEEP_TOGGLE && action != CARE_CLEAN_ONE) {
+        ui_screens_show(SCREEN_STATUS);
+    }
+}
+
+/* ── Status screen ─────────────────────────────────────── */
+
+static lv_obj_t *make_stat_bar(lv_obj_t *parent, lv_color_t color, int y_offset, const char *label_text)
+{
+    lv_obj_t *lbl = lv_label_create(parent);
+    lv_label_set_text(lbl, label_text);
+    lv_obj_set_style_text_color(lbl, lv_color_hex(0xCCCCCC), 0);
+    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_14, 0);
+    lv_obj_align(lbl, LV_ALIGN_BOTTOM_LEFT, 24, y_offset - 18);
+
     lv_obj_t *bar = lv_bar_create(parent);
-    lv_obj_set_size(bar, 280, 16);
+    lv_obj_set_size(bar, 280, 14);
     lv_obj_align(bar, LV_ALIGN_BOTTOM_MID, 0, y_offset);
     lv_obj_set_style_bg_color(bar, lv_color_hex(0x222222), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, LV_PART_MAIN);
@@ -68,7 +113,6 @@ static lv_obj_t *make_stat_bar(lv_obj_t *parent, lv_color_t color, int y_offset)
 
 static void build_status_screen(lv_obj_t *scr)
 {
-    /* Top: stage name + age */
     s_lbl_stage = lv_label_create(scr);
     lv_label_set_text(s_lbl_stage, "EGG");
     lv_obj_set_style_text_color(s_lbl_stage, lv_color_hex(0x00FFAA), 0);
@@ -81,26 +125,62 @@ static void build_status_screen(lv_obj_t *scr)
     lv_obj_set_style_text_font(s_lbl_age, &lv_font_montserrat_14, 0);
     lv_obj_align(s_lbl_age, LV_ALIGN_TOP_MID, 0, 38);
 
-    /* Pet sprite */
     pet_renderer_init(scr);
 
-    /* Stat bars */
-    s_bar_energy = make_stat_bar(scr, lv_color_hex(0xFFD166), -16);
-    s_bar_happy  = make_stat_bar(scr, lv_color_hex(0xEF476F), -40);
-    s_bar_hunger = make_stat_bar(scr, lv_color_hex(0x06D6A0), -64);
+    s_bar_energy = make_stat_bar(scr, lv_color_hex(0xFFD166), -16, "energy");
+    s_bar_happy  = make_stat_bar(scr, lv_color_hex(0xEF476F), -50, "happy");
+    s_bar_hunger = make_stat_bar(scr, lv_color_hex(0x06D6A0), -84, "hunger");
 }
 
-void ui_screens_init(lv_obj_t *parent)
+/* ── Other screens ─────────────────────────────────────── */
+
+static void build_feed_screen(lv_obj_t *scr)
 {
-    s_screens[SCREEN_STATUS] = make_stub_screen(parent, "", lv_color_hex(0x00FFAA));
-    /* Replace title — status screen uses its own header */
-    lv_obj_clean(s_screens[SCREEN_STATUS]);
+    make_title(scr, "FEED", lv_color_hex(0xFFAA00));
+    make_action_btn(scr, "Meal",  lv_color_hex(0xFFD166), 220, -40,
+                    care_cb, (void *)(uintptr_t)CARE_FEED_MEAL);
+    make_action_btn(scr, "Snack", lv_color_hex(0xFFAFCC), 220,  60,
+                    care_cb, (void *)(uintptr_t)CARE_FEED_SNACK);
+}
+
+static void build_play_screen(lv_obj_t *scr)
+{
+    make_title(scr, "PLAY", lv_color_hex(0xFF4488));
+    make_action_btn(scr, "Play with pet", lv_color_hex(0xEF476F), 260, 20,
+                    care_cb, (void *)(uintptr_t)CARE_PLAY);
+}
+
+static void build_clean_screen(lv_obj_t *scr)
+{
+    make_title(scr, "CLEAN", lv_color_hex(0x44AAFF));
+    make_action_btn(scr, "Wipe", lv_color_hex(0x06D6A0), 220, -20,
+                    care_cb, (void *)(uintptr_t)CARE_CLEAN_ONE);
+    make_action_btn(scr, "Medicine", lv_color_hex(0xA2D2FF), 220, 70,
+                    care_cb, (void *)(uintptr_t)CARE_MEDICINE);
+}
+
+static void build_sleep_screen(lv_obj_t *scr)
+{
+    make_title(scr, "SLEEP", lv_color_hex(0x8866FF));
+    lv_obj_t *btn = make_action_btn(scr, "Tuck in / Wake up",
+                                    lv_color_hex(0xCDB4DB), 280, 20,
+                                    care_cb, (void *)(uintptr_t)CARE_SLEEP_TOGGLE);
+    s_sleep_btn_label = lv_obj_get_child(btn, 0);
+}
+
+/* ── Public API ────────────────────────────────────────── */
+
+void ui_screens_init(lv_obj_t *parent, pet_state_t *pet)
+{
+    s_pet = pet;
+
+    s_screens[SCREEN_STATUS] = make_screen(parent);
     build_status_screen(s_screens[SCREEN_STATUS]);
 
-    s_screens[SCREEN_FEED]  = make_stub_screen(parent, "FEED",  lv_color_hex(0xFFAA00));
-    s_screens[SCREEN_PLAY]  = make_stub_screen(parent, "PLAY",  lv_color_hex(0xFF4488));
-    s_screens[SCREEN_CLEAN] = make_stub_screen(parent, "CLEAN", lv_color_hex(0x44AAFF));
-    s_screens[SCREEN_SLEEP] = make_stub_screen(parent, "SLEEP", lv_color_hex(0x8866FF));
+    s_screens[SCREEN_FEED]  = make_screen(parent); build_feed_screen(s_screens[SCREEN_FEED]);
+    s_screens[SCREEN_PLAY]  = make_screen(parent); build_play_screen(s_screens[SCREEN_PLAY]);
+    s_screens[SCREEN_CLEAN] = make_screen(parent); build_clean_screen(s_screens[SCREEN_CLEAN]);
+    s_screens[SCREEN_SLEEP] = make_screen(parent); build_sleep_screen(s_screens[SCREEN_SLEEP]);
 
     for (int i = 0; i < SCREEN_COUNT; i++) {
         lv_obj_add_flag(s_screens[i], LV_OBJ_FLAG_HIDDEN);
@@ -148,4 +228,8 @@ void ui_screens_apply_state(const pet_state_t *p)
     if (s_bar_hunger) lv_bar_set_value(s_bar_hunger, p->hunger, LV_ANIM_OFF);
     if (s_bar_happy)  lv_bar_set_value(s_bar_happy,  p->happy,  LV_ANIM_OFF);
     if (s_bar_energy) lv_bar_set_value(s_bar_energy, p->energy, LV_ANIM_OFF);
+
+    if (s_sleep_btn_label) {
+        lv_label_set_text(s_sleep_btn_label, p->is_sleeping ? "Wake up" : "Tuck in");
+    }
 }

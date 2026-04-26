@@ -4,6 +4,9 @@ idf_component_register(
         "ui_screens.c"
         "pet_state.c"
         "pet_renderer.c"
+        "stat_engine.c"
+        "audio_jingles.c"
+        "audio_output.c"
     INCLUDE_DIRS "."
     REQUIRES
         amoled_driver
@@ -12,4 +15,6 @@ idf_component_register(
         esp_system
         freertos
         driver
+        esp_driver_i2s
+        esp_driver_i2c
 )
