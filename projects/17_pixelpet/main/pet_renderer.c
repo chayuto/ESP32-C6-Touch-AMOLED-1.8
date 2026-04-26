@@ -1,78 +1,125 @@
 /*
- * pet_renderer.c — procedural pet sprite (Phase 2 placeholder).
+ * pet_renderer.c — sprite-driven layered composition (v2 rework).
  *
- * The pet is composed from LVGL primitives: rounded body, eyes, mouth, and
- * a few accessory layers (poop, Z when sleeping, halo when dead). Stage and
- * mood drive colour, eye shape, mouth curvature, and bob amplitude.
+ * Layers stacked top-to-bottom over the screen:
+ *   accessory_back   (currently unused, reserved for poop/food bowl)
+ *   pet_body         lv_animimg, mood + species drives the source
+ *   particle_overlay lv_image, mood-conditional (heart/Z/etc.)
  *
- * Real pixel-art bitmaps land in Phase 7. The composition API stays the same
- * — `pet_renderer_set_state` will switch from drawing primitives to
- * lv_image_set_src once the sprite sheets are in flash.
+ * On every state change:
+ *   1. Compute (species_id, mood) → animation name (e.g. "idle", "happy",
+ *      "sleeping").
+ *   2. asset_loader returns frame array + total duration; lv_animimg_set_src
+ *      swaps the source array, lv_animimg_set_duration adjusts pace,
+ *      lv_animimg_start kicks the loop.
+ *   3. Mood-appropriate particle is shown/hidden.
+ *
+ * The previous procedural primitives (circle bodies, eye/mouth shapes)
+ * are gone — bodies now live entirely in the asset bundle.
  */
 
 #include "pet_renderer.h"
+#include "asset_loader.h"
+#include "species.h"
 #include "esp_log.h"
-#include "esp_timer.h"
-#include <math.h>
+#include <string.h>
 
 static const char *TAG = "pet_renderer";
 
-static lv_obj_t *s_root;       /* container, holds everything */
-static lv_obj_t *s_body;
-static lv_obj_t *s_eye_l;
-static lv_obj_t *s_eye_r;
-static lv_obj_t *s_mouth;
-static lv_obj_t *s_zzz;        /* sleep indicator */
-static lv_obj_t *s_halo;       /* death indicator */
-static lv_obj_t *s_poops[3];
+/* Layer widgets */
+static lv_obj_t *s_root;
+static lv_obj_t *s_body;          /* lv_animimg */
+static lv_obj_t *s_particle;      /* lv_image, hidden when no overlay */
 
-static pet_stage_t       s_stage      = STAGE_EGG;
-static pet_adult_form_t  s_adult_form = ADULT_HAPPY;
-static pet_mood_t        s_mood       = MOOD_NEUTRAL;
-static int               s_frame      = 0;
+/* Cached state — used to avoid restarting animations every tick */
+static species_id_t s_last_species   = SPECIES_COUNT;   /* sentinel */
+static pet_mood_t   s_last_mood      = MOOD_COUNT;
+static pet_stage_t  s_last_stage     = STAGE_COUNT;
+static asset_id_t   s_last_particle  = 0xFFFF;
 
-/* Adult form palette — only used when stage == STAGE_ADULT */
-static lv_color_t adult_color(pet_adult_form_t f)
+/* Animation name table — index by mood. Stage logic chooses egg vs body. */
+static const char *MOOD_ANIM_NAMES[MOOD_COUNT] = {
+    [MOOD_HAPPY]    = "happy",
+    [MOOD_NEUTRAL]  = "idle",
+    [MOOD_SAD]      = "sad",
+    [MOOD_HUNGRY]   = "sad",        /* fallback while we lack a hungry anim */
+    [MOOD_TIRED]    = "sad",
+    [MOOD_SICK]     = "sick",
+    [MOOD_PLAYING]  = "happy",
+    [MOOD_SLEEPING] = "sleeping",
+    [MOOD_DEAD]     = "dead",
+};
+
+/* Particle overlay name per mood; NULL == no overlay. */
+static const char *MOOD_PARTICLES[MOOD_COUNT] = {
+    [MOOD_HAPPY]    = "particles/heart",
+    [MOOD_HUNGRY]   = "particles/exclaim",
+    [MOOD_TIRED]    = "particles/zzz",
+    [MOOD_SICK]     = "particles/sweat",
+    [MOOD_SLEEPING] = "particles/zzz",
+    [MOOD_PLAYING]  = "particles/sparkle",
+};
+
+/* ── Helpers ───────────────────────────────────────────────────────────── */
+
+static void show_anim(const asset_anim_t *anim)
 {
-    switch (f) {
-    case ADULT_HAPPY:   return lv_color_hex(0x80FFB0);   /* bright mint */
-    case ADULT_LAZY:    return lv_color_hex(0xFFE08A);   /* pale yellow */
-    case ADULT_NAUGHTY: return lv_color_hex(0xFF7A6E);   /* coral red */
-    case ADULT_SICK:    return lv_color_hex(0x8FBC8F);   /* sickly green */
-    default:            return lv_color_hex(0xA2D2FF);
+    if (!anim) {
+        lv_obj_add_flag(s_body, LV_OBJ_FLAG_HIDDEN);
+        return;
     }
+    lv_obj_clear_flag(s_body, LV_OBJ_FLAG_HIDDEN);
+    lv_animimg_set_src(s_body, anim->frames, anim->frame_count);
+    lv_animimg_set_duration(s_body, anim->total_duration_ms);
+    lv_animimg_set_repeat_count(s_body, LV_ANIM_REPEAT_INFINITE);
+    lv_animimg_start(s_body);
 }
 
-/* Colour palette, deliberately retro and chunky */
-static lv_color_t stage_body_color(pet_stage_t s, pet_mood_t m, pet_adult_form_t f)
+static void show_particle(const char *name)
 {
-    if (m == MOOD_SICK) return lv_color_hex(0x8FBC8F);   /* pale green */
-    if (m == MOOD_DEAD) return lv_color_hex(0x404040);   /* grey */
-    switch (s) {
-    case STAGE_EGG:    return lv_color_hex(0xE8D5A0);
-    case STAGE_BABY:   return lv_color_hex(0xFFC8DD);   /* pink blob */
-    case STAGE_CHILD:  return lv_color_hex(0xFFAFCC);
-    case STAGE_TEEN:   return lv_color_hex(0xCDB4DB);   /* lavender */
-    case STAGE_ADULT:  return adult_color(f);
-    case STAGE_SENIOR: return lv_color_hex(0xBDE0FE);
-    case STAGE_DEAD:   return lv_color_hex(0x404040);
-    default:           return lv_color_hex(0xFFFFFF);
+    if (!name) {
+        lv_obj_add_flag(s_particle, LV_OBJ_FLAG_HIDDEN);
+        return;
     }
+    const asset_anim_t *anim = asset_get_by_name(name);
+    if (!anim) {
+        lv_obj_add_flag(s_particle, LV_OBJ_FLAG_HIDDEN);
+        return;
+    }
+    /* Particles stay simple: show the first frame as a static image.
+     * (We can swap to lv_animimg when particles need motion.) */
+    lv_img_set_src(s_particle, anim->frames[0]);
+    lv_obj_clear_flag(s_particle, LV_OBJ_FLAG_HIDDEN);
 }
 
-static int stage_body_size(pet_stage_t s)
+static const asset_anim_t *resolve_body_anim(species_id_t species,
+                                             pet_stage_t stage,
+                                             pet_mood_t mood)
 {
-    switch (s) {
-    case STAGE_EGG:    return 90;
-    case STAGE_BABY:   return 80;
-    case STAGE_CHILD:  return 100;
-    case STAGE_TEEN:   return 120;
-    case STAGE_ADULT:  return 140;
-    case STAGE_SENIOR: return 130;
-    case STAGE_DEAD:   return 100;
-    default:           return 100;
+    if (stage == STAGE_EGG) {
+        char buf[48];
+        const species_def_t *s = species_get(species);
+        snprintf(buf, sizeof(buf), "lifecycle/egg_%s", s->id_str);
+        return asset_get_by_name(buf);
     }
+
+    const char *anim_name = MOOD_ANIM_NAMES[mood] ? MOOD_ANIM_NAMES[mood] : "idle";
+    char buf[64];
+    if (!species_anim_asset_name(species, anim_name, buf, sizeof(buf))) {
+        return NULL;
+    }
+    const asset_anim_t *a = asset_get_by_name(buf);
+    if (a) return a;
+
+    /* Fallback to idle if the requested mood anim doesn't exist for this species */
+    if (strcmp(anim_name, "idle") != 0) {
+        species_anim_asset_name(species, "idle", buf, sizeof(buf));
+        a = asset_get_by_name(buf);
+    }
+    return a;
 }
+
+/* ── Public API ────────────────────────────────────────────────────────── */
 
 void pet_renderer_init(lv_obj_t *parent)
 {
@@ -83,64 +130,24 @@ void pet_renderer_init(lv_obj_t *parent)
     lv_obj_clear_flag(s_root, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_align(s_root, LV_ALIGN_CENTER, 0, 0);
 
-    s_body = lv_obj_create(s_root);
-    lv_obj_remove_style_all(s_body);
-    lv_obj_set_size(s_body, 100, 100);
-    lv_obj_set_style_radius(s_body, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_opa(s_body, LV_OPA_COVER, 0);
+    s_body = lv_animimg_create(s_root);
+    lv_obj_set_size(s_body, 64, 64);
     lv_obj_align(s_body, LV_ALIGN_CENTER, 0, 0);
+    /* Crisp pixel scaling: nearest-neighbour, scale ×2 (32×32 sprite → 64×64 visible). */
+    lv_img_set_antialias(s_body, false);
+    lv_img_set_zoom(s_body, 256 * 2);
 
-    s_eye_l = lv_obj_create(s_root);
-    lv_obj_remove_style_all(s_eye_l);
-    lv_obj_set_size(s_eye_l, 10, 14);
-    lv_obj_set_style_bg_color(s_eye_l, lv_color_black(), 0);
-    lv_obj_set_style_bg_opa(s_eye_l, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(s_eye_l, 5, 0);
-    lv_obj_align(s_eye_l, LV_ALIGN_CENTER, -18, -10);
+    s_particle = lv_img_create(s_root);
+    lv_obj_align(s_particle, LV_ALIGN_TOP_RIGHT, -10, 10);
+    lv_img_set_antialias(s_particle, false);
+    lv_img_set_zoom(s_particle, 256 * 2);
+    lv_obj_add_flag(s_particle, LV_OBJ_FLAG_HIDDEN);
 
-    s_eye_r = lv_obj_create(s_root);
-    lv_obj_remove_style_all(s_eye_r);
-    lv_obj_set_size(s_eye_r, 10, 14);
-    lv_obj_set_style_bg_color(s_eye_r, lv_color_black(), 0);
-    lv_obj_set_style_bg_opa(s_eye_r, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(s_eye_r, 5, 0);
-    lv_obj_align(s_eye_r, LV_ALIGN_CENTER, 18, -10);
+    s_last_species = SPECIES_COUNT;   /* force first-call diff */
+    s_last_mood    = MOOD_COUNT;
+    s_last_stage   = STAGE_COUNT;
 
-    s_mouth = lv_obj_create(s_root);
-    lv_obj_remove_style_all(s_mouth);
-    lv_obj_set_size(s_mouth, 20, 4);
-    lv_obj_set_style_bg_color(s_mouth, lv_color_black(), 0);
-    lv_obj_set_style_bg_opa(s_mouth, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(s_mouth, 2, 0);
-    lv_obj_align(s_mouth, LV_ALIGN_CENTER, 0, 14);
-
-    s_zzz = lv_label_create(s_root);
-    lv_label_set_text(s_zzz, "z z Z");
-    lv_obj_set_style_text_color(s_zzz, lv_color_hex(0xCCCCCC), 0);
-    lv_obj_set_style_text_font(s_zzz, &lv_font_montserrat_20, 0);
-    lv_obj_align(s_zzz, LV_ALIGN_TOP_RIGHT, -10, 0);
-    lv_obj_add_flag(s_zzz, LV_OBJ_FLAG_HIDDEN);
-
-    s_halo = lv_obj_create(s_root);
-    lv_obj_remove_style_all(s_halo);
-    lv_obj_set_size(s_halo, 60, 8);
-    lv_obj_set_style_radius(s_halo, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_opa(s_halo, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_color(s_halo, lv_color_hex(0xFFE066), 0);
-    lv_obj_set_style_border_width(s_halo, 3, 0);
-    lv_obj_align(s_halo, LV_ALIGN_TOP_MID, 0, -20);
-    lv_obj_add_flag(s_halo, LV_OBJ_FLAG_HIDDEN);
-
-    for (int i = 0; i < 3; i++) {
-        s_poops[i] = lv_label_create(parent); /* below pet, on screen */
-        lv_label_set_text(s_poops[i], "*");
-        lv_obj_set_style_text_color(s_poops[i], lv_color_hex(0x6B4423), 0);
-        lv_obj_set_style_text_font(s_poops[i], &lv_font_montserrat_28, 0);
-        lv_obj_align(s_poops[i], LV_ALIGN_BOTTOM_LEFT, 30 + i * 50, -150);
-        lv_obj_add_flag(s_poops[i], LV_OBJ_FLAG_HIDDEN);
-    }
-
-    ESP_LOGI(TAG, "pet renderer ready");
+    ESP_LOGI(TAG, "pet renderer ready (sprite-driven)");
 }
 
 pet_mood_t pet_renderer_derive_mood(const pet_state_t *p)
@@ -155,138 +162,30 @@ pet_mood_t pet_renderer_derive_mood(const pet_state_t *p)
     return MOOD_NEUTRAL;
 }
 
-static void apply_mood_to_face(pet_mood_t m)
-{
-    /* Eye shapes by mood */
-    switch (m) {
-    case MOOD_SLEEPING:
-    case MOOD_TIRED:
-        lv_obj_set_size(s_eye_l, 12, 3);
-        lv_obj_set_size(s_eye_r, 12, 3);
-        break;
-    case MOOD_SAD:
-    case MOOD_HUNGRY:
-    case MOOD_SICK:
-        lv_obj_set_size(s_eye_l, 10, 8);
-        lv_obj_set_size(s_eye_r, 10, 8);
-        break;
-    case MOOD_DEAD:
-        lv_obj_set_size(s_eye_l, 12, 12);
-        lv_obj_set_size(s_eye_r, 12, 12);
-        /* X-eyes (rotated squares would be ideal; this is good enough) */
-        break;
-    default:
-        lv_obj_set_size(s_eye_l, 10, 14);
-        lv_obj_set_size(s_eye_r, 10, 14);
-        break;
-    }
-
-    /* Mouth shape by mood */
-    switch (m) {
-    case MOOD_HAPPY:
-    case MOOD_PLAYING:
-        lv_obj_set_size(s_mouth, 24, 6);
-        lv_obj_align(s_mouth, LV_ALIGN_CENTER, 0, 14);
-        break;
-    case MOOD_SAD:
-    case MOOD_HUNGRY:
-        lv_obj_set_size(s_mouth, 18, 4);
-        lv_obj_align(s_mouth, LV_ALIGN_CENTER, 0, 18);
-        break;
-    case MOOD_SICK:
-        lv_obj_set_size(s_mouth, 14, 4);
-        lv_obj_align(s_mouth, LV_ALIGN_CENTER, 0, 16);
-        break;
-    case MOOD_SLEEPING:
-        lv_obj_set_size(s_mouth, 12, 3);
-        lv_obj_align(s_mouth, LV_ALIGN_CENTER, 0, 14);
-        break;
-    default:
-        lv_obj_set_size(s_mouth, 20, 4);
-        lv_obj_align(s_mouth, LV_ALIGN_CENTER, 0, 14);
-        break;
-    }
-}
-
 void pet_renderer_set_state(const pet_state_t *p)
 {
     pet_mood_t mood = pet_renderer_derive_mood(p);
-    pet_stage_t stage = p->stage;
 
-    if (stage != s_stage) {
-        int sz = stage_body_size(stage);
-        lv_obj_set_size(s_body, sz, sz);
-    }
-    s_stage      = stage;
-    s_adult_form = p->adult_form;
-    s_mood       = mood;
-
-    lv_obj_set_style_bg_color(s_body, stage_body_color(stage, mood, p->adult_form), 0);
-
-    /* Adult naughty form: tilt eyes slightly to look mischievous */
-    if (stage == STAGE_ADULT && p->adult_form == ADULT_NAUGHTY) {
-        lv_obj_set_style_transform_angle(s_eye_l, 150, 0);
-        lv_obj_set_style_transform_angle(s_eye_r, -150, 0);
-    } else {
-        lv_obj_set_style_transform_angle(s_eye_l, 0, 0);
-        lv_obj_set_style_transform_angle(s_eye_r, 0, 0);
+    bool body_changed = (p->species_id != s_last_species) ||
+                        (p->stage      != s_last_stage)   ||
+                        (mood          != s_last_mood);
+    if (body_changed) {
+        const asset_anim_t *anim = resolve_body_anim(p->species_id,
+                                                     p->stage, mood);
+        show_anim(anim);
+        s_last_species = p->species_id;
+        s_last_stage   = p->stage;
+        s_last_mood    = mood;
     }
 
-    /* Egg: hide face */
-    bool show_face = (stage != STAGE_EGG);
-    if (show_face) {
-        lv_obj_clear_flag(s_eye_l, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_clear_flag(s_eye_r, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_clear_flag(s_mouth, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        lv_obj_add_flag(s_eye_l, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(s_eye_r, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(s_mouth, LV_OBJ_FLAG_HIDDEN);
-    }
-
-    apply_mood_to_face(mood);
-
-    /* Sleep + death indicators */
-    if (mood == MOOD_SLEEPING) lv_obj_clear_flag(s_zzz, LV_OBJ_FLAG_HIDDEN);
-    else                       lv_obj_add_flag(s_zzz, LV_OBJ_FLAG_HIDDEN);
-
-    if (mood == MOOD_DEAD)     lv_obj_clear_flag(s_halo, LV_OBJ_FLAG_HIDDEN);
-    else                       lv_obj_add_flag(s_halo, LV_OBJ_FLAG_HIDDEN);
-
-    /* Poops */
-    for (int i = 0; i < 3; i++) {
-        if (i < p->poop_count) lv_obj_clear_flag(s_poops[i], LV_OBJ_FLAG_HIDDEN);
-        else                   lv_obj_add_flag(s_poops[i], LV_OBJ_FLAG_HIDDEN);
+    /* Particle overlay — keyed by mood only */
+    if (mood != s_last_mood || s_last_particle == 0xFFFF) {
+        show_particle(MOOD_PARTICLES[mood]);
     }
 }
 
 void pet_renderer_tick(void)
 {
-    s_frame++;
-
-    /* Idle bob: ±4px sine, 30 Hz timer → ~2s period at /60 */
-    float t = s_frame * (2.0f * (float)M_PI / 60.0f);
-    int bob_y = (int)(4.0f * sinf(t));
-
-    /* Sleep mood: slower deeper bob */
-    if (s_mood == MOOD_SLEEPING) {
-        bob_y = (int)(2.0f * sinf(t * 0.4f));
-    }
-    /* Dead: no animation */
-    if (s_mood == MOOD_DEAD) bob_y = 0;
-
-    lv_obj_align(s_body,  LV_ALIGN_CENTER, 0, bob_y);
-    lv_obj_align(s_eye_l, LV_ALIGN_CENTER, -18, -10 + bob_y);
-    lv_obj_align(s_eye_r, LV_ALIGN_CENTER,  18, -10 + bob_y);
-
-    /* Blink every 3s for awake moods */
-    bool blink = (s_frame % 90 == 0) &&
-                 s_mood != MOOD_SLEEPING && s_mood != MOOD_DEAD &&
-                 s_stage != STAGE_EGG;
-    if (blink) {
-        lv_obj_set_size(s_eye_l, 10, 2);
-        lv_obj_set_size(s_eye_r, 10, 2);
-    } else if ((s_frame - 1) % 90 == 0) {
-        apply_mood_to_face(s_mood);  /* restore eye shape */
-    }
+    /* Animation is now driven by lv_animimg's internal timer, not us.
+     * Reserved for future ambient effects (eye dart, big-idle picker). */
 }

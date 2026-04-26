@@ -58,8 +58,9 @@ typedef struct __attribute__((packed)) {
     uint32_t data_offset;        /* bytes from bundle start */
     uint32_t data_size;
     uint32_t durations_offset;   /* 0 == none */
-    uint32_t reserved;
+    uint8_t  pad[8];             /* keeps the struct at 64 bytes total */
 } asset_toc_t;
+_Static_assert(sizeof(asset_toc_t) == 64, "TOC entry must be 64 bytes");
 
 /* ── Runtime per-asset state ────────────────────────────────────────────── */
 typedef struct {
