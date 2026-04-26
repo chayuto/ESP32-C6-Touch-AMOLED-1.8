@@ -1,5 +1,6 @@
 palette: ui
 size: 12x12
+upscale: 2
 frames: 4
 durations_ms: [400, 400, 400, 400]
 animate:

@@ -1,5 +1,6 @@
 palette_variants: [species_blob_pink, species_blob_mint, species_blob_yellow, species_blob_blue, species_blob_purple]
 size: 32x32
+upscale: 3
 frames: 6
 durations_ms: [120, 100, 100, 120, 200, 160]
 # Bouncy hop: body rises, mouth wide smile, eyes squinted with joy

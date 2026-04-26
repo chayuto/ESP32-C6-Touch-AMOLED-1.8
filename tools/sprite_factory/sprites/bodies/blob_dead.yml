@@ -1,5 +1,6 @@
 palette_variants: [species_blob_pink, species_blob_mint, species_blob_yellow, species_blob_blue, species_blob_purple]
 size: 32x32
+upscale: 3
 frames: 1
 shape:
   # Collapsed body
