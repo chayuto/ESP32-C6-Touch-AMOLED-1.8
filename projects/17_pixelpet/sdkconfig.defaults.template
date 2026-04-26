@@ -11,6 +11,12 @@ CONFIG_LV_FONT_MONTSERRAT_28=y
 CONFIG_LV_MEM_SIZE_KILOBYTES=48
 CONFIG_LV_COLOR_16_SWAP=y
 
+# CRITICAL: lv_animimg is the widget the v2 renderer drives every body
+# anim through. ESP-IDF's LVGL Kconfig defaults it to OFF — without
+# this line lv_animimg_create() returns a non-functional stub and the
+# pet never renders.
+CONFIG_LV_USE_ANIMIMG=y
+
 # FreeRTOS
 CONFIG_FREERTOS_HZ=1000
 CONFIG_FREERTOS_UNICORE=y

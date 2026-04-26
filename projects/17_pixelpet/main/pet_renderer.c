@@ -28,8 +28,11 @@ static const char *TAG = "pet_renderer";
 
 /* Layer widgets */
 static lv_obj_t *s_root;
-static lv_obj_t *s_body;          /* lv_animimg */
+static lv_obj_t *s_body;          /* lv_img — manual frame swap via timer */
 static lv_obj_t *s_particle;      /* lv_image, hidden when no overlay */
+static lv_timer_t *s_body_timer;
+static const asset_anim_t *s_body_anim;
+static uint8_t s_body_frame_idx;
 
 /* Cached state — used to avoid restarting animations every tick */
 static species_id_t s_last_species   = SPECIES_COUNT;   /* sentinel */
@@ -62,17 +65,52 @@ static const char *MOOD_PARTICLES[MOOD_COUNT] = {
 
 /* ── Helpers ───────────────────────────────────────────────────────────── */
 
+static void body_frame_tick(lv_timer_t *t)
+{
+    if (!s_body_anim || s_body_anim->frame_count == 0) return;
+    s_body_frame_idx = (s_body_frame_idx + 1) % s_body_anim->frame_count;
+    lv_img_set_src(s_body, s_body_anim->frames[s_body_frame_idx]);
+
+    /* Reschedule the timer with the next frame's duration. */
+    uint32_t next_ms;
+    if (s_body_anim->durations_ms) {
+        next_ms = s_body_anim->durations_ms[s_body_frame_idx];
+    } else {
+        next_ms = (s_body_anim->total_duration_ms + s_body_anim->frame_count - 1)
+                  / s_body_anim->frame_count;
+    }
+    if (next_ms < 30) next_ms = 30;
+    lv_timer_set_period(t, next_ms);
+}
+
 static void show_anim(const asset_anim_t *anim)
 {
-    if (!anim) {
+    if (!anim || anim->frame_count == 0) {
         lv_obj_add_flag(s_body, LV_OBJ_FLAG_HIDDEN);
+        s_body_anim = NULL;
         return;
     }
     lv_obj_clear_flag(s_body, LV_OBJ_FLAG_HIDDEN);
-    lv_animimg_set_src(s_body, anim->frames, anim->frame_count);
-    lv_animimg_set_duration(s_body, anim->total_duration_ms);
-    lv_animimg_set_repeat_count(s_body, LV_ANIM_REPEAT_INFINITE);
-    lv_animimg_start(s_body);
+    s_body_anim = anim;
+    s_body_frame_idx = 0;
+    lv_img_set_src(s_body, anim->frames[0]);
+    /* set_src may re-trigger layout against the source image's natural
+     * size — re-pin the widget bounds AND re-align so the position
+     * survives any internal refresh. */
+    lv_obj_set_size(s_body, anim->width, anim->height);
+    lv_obj_align(s_body, LV_ALIGN_CENTER, 0, 0);
+    uint32_t first_ms = anim->durations_ms
+        ? anim->durations_ms[0]
+        : (anim->total_duration_ms / anim->frame_count);
+    if (first_ms < 30) first_ms = 30;
+    if (s_body_timer) {
+        lv_timer_set_period(s_body_timer, first_ms);
+        lv_timer_resume(s_body_timer);
+    } else {
+        s_body_timer = lv_timer_create(body_frame_tick, first_ms, NULL);
+    }
+    ESP_LOGD(TAG, "anim %ux%u %u frames", anim->width, anim->height,
+             anim->frame_count);
 }
 
 static void show_particle(const char *name)
@@ -130,17 +168,19 @@ void pet_renderer_init(lv_obj_t *parent)
     lv_obj_clear_flag(s_root, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_align(s_root, LV_ALIGN_CENTER, 0, 0);
 
-    s_body = lv_animimg_create(s_root);
-    lv_obj_set_size(s_body, 64, 64);
+    s_body = lv_img_create(s_root);
+    /* Sprites are pre-upscaled 3× at build time (32→96), so we render at
+     * native size — no LVGL zoom or pivot games. show_anim() re-pins
+     * the size + alignment after every set_src because lv_img_set_src
+     * silently invalidates the widget's layout. */
+    lv_obj_set_size(s_body, 96, 96);
     lv_obj_align(s_body, LV_ALIGN_CENTER, 0, 0);
-    /* Crisp pixel scaling: nearest-neighbour, scale ×2 (32×32 sprite → 64×64 visible). */
     lv_img_set_antialias(s_body, false);
-    lv_img_set_zoom(s_body, 256 * 2);
 
     s_particle = lv_img_create(s_root);
+    lv_obj_set_size(s_particle, 32, 32);
     lv_obj_align(s_particle, LV_ALIGN_TOP_RIGHT, -10, 10);
     lv_img_set_antialias(s_particle, false);
-    lv_img_set_zoom(s_particle, 256 * 2);
     lv_obj_add_flag(s_particle, LV_OBJ_FLAG_HIDDEN);
 
     s_last_species = SPECIES_COUNT;   /* force first-call diff */

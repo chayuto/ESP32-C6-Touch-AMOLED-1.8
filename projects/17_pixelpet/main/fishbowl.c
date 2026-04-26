@@ -62,12 +62,13 @@ void fishbowl_init(lv_obj_t *parent)
     lv_obj_clear_flag(s_root, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
 
     /* Tint layer covers the whole screen, sits below the pet but above
-     * any solid background. Initial neutral tint. */
+     * any solid background. Subtle: 30% opacity so it shifts mood
+     * without obscuring the pet. */
     s_tint = lv_obj_create(s_root);
     lv_obj_remove_style_all(s_tint);
     lv_obj_set_size(s_tint, LV_PCT(100), LV_PCT(100));
     lv_obj_set_style_bg_color(s_tint, lv_color_hex(0x0a1c2e), 0);
-    lv_obj_set_style_bg_opa(s_tint, LV_OPA_70, 0);
+    lv_obj_set_style_bg_opa(s_tint, LV_OPA_30, 0);
     lv_obj_clear_flag(s_tint, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
 
     /* Try to use the bubble sprite from the bundle; fall back to a
@@ -129,7 +130,8 @@ void fishbowl_apply_tint(int hour)
     uint8_t b = (uint8_t)(0x2e + (0x10 - 0x2e) * day);
     lv_obj_set_style_bg_color(s_tint, lv_color_make(r, g, b), 0);
 
-    /* Less opacity around noon, more at night (cosier). */
-    uint8_t opa = (uint8_t)(70 - 40 * day);
+    /* Less opacity around noon, more at night (cosier). Capped at 50
+     * so the pet never gets crushed under heavy tint. */
+    uint8_t opa = (uint8_t)(50 - 25 * day);
     lv_obj_set_style_bg_opa(s_tint, opa, 0);
 }

@@ -217,14 +217,22 @@ class BundleBuilder:
         self.entries: List[dict] = []
         self.data_pool = bytearray()
 
+    debug_dir: Path | None = None  # set by main()
+
     def add_sprite(self, name: str, spec: dict) -> None:
         size = parse_size(spec["size"])
         frame_count = spec.get("frames", 1)
         palette_name = spec["palette"]
         palette_id = self.palettes.resolve(palette_name)
         palette_bytes = self.palettes.palette_bytes(palette_id)
+        upscale = int(spec.get("upscale", 1))
 
-        w, h = size
+        # Native size used for primitive rendering. After rendering, each
+        # frame is upscaled (nearest-neighbour) to (w*upscale, h*upscale)
+        # so the on-device image is bigger without LVGL zoom games.
+        nat_w, nat_h = size
+        w, h = nat_w * upscale, nat_h * upscale
+
         frame_bytes = (w * h + 1) // 2     # I4 packed
         per_frame_block = 64 + frame_bytes  # palette + pixels
 
@@ -238,6 +246,21 @@ class BundleBuilder:
         data_offset_in_pool = len(self.data_pool)
         for f in range(frame_count):
             img = render_frame(spec, f, size, self.palettes, palette_name)
+            if upscale > 1:
+                # Pillow's resize on a P-mode image with NEAREST keeps the
+                # palette indices intact (no quantization needed afterwards).
+                img = img.resize((w, h), Image.Resampling.NEAREST)
+            if self.debug_dir is not None:
+                # Apply the palette so the dumped PNG is viewable.
+                pal = self.palettes._argb_lists[palette_id]
+                rgb = [(r, g, b) for (a, r, g, b) in pal for _ in (0,)]
+                flat = []
+                for (a, r, g, b) in pal:
+                    flat.extend([r, g, b])
+                img.putpalette(flat[:768])
+                out_dir = self.debug_dir / name.replace("/", "_")
+                out_dir.mkdir(parents=True, exist_ok=True)
+                img.save(out_dir / f"{f:02d}.png")
             self.data_pool += palette_bytes
             self.data_pool += img_to_i4(img)
 
@@ -357,6 +380,8 @@ def main() -> int:
                     help="sprite_factory directory (palettes/, sprites/)")
     ap.add_argument("--out-bin", required=True, type=Path)
     ap.add_argument("--out-header", required=True, type=Path)
+    ap.add_argument("--debug-pngs", type=Path, default=None,
+                    help="Optional dir to dump each rendered frame as PNG.")
     args = ap.parse_args()
 
     src: Path = args.src
@@ -372,6 +397,7 @@ def main() -> int:
 
     palettes = PaletteRegistry(palette_dir)
     builder = BundleBuilder(palettes)
+    builder.debug_dir = args.debug_pngs
 
     # Walk sprites/, treating subdir as namespace prefix.
     # YAML may set palette_variants: [pal1, pal2, ...] to emit one sprite
