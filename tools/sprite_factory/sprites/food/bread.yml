@@ -1,0 +1,9 @@
+palette: food
+size: 16x16
+frames: 1
+shape:
+  - oval:  {pos: [2, 5], size: [13, 9], color: brown}
+  - oval:  {pos: [3, 6], size: [11, 5], color: orange}     # crust top
+  - rect:  {pos: [4, 9], size: [2, 1], color: dark_brown}  # crust line
+  - rect:  {pos: [9, 9], size: [2, 1], color: dark_brown}
+  - rect:  {pos: [6, 11], size: [4, 1], color: dark_brown}

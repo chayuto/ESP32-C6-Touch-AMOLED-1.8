@@ -1,0 +1,16 @@
+palette: medicine
+size: 14x12
+frames: 4
+durations_ms: [200, 200, 200, 200]
+animate:
+  base:
+    # Soap bubble
+    - circle: {center: [6, 6], radius: 5, color: light_blue}
+    - circle: {center: [6, 6], radius: 4, color: white}
+    - pixel:  {pos: [4, 4], color: light_blue}
+    - pixel:  {pos: [3, 5], color: light_blue}
+  per_frame:
+    0: {dy: 0}
+    1: {dy: -1}
+    2: {dy: -2}
+    3: {dy: -3}

@@ -1,0 +1,35 @@
+palette: species_blob_pink
+size: 32x32
+frames: 4
+durations_ms: [800, 800, 800, 800]
+# Subtle wobble — egg about to hatch
+frames_shape:
+  - - oval: {pos: [6, 6], size: [20, 24], color: highlight}
+    - oval: {pos: [7, 7], size: [18, 22], color: light}
+    - oval: {pos: [8, 9], size: [10, 6], color: highlight}
+    - oval: {pos: [6, 25], size: [20, 4], color: shadow}
+    # Cracks
+    - pixel: {pos: [12, 16], color: shadow}
+    - pixel: {pos: [13, 17], color: shadow}
+    - pixel: {pos: [12, 18], color: shadow}
+  - - oval: {pos: [5, 6], size: [21, 24], color: highlight}
+    - oval: {pos: [6, 7], size: [19, 22], color: light}
+    - oval: {pos: [7, 9], size: [10, 6], color: highlight}
+    - oval: {pos: [5, 25], size: [21, 4], color: shadow}
+    - pixel: {pos: [11, 16], color: shadow}
+    - pixel: {pos: [12, 17], color: shadow}
+    - pixel: {pos: [11, 18], color: shadow}
+  - - oval: {pos: [6, 6], size: [20, 24], color: highlight}
+    - oval: {pos: [7, 7], size: [18, 22], color: light}
+    - oval: {pos: [8, 9], size: [10, 6], color: highlight}
+    - oval: {pos: [6, 25], size: [20, 4], color: shadow}
+    - pixel: {pos: [12, 16], color: shadow}
+    - pixel: {pos: [13, 17], color: shadow}
+    - pixel: {pos: [12, 18], color: shadow}
+  - - oval: {pos: [7, 6], size: [21, 24], color: highlight}
+    - oval: {pos: [8, 7], size: [19, 22], color: light}
+    - oval: {pos: [9, 9], size: [10, 6], color: highlight}
+    - oval: {pos: [7, 25], size: [21, 4], color: shadow}
+    - pixel: {pos: [13, 16], color: shadow}
+    - pixel: {pos: [14, 17], color: shadow}
+    - pixel: {pos: [13, 18], color: shadow}

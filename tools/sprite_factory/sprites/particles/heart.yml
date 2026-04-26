@@ -1,0 +1,20 @@
+palette: ui
+size: 12x12
+frames: 4
+durations_ms: [180, 200, 200, 180]
+animate:
+  base:
+    # Heart shape: two top arcs + V at bottom
+    - circle: {center: [3, 4], radius: 2, color: red}
+    - circle: {center: [8, 4], radius: 2, color: red}
+    - rect:   {pos: [2, 4], size: [8, 3], color: red}
+    - rect:   {pos: [3, 7], size: [6, 1], color: red}
+    - rect:   {pos: [4, 8], size: [4, 1], color: red}
+    - rect:   {pos: [5, 9], size: [2, 1], color: red}
+    - pixel:  {pos: [3, 3], color: pink}
+    - pixel:  {pos: [4, 3], color: pink}
+  per_frame:
+    0: {dy: 0}
+    1: {dy: -1, scale: 1.05}
+    2: {dy: -2, scale: 1.0}
+    3: {dy: -3, scale: 0.95}

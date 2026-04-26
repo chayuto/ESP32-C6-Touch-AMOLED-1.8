@@ -1,0 +1,17 @@
+palette: ui
+size: 12x12
+frames: 4
+durations_ms: [400, 400, 400, 400]
+animate:
+  base:
+    # Letter Z drawn with rects
+    - rect: {pos: [3, 3], size: [5, 1], color: light_grey}   # top
+    - rect: {pos: [6, 4], size: [1, 1], color: light_grey}
+    - rect: {pos: [5, 5], size: [1, 1], color: light_grey}
+    - rect: {pos: [4, 6], size: [1, 1], color: light_grey}
+    - rect: {pos: [3, 7], size: [5, 1], color: light_grey}   # bottom
+  per_frame:
+    0: {dy:  0}
+    1: {dy: -1, dx:  1}
+    2: {dy: -3, dx:  0}
+    3: {dy: -5, dx: -1}

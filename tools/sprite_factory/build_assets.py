@@ -139,18 +139,35 @@ def parse_size(s: str) -> Tuple[int, int]:
 
 def render_frame(spec: dict, frame_idx: int, size: Tuple[int, int],
                  palette: PaletteRegistry, palette_name: str) -> Image.Image:
-    """Render one frame of a sprite. Returns a P-mode image with palette indices."""
+    """Render one frame of a sprite. Returns a P-mode image with palette indices.
+
+    YAML can express the frame in three ways:
+      1. spec["shape"] — single static shape used for all frames.
+      2. spec["animate"]["base"] — default shape, per_frame entries can
+         apply dx/dy translation (cheap "the whole thing shifts").
+      3. spec["frames_shape"][i] — list of shape arrays, one per frame
+         (used when each frame is structurally different, e.g. body
+         breathing).
+    """
     w, h = size
     img = Image.new("P", (w, h), 0)        # default index 0 = transparent
 
-    animate = spec.get("animate", {})
-    base = animate.get("base", []) or spec.get("shape", [])
-    per_frame = (animate.get("per_frame", {}) or {}).get(frame_idx, {})
+    # Frame 3: per-frame complete shape array
+    frames_shape = spec.get("frames_shape")
+    if frames_shape is not None:
+        shapes = frames_shape[frame_idx]
+        dx = dy = 0
+    else:
+        animate = spec.get("animate", {})
+        base = animate.get("base", []) or spec.get("shape", [])
+        per_frame = (animate.get("per_frame", {}) or {}).get(frame_idx, {})
+        shapes = per_frame.get("shape") if isinstance(per_frame, dict) else None
+        if shapes is None:
+            shapes = base
+        dx = per_frame.get("dx", 0) if isinstance(per_frame, dict) else 0
+        dy = per_frame.get("dy", 0) if isinstance(per_frame, dict) else 0
 
-    dx = per_frame.get("dx", 0)
-    dy = per_frame.get("dy", 0)
-
-    for op_dict in base:
+    for op_dict in shapes:
         ((op_name, op_args),) = op_dict.items()
         op_args = dict(op_args)
         # Translate any positional fields by per-frame dx/dy

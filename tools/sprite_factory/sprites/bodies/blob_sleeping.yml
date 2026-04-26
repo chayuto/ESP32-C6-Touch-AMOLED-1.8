@@ -1,0 +1,47 @@
+palette: species_blob_pink
+size: 32x32
+frames: 4
+durations_ms: [800, 700, 800, 700]
+# Slow deep breath, eyes closed
+frames_shape:
+  # Frame 0 — rest
+  - - oval:  {pos: [3, 11], size: [26, 18], color: light}
+    - oval:  {pos: [3, 25], size: [26, 4], color: shadow}
+    - oval:  {pos: [10, 13], size: [12, 5], color: highlight}
+    - oval:  {pos: [3, 18], size: [4, 3], color: cheek}
+    - oval:  {pos: [25, 18], size: [4, 3], color: cheek}
+    # Closed eyes (horizontal lines)
+    - rect:  {pos: [9, 16], size: [4, 1], color: eye}
+    - rect:  {pos: [19, 16], size: [4, 1], color: eye}
+    # Tiny smile
+    - rect:  {pos: [14, 21], size: [4, 1], color: eye}
+
+  # Frame 1 — inhale (taller)
+  - - oval:  {pos: [3, 9], size: [26, 20], color: light}
+    - oval:  {pos: [3, 25], size: [26, 4], color: shadow}
+    - oval:  {pos: [10, 11], size: [12, 5], color: highlight}
+    - oval:  {pos: [3, 16], size: [4, 3], color: cheek}
+    - oval:  {pos: [25, 16], size: [4, 3], color: cheek}
+    - rect:  {pos: [9, 14], size: [4, 1], color: eye}
+    - rect:  {pos: [19, 14], size: [4, 1], color: eye}
+    - rect:  {pos: [14, 19], size: [4, 1], color: eye}
+
+  # Frame 2 — rest
+  - - oval:  {pos: [3, 11], size: [26, 18], color: light}
+    - oval:  {pos: [3, 25], size: [26, 4], color: shadow}
+    - oval:  {pos: [10, 13], size: [12, 5], color: highlight}
+    - oval:  {pos: [3, 18], size: [4, 3], color: cheek}
+    - oval:  {pos: [25, 18], size: [4, 3], color: cheek}
+    - rect:  {pos: [9, 16], size: [4, 1], color: eye}
+    - rect:  {pos: [19, 16], size: [4, 1], color: eye}
+    - rect:  {pos: [14, 21], size: [4, 1], color: eye}
+
+  # Frame 3 — exhale (slightly squashed)
+  - - oval:  {pos: [2, 12], size: [28, 17], color: light}
+    - oval:  {pos: [2, 25], size: [28, 4], color: shadow}
+    - oval:  {pos: [10, 14], size: [12, 5], color: highlight}
+    - oval:  {pos: [2, 19], size: [4, 3], color: cheek}
+    - oval:  {pos: [26, 19], size: [4, 3], color: cheek}
+    - rect:  {pos: [9, 17], size: [4, 1], color: eye}
+    - rect:  {pos: [19, 17], size: [4, 1], color: eye}
+    - rect:  {pos: [14, 22], size: [4, 1], color: eye}

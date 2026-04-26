@@ -1,0 +1,17 @@
+palette: food
+size: 16x16
+frames: 1
+shape:
+  # Frosting top
+  - rect: {pos: [3, 4], size: [10, 3], color: pink}
+  - rect: {pos: [4, 3], size: [2, 1], color: pink}
+  - rect: {pos: [7, 3], size: [2, 1], color: pink}
+  - rect: {pos: [10, 3], size: [2, 1], color: pink}
+  # Cake body
+  - rect: {pos: [3, 7], size: [10, 6], color: cream}
+  - rect: {pos: [3, 7], size: [10, 1], color: brown}    # ridge
+  - rect: {pos: [3, 10], size: [10, 1], color: brown}   # ridge
+  # Candle
+  - rect: {pos: [7, 1], size: [2, 2], color: blue}
+  - pixel: {pos: [7, 0], color: yellow}
+  - pixel: {pos: [8, 0], color: yellow}

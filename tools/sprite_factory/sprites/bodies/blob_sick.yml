@@ -1,0 +1,63 @@
+palette: species_blob_pink
+size: 32x32
+frames: 4
+durations_ms: [400, 350, 400, 350]
+# Wobbly side-to-side, slack mouth, half-closed eyes
+frames_shape:
+  # Frame 0 — wobble left
+  - - oval:  {pos: [2, 10], size: [25, 19], color: light}
+    - oval:  {pos: [2, 25], size: [25, 4], color: shadow}
+    - oval:  {pos: [9, 12], size: [12, 5], color: highlight}
+    - oval:  {pos: [1, 17], size: [4, 3], color: cheek}
+    - oval:  {pos: [22, 17], size: [4, 3], color: cheek}
+    # Half-closed eyes
+    - rect:  {pos: [8, 15], size: [3, 1], color: eye}
+    - rect:  {pos: [18, 15], size: [3, 1], color: eye}
+    - rect:  {pos: [9, 16], size: [1, 1], color: eye}
+    - rect:  {pos: [19, 16], size: [1, 1], color: eye}
+    # Wobbly mouth
+    - rect:  {pos: [12, 21], size: [2, 1], color: eye}
+    - rect:  {pos: [14, 22], size: [2, 1], color: eye}
+    - rect:  {pos: [16, 21], size: [2, 1], color: eye}
+
+  # Frame 1 — center
+  - - oval:  {pos: [4, 10], size: [25, 19], color: light}
+    - oval:  {pos: [4, 25], size: [25, 4], color: shadow}
+    - oval:  {pos: [11, 12], size: [12, 5], color: highlight}
+    - oval:  {pos: [3, 17], size: [4, 3], color: cheek}
+    - oval:  {pos: [24, 17], size: [4, 3], color: cheek}
+    - rect:  {pos: [10, 15], size: [3, 1], color: eye}
+    - rect:  {pos: [20, 15], size: [3, 1], color: eye}
+    - rect:  {pos: [11, 16], size: [1, 1], color: eye}
+    - rect:  {pos: [21, 16], size: [1, 1], color: eye}
+    - rect:  {pos: [13, 21], size: [2, 1], color: eye}
+    - rect:  {pos: [15, 22], size: [2, 1], color: eye}
+    - rect:  {pos: [17, 21], size: [2, 1], color: eye}
+
+  # Frame 2 — wobble right
+  - - oval:  {pos: [5, 10], size: [25, 19], color: light}
+    - oval:  {pos: [5, 25], size: [25, 4], color: shadow}
+    - oval:  {pos: [12, 12], size: [12, 5], color: highlight}
+    - oval:  {pos: [4, 17], size: [4, 3], color: cheek}
+    - oval:  {pos: [25, 17], size: [4, 3], color: cheek}
+    - rect:  {pos: [11, 15], size: [3, 1], color: eye}
+    - rect:  {pos: [21, 15], size: [3, 1], color: eye}
+    - rect:  {pos: [12, 16], size: [1, 1], color: eye}
+    - rect:  {pos: [22, 16], size: [1, 1], color: eye}
+    - rect:  {pos: [14, 21], size: [2, 1], color: eye}
+    - rect:  {pos: [16, 22], size: [2, 1], color: eye}
+    - rect:  {pos: [18, 21], size: [2, 1], color: eye}
+
+  # Frame 3 — center
+  - - oval:  {pos: [4, 10], size: [25, 19], color: light}
+    - oval:  {pos: [4, 25], size: [25, 4], color: shadow}
+    - oval:  {pos: [11, 12], size: [12, 5], color: highlight}
+    - oval:  {pos: [3, 17], size: [4, 3], color: cheek}
+    - oval:  {pos: [24, 17], size: [4, 3], color: cheek}
+    - rect:  {pos: [10, 15], size: [3, 1], color: eye}
+    - rect:  {pos: [20, 15], size: [3, 1], color: eye}
+    - rect:  {pos: [11, 16], size: [1, 1], color: eye}
+    - rect:  {pos: [21, 16], size: [1, 1], color: eye}
+    - rect:  {pos: [13, 21], size: [2, 1], color: eye}
+    - rect:  {pos: [15, 22], size: [2, 1], color: eye}
+    - rect:  {pos: [17, 21], size: [2, 1], color: eye}

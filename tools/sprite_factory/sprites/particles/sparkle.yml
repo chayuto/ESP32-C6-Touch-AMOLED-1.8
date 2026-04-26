@@ -1,0 +1,20 @@
+palette: ui
+size: 8x8
+frames: 4
+durations_ms: [80, 100, 120, 100]
+animate:
+  base:
+    - pixel: {pos: [4, 1], color: yellow}
+    - pixel: {pos: [4, 3], color: white}
+    - pixel: {pos: [4, 4], color: white}
+    - pixel: {pos: [4, 5], color: white}
+    - pixel: {pos: [4, 7], color: yellow}
+    - pixel: {pos: [1, 4], color: yellow}
+    - pixel: {pos: [3, 4], color: white}
+    - pixel: {pos: [5, 4], color: white}
+    - pixel: {pos: [7, 4], color: yellow}
+  per_frame:
+    0: {}
+    1: {}
+    2: {}
+    3: {}

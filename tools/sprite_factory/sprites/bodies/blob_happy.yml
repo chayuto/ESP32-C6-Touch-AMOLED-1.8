@@ -1,0 +1,85 @@
+palette: species_blob_pink
+size: 32x32
+frames: 6
+durations_ms: [120, 100, 100, 120, 200, 160]
+# Bouncy hop: body rises, mouth wide smile, eyes squinted with joy
+frames_shape:
+  # Frame 0 — crouch (anticipation)
+  - - oval:  {pos: [3, 12], size: [26, 17], color: light}
+    - oval:  {pos: [3, 25], size: [26, 4], color: shadow}
+    - oval:  {pos: [10, 14], size: [12, 4], color: highlight}
+    - oval:  {pos: [3, 18], size: [4, 3], color: cheek}
+    - oval:  {pos: [25, 18], size: [4, 3], color: cheek}
+    # Squinted happy eyes (curves)
+    - rect:  {pos: [9, 17], size: [4, 1], color: eye}
+    - rect:  {pos: [10, 16], size: [2, 1], color: eye}
+    - rect:  {pos: [19, 17], size: [4, 1], color: eye}
+    - rect:  {pos: [20, 16], size: [2, 1], color: eye}
+    # Big smile
+    - rect:  {pos: [12, 21], size: [8, 1], color: eye}
+    - rect:  {pos: [13, 22], size: [6, 1], color: eye}
+
+  # Frame 1 — mid-jump
+  - - oval:  {pos: [4, 6], size: [24, 20], color: light}
+    - oval:  {pos: [4, 22], size: [24, 4], color: shadow}
+    - oval:  {pos: [10, 8], size: [12, 5], color: highlight}
+    - oval:  {pos: [3, 14], size: [4, 3], color: cheek}
+    - oval:  {pos: [25, 14], size: [4, 3], color: cheek}
+    - rect:  {pos: [9, 13], size: [4, 1], color: eye}
+    - rect:  {pos: [10, 12], size: [2, 1], color: eye}
+    - rect:  {pos: [19, 13], size: [4, 1], color: eye}
+    - rect:  {pos: [20, 12], size: [2, 1], color: eye}
+    - rect:  {pos: [12, 18], size: [8, 1], color: eye}
+    - rect:  {pos: [13, 19], size: [6, 1], color: eye}
+
+  # Frame 2 — peak
+  - - oval:  {pos: [4, 4], size: [24, 20], color: light}
+    - oval:  {pos: [4, 20], size: [24, 4], color: shadow}
+    - oval:  {pos: [10, 6], size: [12, 5], color: highlight}
+    - oval:  {pos: [3, 12], size: [4, 3], color: cheek}
+    - oval:  {pos: [25, 12], size: [4, 3], color: cheek}
+    - rect:  {pos: [9, 11], size: [4, 1], color: eye}
+    - rect:  {pos: [10, 10], size: [2, 1], color: eye}
+    - rect:  {pos: [19, 11], size: [4, 1], color: eye}
+    - rect:  {pos: [20, 10], size: [2, 1], color: eye}
+    - rect:  {pos: [12, 16], size: [8, 1], color: eye}
+    - rect:  {pos: [13, 17], size: [6, 1], color: eye}
+
+  # Frame 3 — falling
+  - - oval:  {pos: [4, 6], size: [24, 20], color: light}
+    - oval:  {pos: [4, 22], size: [24, 4], color: shadow}
+    - oval:  {pos: [10, 8], size: [12, 5], color: highlight}
+    - oval:  {pos: [3, 14], size: [4, 3], color: cheek}
+    - oval:  {pos: [25, 14], size: [4, 3], color: cheek}
+    - rect:  {pos: [9, 13], size: [4, 1], color: eye}
+    - rect:  {pos: [10, 12], size: [2, 1], color: eye}
+    - rect:  {pos: [19, 13], size: [4, 1], color: eye}
+    - rect:  {pos: [20, 12], size: [2, 1], color: eye}
+    - rect:  {pos: [12, 18], size: [8, 1], color: eye}
+    - rect:  {pos: [13, 19], size: [6, 1], color: eye}
+
+  # Frame 4 — landing squash
+  - - oval:  {pos: [2, 13], size: [28, 16], color: light}
+    - oval:  {pos: [2, 25], size: [28, 4], color: shadow}
+    - oval:  {pos: [10, 15], size: [12, 4], color: highlight}
+    - oval:  {pos: [1, 19], size: [4, 3], color: cheek}
+    - oval:  {pos: [27, 19], size: [4, 3], color: cheek}
+    - rect:  {pos: [9, 18], size: [4, 1], color: eye}
+    - rect:  {pos: [10, 17], size: [2, 1], color: eye}
+    - rect:  {pos: [19, 18], size: [4, 1], color: eye}
+    - rect:  {pos: [20, 17], size: [2, 1], color: eye}
+    - rect:  {pos: [12, 22], size: [8, 1], color: eye}
+    - rect:  {pos: [13, 23], size: [6, 1], color: eye}
+
+  # Frame 5 — recovery (rest)
+  - - oval:  {pos: [4, 9], size: [24, 20], color: light}
+    - oval:  {pos: [4, 25], size: [24, 4], color: shadow}
+    - oval:  {pos: [10, 11], size: [12, 5], color: highlight}
+    - oval:  {pos: [3, 17], size: [4, 3], color: cheek}
+    - oval:  {pos: [25, 17], size: [4, 3], color: cheek}
+    - rect:  {pos: [9, 14], size: [4, 1], color: eye}
+    - rect:  {pos: [10, 13], size: [2, 1], color: eye}
+    - rect:  {pos: [19, 14], size: [4, 1], color: eye}
+    - rect:  {pos: [20, 13], size: [2, 1], color: eye}
+    - rect:  {pos: [12, 19], size: [8, 1], color: eye}
+    - rect:  {pos: [13, 20], size: [6, 1], color: eye}

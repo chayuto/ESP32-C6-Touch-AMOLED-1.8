@@ -1,0 +1,13 @@
+palette: medicine
+size: 16x10
+frames: 1
+shape:
+  # Pill capsule, half white half blue
+  - oval: {pos: [2, 2], size: [12, 6], color: blue}
+  - rect: {pos: [3, 2], size: [5, 6], color: blue}
+  - rect: {pos: [8, 2], size: [5, 6], color: white}
+  - oval: {pos: [9, 2], size: [5, 6], color: white}
+  - oval: {pos: [2, 2], size: [6, 6], color: blue}
+  # Highlight
+  - rect: {pos: [4, 3], size: [3, 1], color: light_blue}
+  - rect: {pos: [10, 3], size: [3, 1], color: grey}

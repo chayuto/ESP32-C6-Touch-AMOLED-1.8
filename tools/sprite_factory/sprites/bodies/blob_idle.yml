@@ -1,0 +1,55 @@
+palette: species_blob_pink
+size: 32x32
+frames: 4
+durations_ms: [400, 300, 400, 300]
+# Blob body — palette-swappable across species. The face (eyes, mouth,
+# cheeks) is baked in but uses palette indices that get coloured by the
+# species palette.
+frames_shape:
+  # Frame 0 — neutral rest
+  - - oval:  {pos: [4, 9], size: [24, 20], color: light}     # body
+    - oval:  {pos: [4, 25], size: [24, 4], color: shadow}    # bottom shadow
+    - oval:  {pos: [10, 11], size: [12, 5], color: highlight} # top sheen
+    - oval:  {pos: [3, 17], size: [4, 3], color: cheek}      # left cheek
+    - oval:  {pos: [25, 17], size: [4, 3], color: cheek}     # right cheek
+    - oval:  {pos: [10, 14], size: [3, 4], color: eye}       # left eye
+    - oval:  {pos: [19, 14], size: [3, 4], color: eye}       # right eye
+    - rect:  {pos: [14, 21], size: [4, 1], color: eye}       # mouth
+    - pixel: {pos: [11, 14], color: highlight}               # eye glint L
+    - pixel: {pos: [20, 14], color: highlight}               # eye glint R
+
+  # Frame 1 — inhale (body taller, 1 px)
+  - - oval:  {pos: [4, 8], size: [24, 21], color: light}
+    - oval:  {pos: [4, 25], size: [24, 4], color: shadow}
+    - oval:  {pos: [10, 10], size: [12, 5], color: highlight}
+    - oval:  {pos: [3, 17], size: [4, 3], color: cheek}
+    - oval:  {pos: [25, 17], size: [4, 3], color: cheek}
+    - oval:  {pos: [10, 14], size: [3, 4], color: eye}
+    - oval:  {pos: [19, 14], size: [3, 4], color: eye}
+    - rect:  {pos: [14, 21], size: [4, 1], color: eye}
+    - pixel: {pos: [11, 14], color: highlight}
+    - pixel: {pos: [20, 14], color: highlight}
+
+  # Frame 2 — neutral rest (same as 0)
+  - - oval:  {pos: [4, 9], size: [24, 20], color: light}
+    - oval:  {pos: [4, 25], size: [24, 4], color: shadow}
+    - oval:  {pos: [10, 11], size: [12, 5], color: highlight}
+    - oval:  {pos: [3, 17], size: [4, 3], color: cheek}
+    - oval:  {pos: [25, 17], size: [4, 3], color: cheek}
+    - oval:  {pos: [10, 14], size: [3, 4], color: eye}
+    - oval:  {pos: [19, 14], size: [3, 4], color: eye}
+    - rect:  {pos: [14, 21], size: [4, 1], color: eye}
+    - pixel: {pos: [11, 14], color: highlight}
+    - pixel: {pos: [20, 14], color: highlight}
+
+  # Frame 3 — exhale (body shorter, 1 px wider)
+  - - oval:  {pos: [3, 10], size: [26, 19], color: light}
+    - oval:  {pos: [3, 25], size: [26, 4], color: shadow}
+    - oval:  {pos: [10, 12], size: [12, 5], color: highlight}
+    - oval:  {pos: [2, 17], size: [4, 3], color: cheek}
+    - oval:  {pos: [26, 17], size: [4, 3], color: cheek}
+    - oval:  {pos: [10, 15], size: [3, 4], color: eye}
+    - oval:  {pos: [19, 15], size: [3, 4], color: eye}
+    - rect:  {pos: [14, 21], size: [4, 1], color: eye}
+    - pixel: {pos: [11, 15], color: highlight}
+    - pixel: {pos: [20, 15], color: highlight}
