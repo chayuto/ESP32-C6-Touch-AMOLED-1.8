@@ -1,0 +1,25 @@
+idf_component_register(
+    SRCS
+        "main.c"
+        "ui_screens.c"
+        "pet_state.c"
+        "pet_renderer.c"
+        "stat_engine.c"
+        "audio_jingles.c"
+        "audio_output.c"
+        "rtc_manager.c"
+        "pet_save.c"
+        "imu_manager.c"
+        "minigame_catch.c"
+        "power_manager.c"
+    INCLUDE_DIRS "."
+    REQUIRES
+        amoled_driver
+        nvs_flash
+        esp_timer
+        esp_system
+        freertos
+        driver
+        esp_driver_i2s
+        esp_driver_i2c
+)

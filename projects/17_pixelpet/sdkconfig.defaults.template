@@ -1,0 +1,34 @@
+CONFIG_IDF_TARGET="esp32c6"
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+
+# LVGL
+CONFIG_LV_FONT_MONTSERRAT_14=y
+CONFIG_LV_FONT_MONTSERRAT_20=y
+CONFIG_LV_FONT_MONTSERRAT_28=y
+CONFIG_LV_MEM_SIZE_KILOBYTES=48
+CONFIG_LV_COLOR_16_SWAP=y
+
+# FreeRTOS
+CONFIG_FREERTOS_HZ=1000
+CONFIG_FREERTOS_UNICORE=y
+
+# No Bluetooth (save RAM)
+CONFIG_BT_ENABLED=n
+
+# NVS
+CONFIG_NVS_ENCRYPTION=n
+
+# Watchdog
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=15
+
+# Route stdio over the C6's native USB Serial JTAG so idf.py monitor
+# (and any plain serial reader) sees app log output. The board's USB-C
+# connector goes straight to the C6's USB pins (GPIO 12/13), not to UART0.
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+
+# Game-time scale. 120 = 1 real-min per 2 game-hours; full lifecycle ≈ 2.5 hrs.
+# Bump to 360 for fast iteration; drop to 1 for true real-time pet aging.
+CONFIG_PIXELPET_TIME_SCALE=120

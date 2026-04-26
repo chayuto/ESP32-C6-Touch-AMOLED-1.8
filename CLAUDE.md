@@ -118,6 +118,11 @@ ser.close()
 - `idf.py monitor` does NOT work in non-TTY environments (Claude Code, scripts)
 - System `python3` does NOT have pyserial — must use IDF venv python
 - USB port varies: check `ls /dev/cu.usb*` first
+- Use the agentic helper at `.claude/bin/agent_monitor.py` (proper DTR reset,
+  line-buffered streaming, configurable capture window). See `/flash` skill.
+- Every project's `sdkconfig.defaults` must include
+  `CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y` — UART0 (GPIO 16/17) is not wired
+  to the board's USB-C. Without this, app logs vanish silently.
 
 ## Each Project's CMakeLists.txt Must Include
 

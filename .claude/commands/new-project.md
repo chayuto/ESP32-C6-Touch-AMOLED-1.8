@@ -48,6 +48,11 @@ CONFIG_BT_ENABLED=n
 CONFIG_LV_MEM_SIZE_KILOBYTES=64
 CONFIG_LV_FONT_MONTSERRAT_14=y
 CONFIG_LV_FONT_MONTSERRAT_20=y
+
+# CRITICAL: this board's USB-C goes to native USB (GPIO 12/13), not UART0.
+# Without this, ESP_LOGI from the running app vanishes — only bootloader logs
+# show up because they fall back to USB JTAG. See /flash skill for context.
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
 ```
    Add WiFi credentials here if the project needs WiFi.
 
