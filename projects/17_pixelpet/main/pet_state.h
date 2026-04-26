@@ -41,6 +41,9 @@ typedef struct {
     uint32_t care_score;
     uint8_t  poop_count; /* 0-3 */
     bool     is_sleeping;
+
+    /* v2 fields below — append-only so old saves migrate cleanly. */
+    uint8_t  species_id;
 } pet_state_t;
 
 /** Initialise a fresh egg with full stats and unset timestamps (caller fills in). */

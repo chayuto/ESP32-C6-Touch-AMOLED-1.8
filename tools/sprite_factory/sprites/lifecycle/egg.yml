@@ -1,4 +1,4 @@
-palette: species_blob_pink
+palette_variants: [species_blob_pink, species_blob_mint, species_blob_yellow, species_blob_blue, species_blob_purple]
 size: 32x32
 frames: 4
 durations_ms: [800, 800, 800, 800]

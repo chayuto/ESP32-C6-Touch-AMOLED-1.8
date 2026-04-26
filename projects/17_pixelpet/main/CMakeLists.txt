@@ -13,6 +13,7 @@ idf_component_register(
         "minigame_catch.c"
         "power_manager.c"
         "asset_loader.c"
+        "species.c"
     INCLUDE_DIRS "."
     REQUIRES
         amoled_driver

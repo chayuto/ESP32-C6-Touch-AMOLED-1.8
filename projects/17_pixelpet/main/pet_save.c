@@ -18,13 +18,32 @@ static const char *TAG = "pet_save";
 
 #define NVS_NAMESPACE  "pixelpet"
 #define NVS_KEY_BLOB   "pet"
-#define SAVE_VERSION   1
+#define SAVE_VERSION   2
 #define DEBOUNCE_US    (5LL * 1000 * 1000)
 
 typedef struct {
     uint8_t      version;
     pet_state_t  state;
 } __attribute__((packed)) save_blob_t;
+
+/* v1 layout — same fields as pet_state_t but without species_id at the
+ * end. Used only for migration on load. Order/types must match the
+ * historical struct exactly. */
+typedef struct {
+    int64_t  hatched_unix;
+    int64_t  last_update_unix;
+    pet_stage_t stage;
+    pet_adult_form_t adult_form;
+    uint8_t  hunger, happy, energy, clean, disc, health;
+    uint32_t care_score;
+    uint8_t  poop_count;
+    bool     is_sleeping;
+} pet_state_v1_t;
+
+typedef struct {
+    uint8_t        version;
+    pet_state_v1_t state;
+} __attribute__((packed)) save_blob_v1_t;
 
 static int64_t s_dirty_since_us = 0;
 static int64_t s_last_commit_us = 0;
@@ -35,21 +54,45 @@ esp_err_t pet_save_load(pet_state_t *p)
     esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READONLY, &h);
     if (err != ESP_OK) return err;
 
-    save_blob_t blob;
-    size_t sz = sizeof(blob);
-    err = nvs_get_blob(h, NVS_KEY_BLOB, &blob, &sz);
+    /* Read into a buffer big enough for either schema. */
+    uint8_t buf[sizeof(save_blob_t) + 16];
+    size_t sz = sizeof(buf);
+    err = nvs_get_blob(h, NVS_KEY_BLOB, buf, &sz);
     nvs_close(h);
     if (err != ESP_OK) return err;
+    if (sz < 1) return ESP_ERR_INVALID_SIZE;
 
-    if (sz != sizeof(blob) || blob.version != SAVE_VERSION) {
+    uint8_t version = buf[0];
+
+    if (version == SAVE_VERSION && sz == sizeof(save_blob_t)) {
+        memcpy(p, &buf[1], sizeof(pet_state_t));
+    } else if (version == 1 && sz == sizeof(save_blob_v1_t)) {
+        const pet_state_v1_t *v1 = (const pet_state_v1_t *)&buf[1];
+        memset(p, 0, sizeof(*p));
+        p->hatched_unix     = v1->hatched_unix;
+        p->last_update_unix = v1->last_update_unix;
+        p->stage            = v1->stage;
+        p->adult_form       = v1->adult_form;
+        p->hunger           = v1->hunger;
+        p->happy            = v1->happy;
+        p->energy           = v1->energy;
+        p->clean            = v1->clean;
+        p->disc             = v1->disc;
+        p->health           = v1->health;
+        p->care_score       = v1->care_score;
+        p->poop_count       = v1->poop_count;
+        p->is_sleeping      = v1->is_sleeping;
+        p->species_id       = 0;   /* default species */
+        ESP_LOGI(TAG, "migrated v1 → v2 save (species_id=0)");
+        pet_save_commit(p);        /* write back as v2 */
+    } else {
         ESP_LOGW(TAG, "save schema mismatch (sz=%u v=%u) — discarding",
-                 (unsigned)sz, blob.version);
+                 (unsigned)sz, version);
         return ESP_ERR_INVALID_VERSION;
     }
 
-    *p = blob.state;
-    ESP_LOGI(TAG, "loaded pet: stage=%d hunger=%d happy=%d energy=%d age=%llds",
-             (int)p->stage, p->hunger, p->happy, p->energy,
+    ESP_LOGI(TAG, "loaded pet: species=%d stage=%d hunger=%d happy=%d energy=%d age=%llds",
+             p->species_id, (int)p->stage, p->hunger, p->happy, p->energy,
              (long long)((p->last_update_unix - p->hatched_unix)));
     return ESP_OK;
 }

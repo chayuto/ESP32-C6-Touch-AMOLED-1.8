@@ -374,15 +374,39 @@ def main() -> int:
     builder = BundleBuilder(palettes)
 
     # Walk sprites/, treating subdir as namespace prefix.
+    # YAML may set palette_variants: [pal1, pal2, ...] to emit one sprite
+    # per palette, with names suffixed by the palette's short tag (the
+    # part after "species_" if present, else the full palette name).
     for f in sorted(sprite_dir.rglob("*.yml")):
         rel = f.relative_to(sprite_dir).with_suffix("")
         name = "/".join(rel.parts)
         spec = yaml.safe_load(f.read_text())
-        try:
-            builder.add_sprite(name, spec)
-        except Exception as e:
-            print(f"error in {f}: {e}", file=sys.stderr)
-            return 1
+
+        variants = spec.pop("palette_variants", None)
+        if variants:
+            for pal in variants:
+                tag = pal.split("species_", 1)[-1]   # 'species_blob_pink' → 'blob_pink'
+                # If the file is named bodies/blob_idle, the variant name
+                # becomes bodies/blob_idle_pink (drop the rig prefix from
+                # the tag so we don't repeat it).
+                base_last = name.rsplit("/", 1)[-1]
+                if tag.startswith(base_last.split("_", 1)[0] + "_"):
+                    short = tag.split("_", 1)[1]    # 'blob_pink' → 'pink'
+                else:
+                    short = tag
+                variant_name = f"{name}_{short}"
+                variant_spec = {**spec, "palette": pal}
+                try:
+                    builder.add_sprite(variant_name, variant_spec)
+                except Exception as e:
+                    print(f"error in {f} (variant {pal}): {e}", file=sys.stderr)
+                    return 1
+        else:
+            try:
+                builder.add_sprite(name, spec)
+            except Exception as e:
+                print(f"error in {f}: {e}", file=sys.stderr)
+                return 1
 
     bundle = builder.build()
     args.out_bin.parent.mkdir(parents=True, exist_ok=True)
