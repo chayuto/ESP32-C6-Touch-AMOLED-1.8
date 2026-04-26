@@ -28,3 +28,7 @@ CONFIG_ESP_TASK_WDT_TIMEOUT_S=15
 # (and any plain serial reader) sees app log output. The board's USB-C
 # connector goes straight to the C6's USB pins (GPIO 12/13), not to UART0.
 CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+
+# Game-time scale. 120 = 1 real-min per 2 game-hours; full lifecycle ≈ 2.5 hrs.
+# Bump to 360 for fast iteration; drop to 1 for true real-time pet aging.
+CONFIG_PIXELPET_TIME_SCALE=120

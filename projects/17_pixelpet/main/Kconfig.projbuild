@@ -3,11 +3,17 @@ menu "PixelPet"
     config PIXELPET_TIME_SCALE
         int "Game-time scale factor"
         range 1 3600
-        default 360
+        default 120
         help
             Multiplier between real seconds and game seconds. With the
-            default of 360, ten real seconds equals about one game hour
-            so the full life cycle is observable in an afternoon. Set to
-            1 for "real-time" play (one game day = one real day).
+            default of 120, one real minute equals two game hours, so:
+              EGG → BABY    in ~15 real-min
+              BABY → CHILD  in   3 real-min after that
+              TEEN → ADULT  in  36 real-min after that
+              ADULT → SENIOR in 84 real-min after that
+            The full lifecycle is ~2.5 real-hours — long enough to feel
+            like a pet, short enough for an evening playtest. Set to 1
+            for true real-time play (one game-day = one real-day) or to
+            360 for fast iteration (lifecycle in ~30 real-min).
 
 endmenu

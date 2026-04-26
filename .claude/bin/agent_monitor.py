@@ -59,15 +59,34 @@ def main() -> int:
     sys.stderr.flush()
 
     if args.reset:
-        import subprocess
-        rc = subprocess.run(
-            ["esptool.py", "--chip", "esp32c6", "--port", port,
-             "--before", "usb_reset", "--after", "hard_reset", "chip_id"],
-            capture_output=True, text=True, timeout=10,
-        )
-        if rc.returncode != 0:
-            sys.stderr.write("[agent_monitor] esptool reset failed:\n")
-            sys.stderr.write(rc.stderr[-400:])
+        import subprocess, os
+        # esptool.py needs IDF on PATH. Fall back to `python -m esptool` from
+        # the IDF venv so this works without sourcing export.sh first.
+        idf_py = os.path.expanduser(
+            "~/.espressif/python_env/idf5.5_py3.14_env/bin/python3")
+        candidates = [
+            ["esptool.py"],
+            [idf_py, "-m", "esptool"],
+        ]
+        ok = False
+        for prefix in candidates:
+            try:
+                rc = subprocess.run(
+                    prefix + ["--chip", "esp32c6", "--port", port,
+                              "--before", "usb_reset", "--after", "hard_reset",
+                              "chip_id"],
+                    capture_output=True, text=True, timeout=10,
+                )
+                if rc.returncode == 0:
+                    ok = True
+                    break
+                sys.stderr.write(f"[agent_monitor] {prefix[0]} failed: "
+                                 f"{rc.stderr[-200:]}\n")
+            except FileNotFoundError:
+                continue
+        if not ok:
+            sys.stderr.write("[agent_monitor] could not run esptool — "
+                             "skipping reset\n")
 
     try:
         ser = serial.Serial(port, baudrate=args.baud, timeout=0.2)
