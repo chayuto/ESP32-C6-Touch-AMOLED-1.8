@@ -1,0 +1,6 @@
+palette: ui
+size: 8x12
+frames: 1
+shape:
+  - rect:  {pos: [3, 1], size: [2, 6], color: yellow}
+  - rect:  {pos: [3, 9], size: [2, 2], color: yellow}

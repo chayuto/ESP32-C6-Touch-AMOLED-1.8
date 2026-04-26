@@ -1,0 +1,14 @@
+palette: food
+size: 16x12
+frames: 1
+shape:
+  # Body
+  - oval:  {pos: [2, 3], size: [10, 6], color: orange}
+  - oval:  {pos: [3, 4], size: [4, 3], color: cream}        # belly
+  # Tail
+  - rect:  {pos: [12, 3], size: [1, 6], color: orange}
+  - rect:  {pos: [13, 2], size: [1, 8], color: orange}
+  - rect:  {pos: [14, 1], size: [1, 10], color: red}
+  # Eye
+  - pixel: {pos: [4, 5], color: black}
+  - pixel: {pos: [4, 6], color: white}

@@ -1,0 +1,105 @@
+# Universal UI / particle palette
+ui:
+  0/transparent: "#00000000"
+  1/white:       "#FFFFFFFF"
+  2/black:       "#FF222222"
+  3/grey:        "#FF808080"
+  4/light_grey:  "#FFCCCCCC"
+  5/dark_grey:   "#FF404040"
+  6/red:         "#FFEF476F"
+  7/yellow:      "#FFFFD166"
+  8/green:       "#FF06D6A0"
+  9/blue:        "#FF118AB2"
+  10/cyan:       "#FF73D2DE"
+  11/pink:       "#FFFFAFCC"
+  12/orange:     "#FFFF8E3C"
+  13/purple:     "#FF9381FF"
+  14/brown:      "#FFA0522D"
+  15/cream:      "#FFFFF3D6"
+
+# Food (warm, tasty)
+food:
+  0/transparent: "#00000000"
+  1/red:         "#FFE63946"
+  2/orange:      "#FFF4A261"
+  3/yellow:      "#FFF1C40F"
+  4/green:       "#FF06D6A0"
+  5/brown:       "#FF8B4513"
+  6/dark_brown:  "#FF5D2E0E"
+  7/cream:       "#FFFFF3D6"
+  8/white:       "#FFFFFFFF"
+  9/black:       "#FF222222"
+  10/light_red:  "#FFFF7B86"
+  11/blue:       "#FF73B2D2"
+  12/pink:       "#FFFFAFCC"
+
+# Medicine / cleaning (cool, clean)
+medicine:
+  0/transparent: "#00000000"
+  1/white:       "#FFFFFFFF"
+  2/blue:        "#FF118AB2"
+  3/light_blue:  "#FF73D2DE"
+  4/red:         "#FFEF476F"
+  5/green:       "#FF06D6A0"
+  6/grey:        "#FFCCCCCC"
+  7/dark_grey:   "#FF404040"
+  8/yellow:      "#FFFFD166"
+
+# Pet body palettes (one per species — same indices, swappable)
+species_blob_pink:
+  0/transparent: "#00000000"
+  1/dark:        "#FFA00050"
+  2/mid:         "#FFE0408C"
+  3/light:       "#FFFFAFCC"
+  4/highlight:   "#FFFFE0EC"
+  5/shadow:      "#FF700040"
+  6/eye:         "#FF222222"
+  7/cheek:       "#FFFF6B9D"
+
+species_blob_mint:
+  0/transparent: "#00000000"
+  1/dark:        "#FF0A8060"
+  2/mid:         "#FF3FA88A"
+  3/light:       "#FF80D8B5"
+  4/highlight:   "#FFC0F0E0"
+  5/shadow:      "#FF054030"
+  6/eye:         "#FF222222"
+  7/cheek:       "#FF5FB89A"
+
+species_blob_yellow:
+  0/transparent: "#00000000"
+  1/dark:        "#FFA07020"
+  2/mid:         "#FFE0B040"
+  3/light:       "#FFFFE066"
+  4/highlight:   "#FFFFF8C0"
+  5/shadow:      "#FF704010"
+  6/eye:         "#FF222222"
+  7/cheek:       "#FFFFB840"
+
+species_blob_blue:
+  0/transparent: "#00000000"
+  1/dark:        "#FF205080"
+  2/mid:         "#FF4080C0"
+  3/light:       "#FF80B0E0"
+  4/highlight:   "#FFC0E0F0"
+  5/shadow:      "#FF103060"
+  6/eye:         "#FF222222"
+  7/cheek:       "#FF609EC8"
+
+species_blob_purple:
+  0/transparent: "#00000000"
+  1/dark:        "#FF553080"
+  2/mid:         "#FF8060B0"
+  3/light:       "#FFB098D0"
+  4/highlight:   "#FFE0D0F0"
+  5/shadow:      "#FF301860"
+  6/eye:         "#FF222222"
+  7/cheek:       "#FF9988C0"
+
+# Aqua (water/bubble effects, fishbowl)
+aqua:
+  0/transparent: "#00000000"
+  1/cyan:        "#FF00C8FF"
+  2/light_cyan:  "#FF7DDFFA"
+  3/white:       "#FFFFFFFF"
+  4/deep_blue:   "#FF0066AA"

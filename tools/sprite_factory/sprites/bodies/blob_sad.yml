@@ -1,0 +1,57 @@
+palette_variants: [species_blob_pink, species_blob_mint, species_blob_yellow, species_blob_blue, species_blob_purple]
+size: 32x32
+frames: 4
+durations_ms: [600, 500, 500, 600]
+# Droopy: body sagged, mouth frown, droopy eyes
+frames_shape:
+  # Frame 0 — full droop
+  - - oval:  {pos: [3, 13], size: [26, 16], color: light}
+    - oval:  {pos: [3, 25], size: [26, 4], color: shadow}
+    - oval:  {pos: [10, 15], size: [12, 4], color: highlight}
+    - oval:  {pos: [3, 19], size: [4, 3], color: cheek}
+    - oval:  {pos: [25, 19], size: [4, 3], color: cheek}
+    # Droopy eyes (slanted down at outside)
+    - oval:  {pos: [9, 17], size: [3, 4], color: eye}
+    - oval:  {pos: [20, 17], size: [3, 4], color: eye}
+    - pixel: {pos: [9, 17], color: light}
+    - pixel: {pos: [22, 17], color: light}
+    # Frown
+    - rect:  {pos: [12, 23], size: [8, 1], color: eye}
+    - rect:  {pos: [11, 22], size: [2, 1], color: eye}
+    - rect:  {pos: [19, 22], size: [2, 1], color: eye}
+
+  # Frame 1 — slight settle
+  - - oval:  {pos: [3, 14], size: [26, 15], color: light}
+    - oval:  {pos: [3, 25], size: [26, 4], color: shadow}
+    - oval:  {pos: [10, 16], size: [12, 4], color: highlight}
+    - oval:  {pos: [3, 20], size: [4, 3], color: cheek}
+    - oval:  {pos: [25, 20], size: [4, 3], color: cheek}
+    - oval:  {pos: [9, 18], size: [3, 4], color: eye}
+    - oval:  {pos: [20, 18], size: [3, 4], color: eye}
+    - rect:  {pos: [12, 24], size: [8, 1], color: eye}
+    - rect:  {pos: [11, 23], size: [2, 1], color: eye}
+    - rect:  {pos: [19, 23], size: [2, 1], color: eye}
+
+  # Frame 2 — same as 0 (long hold)
+  - - oval:  {pos: [3, 13], size: [26, 16], color: light}
+    - oval:  {pos: [3, 25], size: [26, 4], color: shadow}
+    - oval:  {pos: [10, 15], size: [12, 4], color: highlight}
+    - oval:  {pos: [3, 19], size: [4, 3], color: cheek}
+    - oval:  {pos: [25, 19], size: [4, 3], color: cheek}
+    - oval:  {pos: [9, 17], size: [3, 4], color: eye}
+    - oval:  {pos: [20, 17], size: [3, 4], color: eye}
+    - rect:  {pos: [12, 23], size: [8, 1], color: eye}
+    - rect:  {pos: [11, 22], size: [2, 1], color: eye}
+    - rect:  {pos: [19, 22], size: [2, 1], color: eye}
+
+  # Frame 3 — small sniff
+  - - oval:  {pos: [3, 14], size: [26, 15], color: light}
+    - oval:  {pos: [3, 25], size: [26, 4], color: shadow}
+    - oval:  {pos: [10, 16], size: [12, 4], color: highlight}
+    - oval:  {pos: [3, 20], size: [4, 3], color: cheek}
+    - oval:  {pos: [25, 20], size: [4, 3], color: cheek}
+    - rect:  {pos: [9, 19], size: [4, 1], color: eye}      # nearly closed
+    - rect:  {pos: [19, 19], size: [4, 1], color: eye}
+    - rect:  {pos: [12, 24], size: [8, 1], color: eye}
+    - rect:  {pos: [11, 23], size: [2, 1], color: eye}
+    - rect:  {pos: [19, 23], size: [2, 1], color: eye}

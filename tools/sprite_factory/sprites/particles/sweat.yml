@@ -1,0 +1,8 @@
+palette: ui
+size: 8x10
+frames: 1
+shape:
+  - circle: {center: [3, 6], radius: 2, color: cyan}
+  - rect:   {pos: [3, 1], size: [1, 4], color: cyan}
+  - rect:   {pos: [2, 3], size: [3, 1], color: cyan}
+  - pixel:  {pos: [2, 5], color: white}

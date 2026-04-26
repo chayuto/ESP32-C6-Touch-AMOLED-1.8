@@ -14,6 +14,7 @@
 #include "rtc_manager.h"
 #include "minigame_catch.h"
 #include "power_manager.h"
+#include "fishbowl.h"
 #include "esp_log.h"
 #include <stdio.h>
 
@@ -121,6 +122,9 @@ static lv_obj_t *make_stat_bar(lv_obj_t *parent, lv_color_t color, int y_offset,
 
 static void build_status_screen(lv_obj_t *scr)
 {
+    /* Backdrop first so everything else draws on top. */
+    fishbowl_init(scr);
+
     s_lbl_stage = lv_label_create(scr);
     lv_label_set_text(s_lbl_stage, "EGG");
     lv_obj_set_style_text_color(s_lbl_stage, lv_color_hex(0x00FFAA), 0);

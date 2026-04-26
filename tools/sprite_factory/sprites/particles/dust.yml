@@ -1,0 +1,13 @@
+palette: ui
+size: 4x4
+frames: 4
+durations_ms: [800, 800, 800, 800]
+animate:
+  base:
+    - pixel: {pos: [1, 1], color: light_grey}
+    - pixel: {pos: [2, 2], color: white}
+  per_frame:
+    0: {}
+    1: {dx: 1}
+    2: {dx: 0, dy: -1}
+    3: {dx: -1}

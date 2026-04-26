@@ -19,6 +19,8 @@
 #include "imu_manager.h"
 #include "minigame_catch.h"
 #include "power_manager.h"
+#include "asset_loader.h"
+#include "fishbowl.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -28,6 +30,7 @@
 #include "esp_heap_caps.h"
 #include "lvgl.h"
 #include "driver/gpio.h"
+#include <time.h>
 
 static const char *TAG = "main";
 
@@ -120,6 +123,7 @@ static void anim_timer_cb(lv_timer_t *t)
         int score = minigame_catch_tick(&imu);
         if (score >= 0) apply_minigame_score(score);
     } else {
+        fishbowl_tick();
         pet_renderer_tick();
         ui_screens_apply_state(&s_pet);
     }
@@ -140,6 +144,12 @@ static void stat_tick_cb(lv_timer_t *t)
         pet_save_request();
     }
     pet_save_pump(&s_pet);
+
+    /* Refresh day/night tint once per stat tick (1 Hz is plenty). */
+    time_t tt = (time_t)now;
+    struct tm tm_now;
+    gmtime_r(&tt, &tm_now);
+    fishbowl_apply_tint(tm_now.tm_hour);
 }
 
 static void lvgl_task(void *arg)
@@ -177,6 +187,13 @@ void app_main(void)
 
     ESP_LOGI(TAG, "[3/10] AMOLED + I2C bus");
     ESP_ERROR_CHECK(amoled_init());
+
+    ESP_LOGI(TAG, "[3.5/10] asset bundle");
+    if (asset_loader_init() != ESP_OK) {
+        ESP_LOGW(TAG, "asset bundle missing — flash with idf.py flash-assets");
+    } else {
+        ESP_LOGI(TAG, "asset bundle ready: %u entries", asset_count());
+    }
 
     ESP_LOGI(TAG, "[4/10] PCF85063 RTC");
     if (rtc_manager_init() != ESP_OK) {
