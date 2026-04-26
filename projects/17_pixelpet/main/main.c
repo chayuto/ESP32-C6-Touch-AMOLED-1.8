@@ -165,29 +165,37 @@ void app_main(void)
     esp_log_level_set("FT5x06", ESP_LOG_NONE);
     esp_log_level_set("I2C_If", ESP_LOG_WARN);
 
+    ESP_LOGI(TAG, "[1/10] NVS init");
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
         ESP_ERROR_CHECK(nvs_flash_init());
     }
 
+    ESP_LOGI(TAG, "[2/10] BOOT button");
     boot_button_init();
 
+    ESP_LOGI(TAG, "[3/10] AMOLED + I2C bus");
     ESP_ERROR_CHECK(amoled_init());
 
+    ESP_LOGI(TAG, "[4/10] PCF85063 RTC");
     if (rtc_manager_init() != ESP_OK) {
         ESP_LOGE(TAG, "RTC init failed — pet aging will be wrong");
     }
 
+    ESP_LOGI(TAG, "[5/10] pet save load (or fresh egg)");
     pet_boot_load_or_create();
 
+    ESP_LOGI(TAG, "[6/10] FT3168 touch");
     esp_lcd_touch_handle_t touch = NULL;
     if (amoled_touch_init(&touch) != ESP_OK) {
-        ESP_LOGW(TAG, "touch init failed");
+        ESP_LOGW(TAG, "touch init failed — UI input disabled");
         touch = NULL;
     }
+    ESP_LOGI(TAG, "[7/10] LVGL");
     ESP_ERROR_CHECK(amoled_lvgl_init(amoled_get_panel(), touch));
 
+    ESP_LOGI(TAG, "[8/10] audio (ES8311 + amp)");
     if (audio_output_init() == ESP_OK) {
         audio_output_amp_enable(true);
         audio_output_start_task();
@@ -195,6 +203,7 @@ void app_main(void)
         ESP_LOGW(TAG, "audio not available — running silent");
     }
 
+    ESP_LOGI(TAG, "[9/10] QMI8658 IMU");
     if (imu_manager_init() == ESP_OK) {
         imu_manager_start_task();
         s_imu_ok = true;
@@ -202,15 +211,17 @@ void app_main(void)
         ESP_LOGW(TAG, "IMU not available — minigame will use neutral tilt");
     }
 
+    ESP_LOGI(TAG, "[10/10] UI + power manager");
     ui_screens_init(lv_scr_act(), &s_pet);
     minigame_catch_init(lv_scr_act());
     ui_screens_apply_state(&s_pet);
-
     power_manager_init();
 
     xTaskCreate(lvgl_task, "lvgl", 8192, NULL, 2, NULL);
 
-    ESP_LOGI(TAG, "PixelPet running. Free heap: %lu (min %lu)",
+    ESP_LOGI(TAG, "PixelPet running. stage=%s hunger=%d happy=%d energy=%d",
+             pet_stage_name(s_pet.stage), s_pet.hunger, s_pet.happy, s_pet.energy);
+    ESP_LOGI(TAG, "Free heap: %lu (min %lu)",
              (unsigned long)esp_get_free_heap_size(),
              (unsigned long)esp_get_minimum_free_heap_size());
 }

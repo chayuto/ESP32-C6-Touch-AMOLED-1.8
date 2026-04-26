@@ -23,3 +23,8 @@ CONFIG_NVS_ENCRYPTION=n
 
 # Watchdog
 CONFIG_ESP_TASK_WDT_TIMEOUT_S=15
+
+# Route stdio over the C6's native USB Serial JTAG so idf.py monitor
+# (and any plain serial reader) sees app log output. The board's USB-C
+# connector goes straight to the C6's USB pins (GPIO 12/13), not to UART0.
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
