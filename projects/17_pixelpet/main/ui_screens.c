@@ -13,6 +13,7 @@
 #include "pet_save.h"
 #include "rtc_manager.h"
 #include "minigame_catch.h"
+#include "power_manager.h"
 #include "esp_log.h"
 #include <stdio.h>
 
@@ -170,13 +171,23 @@ static void build_clean_screen(lv_obj_t *scr)
                     care_cb, (void *)(uintptr_t)CARE_MEDICINE);
 }
 
+static void power_off_cb(lv_event_t *e)
+{
+    (void)e;
+    if (s_pet) pet_save_commit(s_pet);
+    power_manager_power_off();
+}
+
 static void build_sleep_screen(lv_obj_t *scr)
 {
     make_title(scr, "SLEEP", lv_color_hex(0x8866FF));
     lv_obj_t *btn = make_action_btn(scr, "Tuck in / Wake up",
-                                    lv_color_hex(0xCDB4DB), 280, 20,
+                                    lv_color_hex(0xCDB4DB), 280, -40,
                                     care_cb, (void *)(uintptr_t)CARE_SLEEP_TOGGLE);
     s_sleep_btn_label = lv_obj_get_child(btn, 0);
+
+    make_action_btn(scr, "Power off", lv_color_hex(0xEF476F), 220, 60,
+                    power_off_cb, NULL);
 }
 
 /* ── Public API ────────────────────────────────────────── */

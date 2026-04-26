@@ -1,9 +1,8 @@
 /*
- * main.c — PixelPet (Phase 5: IMU + minigame)
+ * main.c — PixelPet (Phase 6: power management)
  *
- * Adds the QMI8658 IMU and a tilt-controlled apple-catching minigame.
- * The animation timer checks whether the minigame is active and routes
- * tick updates accordingly.
+ * Adds idle-driven brightness ramp, screen-off after long inactivity, and
+ * a clean AXP2101 shutdown via the "Power off" sleep-screen button.
  */
 
 #include "amoled.h"
@@ -19,6 +18,7 @@
 #include "pet_save.h"
 #include "imu_manager.h"
 #include "minigame_catch.h"
+#include "power_manager.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -61,7 +61,10 @@ static void boot_button_poll(void)
         if (s_btn_debounce >= 5) {
             s_btn_last_state = raw;
             s_btn_debounce = 0;
-            if (raw) ui_screens_next();
+            if (raw) {
+                power_manager_notify_activity();
+                ui_screens_next();
+            }
         }
     } else {
         s_btn_debounce = 0;
@@ -124,7 +127,8 @@ static void anim_timer_cb(lv_timer_t *t)
 
 static void stat_tick_cb(lv_timer_t *t)
 {
-    /* Pause decay during the minigame so stats don't drift mid-round. */
+    power_manager_tick();
+
     if (minigame_catch_is_active()) { pet_save_pump(&s_pet); return; }
 
     int64_t now = rtc_manager_now_unix();
@@ -154,7 +158,7 @@ static void lvgl_task(void *arg)
 
 void app_main(void)
 {
-    ESP_LOGI(TAG, "=== PixelPet (Phase 5) ===");
+    ESP_LOGI(TAG, "=== PixelPet (Phase 6) ===");
     ESP_LOGI(TAG, "Free heap: %lu bytes", (unsigned long)esp_get_free_heap_size());
 
     esp_log_level_set("lcd_panel.io.i2c", ESP_LOG_NONE);
@@ -202,9 +206,9 @@ void app_main(void)
     minigame_catch_init(lv_scr_act());
     ui_screens_apply_state(&s_pet);
 
-    xTaskCreate(lvgl_task, "lvgl", 8192, NULL, 2, NULL);
+    power_manager_init();
 
-    amoled_set_brightness(150);
+    xTaskCreate(lvgl_task, "lvgl", 8192, NULL, 2, NULL);
 
     ESP_LOGI(TAG, "PixelPet running. Free heap: %lu (min %lu)",
              (unsigned long)esp_get_free_heap_size(),
