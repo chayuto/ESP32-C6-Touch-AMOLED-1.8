@@ -7,6 +7,8 @@ idf_component_register(
         "stat_engine.c"
         "audio_jingles.c"
         "audio_output.c"
+        "rtc_manager.c"
+        "pet_save.c"
     INCLUDE_DIRS "."
     REQUIRES
         amoled_driver

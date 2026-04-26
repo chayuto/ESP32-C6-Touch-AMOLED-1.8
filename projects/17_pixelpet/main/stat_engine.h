@@ -18,14 +18,15 @@ typedef enum {
     CARE_COUNT,
 } care_action_t;
 
-/** Apply elapsed-time decay to all stats. dt_us = microseconds since last call. */
-void stat_engine_decay(pet_state_t *p, int64_t dt_us);
+/** Apply elapsed-time decay. dt_s = real seconds since last call (can be
+ *  large, e.g. fast-forward across power-off). */
+void stat_engine_decay(pet_state_t *p, int64_t dt_s);
 
 /** Apply a single care action. Returns true if action had an effect. */
 bool stat_engine_apply_care(pet_state_t *p, care_action_t action);
 
-/** Re-evaluate stage based on age and care_score. Plays JINGLE_LEVELUP on transition. */
-void stat_engine_check_transitions(pet_state_t *p, int64_t now_us);
+/** Re-evaluate stage based on age and care_score. now_unix in seconds. */
+void stat_engine_check_transitions(pet_state_t *p, int64_t now_unix);
 
 const char *care_action_name(care_action_t a);
 

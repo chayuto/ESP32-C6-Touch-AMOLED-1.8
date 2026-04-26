@@ -10,8 +10,9 @@
 #include "ui_screens.h"
 #include "pet_renderer.h"
 #include "stat_engine.h"
+#include "pet_save.h"
+#include "rtc_manager.h"
 #include "esp_log.h"
-#include "esp_timer.h"
 #include <stdio.h>
 
 static const char *TAG = "ui_screens";
@@ -82,6 +83,7 @@ static void care_cb(lv_event_t *e)
     if (!s_pet) return;
     bool ok = stat_engine_apply_care(s_pet, action);
     ESP_LOGI(TAG, "care %s -> %s", care_action_name(action), ok ? "ok" : "noop");
+    if (ok) pet_save_request();
     ui_screens_apply_state(s_pet);
     /* Pop back to status so the player sees the result */
     if (action != CARE_SLEEP_TOGGLE && action != CARE_CLEAN_ONE) {
@@ -214,8 +216,7 @@ void ui_screens_apply_state(const pet_state_t *p)
     if (s_lbl_stage) lv_label_set_text(s_lbl_stage, pet_stage_name(p->stage));
 
     if (s_lbl_age) {
-        int64_t now_us = esp_timer_get_time();
-        int64_t age_s  = (now_us - p->hatched_unix) / 1000000;
+        int64_t age_s = rtc_manager_now_unix() - p->hatched_unix;
         if (age_s < 0) age_s = 0;
         char buf[32];
         if (age_s < 60)            snprintf(buf, sizeof(buf), "age %llds", age_s);

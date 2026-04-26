@@ -33,12 +33,12 @@ const char *care_action_name(care_action_t a)
     return CARE_NAMES[a];
 }
 
-void stat_engine_decay(pet_state_t *p, int64_t dt_us)
+void stat_engine_decay(pet_state_t *p, int64_t dt_s)
 {
     if (p->stage == STAGE_EGG || p->stage == STAGE_DEAD) return;
 
     /* Convert real-time to "game-seconds" using the dev time scale. */
-    int64_t game_seconds = (dt_us / 1000000) * CONFIG_PIXELPET_TIME_SCALE;
+    int64_t game_seconds = dt_s * CONFIG_PIXELPET_TIME_SCALE;
     if (game_seconds <= 0) return;
 
     /* Hunger:  -1 per 30 game-min  = -1 per 1800 game-s */
@@ -172,13 +172,13 @@ static pet_adult_form_t pick_adult_form(const pet_state_t *p)
     return ADULT_HAPPY;
 }
 
-void stat_engine_check_transitions(pet_state_t *p, int64_t now_us)
+void stat_engine_check_transitions(pet_state_t *p, int64_t now_unix)
 {
     if (p->stage == STAGE_DEAD) return;
 
     /* Egg hatches after 30 game-min — handled separately. */
     if (p->stage == STAGE_EGG) {
-        int64_t age_real_s = (now_us - p->hatched_unix) / 1000000;
+        int64_t age_real_s = now_unix - p->hatched_unix;
         int64_t age_game_s = age_real_s * CONFIG_PIXELPET_TIME_SCALE;
         if (age_game_s >= 30 * 60) {
             p->stage = STAGE_BABY;
@@ -188,7 +188,7 @@ void stat_engine_check_transitions(pet_state_t *p, int64_t now_us)
         return;
     }
 
-    int64_t age_real_s = (now_us - p->hatched_unix) / 1000000;
+    int64_t age_real_s = now_unix - p->hatched_unix;
     int64_t age_game_h = (age_real_s * CONFIG_PIXELPET_TIME_SCALE) / 3600;
 
     pet_stage_t next = p->stage;
