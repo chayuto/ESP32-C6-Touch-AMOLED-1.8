@@ -1,6 +1,7 @@
 #pragma once
 
 #include "lvgl.h"
+#include "pet_state.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -19,6 +20,9 @@ void ui_screens_init(lv_obj_t *parent);
 void ui_screens_show(screen_id_t id);
 void ui_screens_next(void);
 screen_id_t ui_screens_current(void);
+
+/** Push the current pet state into all screen widgets. */
+void ui_screens_apply_state(const pet_state_t *p);
 
 #ifdef __cplusplus
 }
