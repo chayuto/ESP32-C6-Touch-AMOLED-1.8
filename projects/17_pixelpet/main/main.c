@@ -19,6 +19,7 @@
 #include "imu_manager.h"
 #include "minigame_catch.h"
 #include "power_manager.h"
+#include "asset_loader.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -177,6 +178,13 @@ void app_main(void)
 
     ESP_LOGI(TAG, "[3/10] AMOLED + I2C bus");
     ESP_ERROR_CHECK(amoled_init());
+
+    ESP_LOGI(TAG, "[3.5/10] asset bundle");
+    if (asset_loader_init() != ESP_OK) {
+        ESP_LOGW(TAG, "asset bundle missing — flash with idf.py flash-assets");
+    } else {
+        ESP_LOGI(TAG, "asset bundle ready: %u entries", asset_count());
+    }
 
     ESP_LOGI(TAG, "[4/10] PCF85063 RTC");
     if (rtc_manager_init() != ESP_OK) {

@@ -1,0 +1,6 @@
+aqua:
+  0/transparent: "#00000000"
+  1/cyan:        "#00C8FF"
+  2/light_cyan:  "#7DDFFA"
+  3/white:       "#FFFFFF"
+  4/deep_blue:   "#0066AA"

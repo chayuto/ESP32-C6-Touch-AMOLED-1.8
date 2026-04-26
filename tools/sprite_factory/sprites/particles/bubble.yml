@@ -1,0 +1,16 @@
+palette: aqua
+size: 8x8
+frames: 6
+durations_ms: [120, 120, 140, 160, 200, 100]
+animate:
+  base:
+    - circle: {center: [3, 3], radius: 3, color: cyan}
+    - circle: {center: [3, 3], radius: 2, color: light_cyan}
+    - pixel:  {pos: [2, 2], color: white}
+  per_frame:
+    0: {dy: 0}
+    1: {dy: -1}
+    2: {dy: -2}
+    3: {dy: -3}
+    4: {dy: -4}
+    5: {dy: -5}
