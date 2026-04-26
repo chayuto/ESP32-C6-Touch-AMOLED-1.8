@@ -20,6 +20,7 @@
 #include "minigame_catch.h"
 #include "power_manager.h"
 #include "asset_loader.h"
+#include "fishbowl.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -29,6 +30,7 @@
 #include "esp_heap_caps.h"
 #include "lvgl.h"
 #include "driver/gpio.h"
+#include <time.h>
 
 static const char *TAG = "main";
 
@@ -121,6 +123,7 @@ static void anim_timer_cb(lv_timer_t *t)
         int score = minigame_catch_tick(&imu);
         if (score >= 0) apply_minigame_score(score);
     } else {
+        fishbowl_tick();
         pet_renderer_tick();
         ui_screens_apply_state(&s_pet);
     }
@@ -141,6 +144,12 @@ static void stat_tick_cb(lv_timer_t *t)
         pet_save_request();
     }
     pet_save_pump(&s_pet);
+
+    /* Refresh day/night tint once per stat tick (1 Hz is plenty). */
+    time_t tt = (time_t)now;
+    struct tm tm_now;
+    gmtime_r(&tt, &tm_now);
+    fishbowl_apply_tint(tm_now.tm_hour);
 }
 
 static void lvgl_task(void *arg)
