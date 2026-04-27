@@ -16,6 +16,7 @@ idf_component_register(
         "species.c"
         "fishbowl.c"
         "idle_scheduler.c"
+        "intro_screens.c"
     INCLUDE_DIRS "."
     REQUIRES
         amoled_driver

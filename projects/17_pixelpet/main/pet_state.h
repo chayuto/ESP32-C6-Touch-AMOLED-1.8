@@ -44,7 +44,14 @@ typedef struct {
 
     /* v2 fields below — append-only so old saves migrate cleanly. */
     uint8_t  species_id;
+
+    /* v3 fields. name[] is a 3-char display name + NUL; intro_done gates
+     * the first-run onboarding flow. */
+    char     name[8];
+    bool     intro_done;
 } pet_state_t;
+
+#define PET_NAME_LEN  3   /* characters used in name[]; name[3] is NUL */
 
 /** Initialise a fresh egg with full stats and unset timestamps (caller fills in). */
 void pet_state_init_new(pet_state_t *p);

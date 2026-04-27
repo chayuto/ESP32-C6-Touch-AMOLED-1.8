@@ -15,7 +15,9 @@ void pet_state_init_new(pet_state_t *p)
     p->clean      = 100;
     p->disc       = 50;
     p->health     = 100;
-    p->species_id = 0;   /* SPECIES_BLOB_PINK */
+    p->species_id = 0;        /* SPECIES_BLOB_PINK */
+    p->name[0]    = '\0';     /* unset until intro completes */
+    p->intro_done = false;
 }
 
 const char *pet_stage_name(pet_stage_t s)

@@ -30,6 +30,7 @@ static screen_id_t s_current = SCREEN_STATUS;
 static pet_state_t *s_pet;
 
 /* Status widgets */
+static lv_obj_t *s_lbl_name;
 static lv_obj_t *s_lbl_stage;
 static lv_obj_t *s_lbl_age;
 static lv_obj_t *s_bar_hunger;
@@ -183,17 +184,23 @@ static void build_status_screen(lv_obj_t *scr)
     /* Backdrop first so everything else draws on top. */
     fishbowl_init(scr);
 
+    s_lbl_name = lv_label_create(scr);
+    lv_label_set_text(s_lbl_name, "");
+    lv_obj_set_style_text_color(s_lbl_name, lv_color_hex(0xFFAFCC), 0);
+    lv_obj_set_style_text_font(s_lbl_name, &lv_font_montserrat_20, 0);
+    lv_obj_align(s_lbl_name, LV_ALIGN_TOP_MID, 0, 8);
+
     s_lbl_stage = lv_label_create(scr);
     lv_label_set_text(s_lbl_stage, "EGG");
     lv_obj_set_style_text_color(s_lbl_stage, lv_color_hex(0x00FFAA), 0);
-    lv_obj_set_style_text_font(s_lbl_stage, &lv_font_montserrat_20, 0);
-    lv_obj_align(s_lbl_stage, LV_ALIGN_TOP_MID, 0, 12);
+    lv_obj_set_style_text_font(s_lbl_stage, &lv_font_montserrat_14, 0);
+    lv_obj_align(s_lbl_stage, LV_ALIGN_TOP_MID, 0, 36);
 
     s_lbl_age = lv_label_create(scr);
     lv_label_set_text(s_lbl_age, "age 0s");
     lv_obj_set_style_text_color(s_lbl_age, lv_color_hex(0x808080), 0);
     lv_obj_set_style_text_font(s_lbl_age, &lv_font_montserrat_14, 0);
-    lv_obj_align(s_lbl_age, LV_ALIGN_TOP_MID, 0, 38);
+    lv_obj_align(s_lbl_age, LV_ALIGN_TOP_MID, 0, 56);
 
     pet_renderer_init(scr);
 
@@ -364,6 +371,9 @@ void ui_screens_apply_state(const pet_state_t *p)
     }
     s_prev_stage = p->stage;
 
+    if (s_lbl_name) {
+        lv_label_set_text(s_lbl_name, p->name[0] ? p->name : "");
+    }
     if (s_lbl_stage) lv_label_set_text(s_lbl_stage, pet_stage_name(p->stage));
 
     if (s_lbl_age) {

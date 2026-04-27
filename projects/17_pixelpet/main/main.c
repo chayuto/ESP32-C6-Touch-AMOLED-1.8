@@ -22,6 +22,7 @@
 #include "asset_loader.h"
 #include "fishbowl.h"
 #include "idle_scheduler.h"
+#include "intro_screens.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -32,6 +33,7 @@
 #include "lvgl.h"
 #include "driver/gpio.h"
 #include <time.h>
+#include <string.h>
 
 static const char *TAG = "main";
 
@@ -67,7 +69,9 @@ static void boot_button_poll(void)
             s_btn_debounce = 0;
             if (raw) {
                 power_manager_notify_activity();
-                ui_screens_next();
+                if (!intro_screens_is_visible()) {
+                    ui_screens_next();
+                }
             }
         }
     } else {
@@ -97,8 +101,22 @@ static void pet_boot_load_or_create(void)
         pet_state_init_new(&s_pet);
         s_pet.hatched_unix     = now;
         s_pet.last_update_unix = now;
-        pet_save_commit(&s_pet);
+        /* Don't commit yet — onboarding is about to overwrite name +
+         * species. The first commit lands when intro completes. */
     }
+}
+
+static void on_intro_done(species_id_t species, const char *name)
+{
+    s_pet.species_id = (uint8_t)species;
+    strncpy(s_pet.name, name, PET_NAME_LEN);
+    s_pet.name[PET_NAME_LEN] = '\0';
+    s_pet.intro_done = true;
+    pet_save_commit(&s_pet);
+    ui_screens_apply_state(&s_pet);
+    ESP_LOGI(TAG, "intro complete — pet \"%s\" species=%d ready",
+             s_pet.name, s_pet.species_id);
+    audio_jingles_play(JINGLE_HATCH);
 }
 
 /* ── LVGL timers ───────────────────────────────────────── */
@@ -233,9 +251,15 @@ void app_main(void)
     ESP_LOGI(TAG, "[10/10] UI + power manager");
     ui_screens_init(lv_scr_act(), &s_pet);
     minigame_catch_init(lv_scr_act());
+    intro_screens_init(lv_scr_act(), on_intro_done);
     ui_screens_apply_state(&s_pet);
     power_manager_init();
     idle_scheduler_init();
+
+    if (!s_pet.intro_done) {
+        ESP_LOGI(TAG, "first run — showing onboarding");
+        intro_screens_show();
+    }
 
     xTaskCreate(lvgl_task, "lvgl", 8192, NULL, 2, NULL);
 
