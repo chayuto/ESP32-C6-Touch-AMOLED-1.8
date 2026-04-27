@@ -1,10 +1,26 @@
 # PixelPet — pending hardware tests
 
-The enrichment branch (`feat/17-pixelpet-enrichment`, PR #10) shipped
-without hardware verification because the device wasn't available at
-authoring time. Build is clean (`idf.py -C projects/17_pixelpet build`,
-651 KB / 2 MB, 69% free). Below is what to actually check once the
-board is back.
+The enrichment branch (`feat/17-pixelpet-enrichment`, PR #10). A first
+hardware pass exposed four edges, all fixed in commit `10c6512`. The
+checklist below is what's left to verify end-to-end.
+
+## Already verified on hardware (commit 10c6512)
+
+- Boot is clean; all 10 init steps succeed; ~283 KB free heap.
+- Onboarding flow walks welcome → species (PURPLE picked) → name → HATCH
+  and persists `species=4`, `intro_done=true` to NVS.
+- Egg → BABY → CHILD transitions fire and the pet ages correctly.
+- Save migration loads existing pets without crash.
+- **Fix**: shake-on-boot false positive — IMU's HPF reads junk for ~1 s
+  after init. `shake_check` now waits 2 s after IMU start before
+  honoring `is_shaking`. Confirmed silent boot in the next capture.
+- **Fix**: memorial overlay was bypass-able via BOOT button cycling
+  the underlying screens to the front. `ui_screens_show`/`_next` now
+  no-op when `stage == STAGE_DEAD`.
+- **Fix**: noop care reactions on a DEAD pet now suppressed (no sad
+  jingle / particle). Memorial owns the scene.
+- **Fix**: `daily_quests_check_reset` bails when `now_unix < 2020-01-01`
+  so an unset RTC doesn't reroll quests every tick.
 
 ## R8.1 — no-op care reactions
 
@@ -92,11 +108,10 @@ board is back.
 
 ## Risks worth watching
 
-1. **RTC unset on first boot** — `daily_quests_check_reset` uses
-   `now_unix` for the day-bucket. If RTC reads 1970-01-01, the first
-   roll happens immediately and subsequent days never roll until RTC
-   gets set. Acceptable for now (the pet works without quests) but
-   a future PR could gate on `rtc_manager_is_valid()`.
+1. ~~**RTC unset on first boot**~~ Fixed in `10c6512` —
+   `daily_quests_check_reset` bails on `now_unix < MIN_VALID_UNIX`
+   (2020-01-01). Quest rolls only happen once the RTC reports a real
+   time.
 
 2. **Story card stacking** — `story_card_show` replaces the current
    card without queueing. If two transitions happen back-to-back in
