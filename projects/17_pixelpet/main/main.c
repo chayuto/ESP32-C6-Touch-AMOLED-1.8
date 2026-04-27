@@ -23,6 +23,7 @@
 #include "fishbowl.h"
 #include "idle_scheduler.h"
 #include "intro_screens.h"
+#include "story_card.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -69,7 +70,7 @@ static void boot_button_poll(void)
             s_btn_debounce = 0;
             if (raw) {
                 power_manager_notify_activity();
-                if (!intro_screens_is_visible()) {
+                if (!intro_screens_is_visible() && !story_card_is_visible()) {
                     ui_screens_next();
                 }
             }
@@ -129,6 +130,11 @@ static void apply_minigame_score(int score)
     s_pet.happy = (new_happy > 100) ? 100 : (uint8_t)new_happy;
     s_pet.energy = (s_pet.energy > 15) ? s_pet.energy - 15 : 0;
     s_pet.care_score += (uint32_t)score;
+    s_pet.total_plays++;
+    if ((uint32_t)score > s_pet.minigame_high) {
+        s_pet.minigame_high = (uint32_t)score;
+        ESP_LOGI(TAG, "new minigame high: %d", score);
+    }
     audio_jingles_play(JINGLE_HAPPY);
     pet_save_request();
     ESP_LOGI(TAG, "minigame score %d → +%d happy", score, boost);
@@ -252,6 +258,7 @@ void app_main(void)
     ui_screens_init(lv_scr_act(), &s_pet);
     minigame_catch_init(lv_scr_act());
     intro_screens_init(lv_scr_act(), on_intro_done);
+    story_card_init(lv_scr_act());
     ui_screens_apply_state(&s_pet);
     power_manager_init();
     idle_scheduler_init();

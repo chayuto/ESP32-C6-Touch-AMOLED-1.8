@@ -49,6 +49,14 @@ typedef struct {
      * the first-run onboarding flow. */
     char     name[8];
     bool     intro_done;
+
+    /* v4 fields — lifetime milestone counters used by the memorial card
+     * and milestone story beats. Append-only. */
+    uint32_t total_meals;       /* CARE_FEED_MEAL + CARE_FEED_SNACK */
+    uint32_t total_plays;       /* CARE_PLAY + completed minigames */
+    uint32_t total_cleans;      /* CARE_CLEAN_ONE */
+    uint32_t total_meds;        /* CARE_MEDICINE */
+    uint32_t minigame_high;     /* best catch score */
 } pet_state_t;
 
 #define PET_NAME_LEN  3   /* characters used in name[]; name[3] is NUL */

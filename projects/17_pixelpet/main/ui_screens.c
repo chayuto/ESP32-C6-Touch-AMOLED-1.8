@@ -16,6 +16,7 @@
 #include "power_manager.h"
 #include "fishbowl.h"
 #include "audio_jingles.h"
+#include "story_card.h"
 #include "esp_log.h"
 #include <stdio.h>
 
@@ -42,7 +43,9 @@ static lv_obj_t *s_sleep_btn_label;
 
 /* Memorial overlay (shown automatically when stage == STAGE_DEAD) */
 static lv_obj_t *s_memorial;
+static lv_obj_t *s_memorial_name;
 static lv_obj_t *s_memorial_lifespan;
+static lv_obj_t *s_memorial_stats;
 
 /* Track previous stage so we can fire the stage-up celebration on
  * transition. Initialised on the first apply_state. */
@@ -283,12 +286,18 @@ static void build_memorial(lv_obj_t *parent)
     lv_label_set_text(rip, "R.I.P.");
     lv_obj_set_style_text_color(rip, lv_color_hex(0xFFE066), 0);
     lv_obj_set_style_text_font(rip, &lv_font_montserrat_28, 0);
-    lv_obj_align(rip, LV_ALIGN_TOP_MID, 0, 60);
+    lv_obj_align(rip, LV_ALIGN_TOP_MID, 0, 40);
+
+    s_memorial_name = lv_label_create(s_memorial);
+    lv_label_set_text(s_memorial_name, "");
+    lv_obj_set_style_text_color(s_memorial_name, lv_color_hex(0xFFAFCC), 0);
+    lv_obj_set_style_text_font(s_memorial_name, &lv_font_montserrat_20, 0);
+    lv_obj_align(s_memorial_name, LV_ALIGN_TOP_MID, 0, 80);
 
     s_memorial_lifespan = lv_label_create(s_memorial);
     lv_label_set_text(s_memorial_lifespan, "lived 0 days");
     lv_obj_set_style_text_color(s_memorial_lifespan, lv_color_hex(0xCCCCCC), 0);
-    lv_obj_set_style_text_font(s_memorial_lifespan, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_font(s_memorial_lifespan, &lv_font_montserrat_14, 0);
     lv_obj_align(s_memorial_lifespan, LV_ALIGN_TOP_MID, 0, 110);
 
     lv_obj_t *halo = lv_obj_create(s_memorial);
@@ -298,7 +307,16 @@ static void build_memorial(lv_obj_t *parent)
     lv_obj_set_style_bg_opa(halo, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_color(halo, lv_color_hex(0xFFE066), 0);
     lv_obj_set_style_border_width(halo, 4, 0);
-    lv_obj_align(halo, LV_ALIGN_CENTER, 0, -20);
+    lv_obj_align(halo, LV_ALIGN_CENTER, 0, -40);
+
+    s_memorial_stats = lv_label_create(s_memorial);
+    lv_label_set_text(s_memorial_stats, "");
+    lv_obj_set_style_text_color(s_memorial_stats, lv_color_hex(0x808080), 0);
+    lv_obj_set_style_text_font(s_memorial_stats, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_align(s_memorial_stats, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_width(s_memorial_stats, 320);
+    lv_label_set_long_mode(s_memorial_stats, LV_LABEL_LONG_WRAP);
+    lv_obj_align(s_memorial_stats, LV_ALIGN_CENTER, 0, 30);
 
     make_action_btn(s_memorial, "Hatch new pet", lv_color_hex(0x06D6A0),
                     240, 80, rebirth_cb, NULL);
@@ -368,6 +386,14 @@ void ui_screens_apply_state(const pet_state_t *p)
     if (s_prev_stage != STAGE_COUNT && p->stage != s_prev_stage
         && p->stage != STAGE_DEAD && p->stage != STAGE_EGG) {
         pet_renderer_play_stageup();
+        /* ADULT gets the form-reveal beat (more interesting than the
+         * generic "you're now ADULT"). Other stages get the generic
+         * stage-up tip. */
+        if (p->stage == STAGE_ADULT) {
+            story_card_show_adult(p->name, p->adult_form);
+        } else {
+            story_card_show_stageup(p->name, p->stage);
+        }
     }
     s_prev_stage = p->stage;
 
@@ -405,6 +431,20 @@ void ui_screens_apply_state(const pet_state_t *p)
             else if (age_s < 86400)  snprintf(buf, sizeof(buf), "lived %lldh", age_s / 3600);
             else                     snprintf(buf, sizeof(buf), "lived %lldd", age_s / 86400);
             lv_label_set_text(s_memorial_lifespan, buf);
+            if (s_memorial_name) {
+                lv_label_set_text(s_memorial_name,
+                                  p->name[0] ? p->name : "your pet");
+            }
+            if (s_memorial_stats) {
+                char stats[96];
+                snprintf(stats, sizeof(stats),
+                         "%lu meals  %lu plays\n%lu cleans  high %lu",
+                         (unsigned long)p->total_meals,
+                         (unsigned long)p->total_plays,
+                         (unsigned long)p->total_cleans,
+                         (unsigned long)p->minigame_high);
+                lv_label_set_text(s_memorial_stats, stats);
+            }
             lv_obj_clear_flag(s_memorial, LV_OBJ_FLAG_HIDDEN);
             lv_obj_move_foreground(s_memorial);
         } else {
