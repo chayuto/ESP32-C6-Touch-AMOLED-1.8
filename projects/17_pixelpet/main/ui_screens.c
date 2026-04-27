@@ -15,6 +15,7 @@
 #include "minigame_catch.h"
 #include "power_manager.h"
 #include "fishbowl.h"
+#include "audio_jingles.h"
 #include "esp_log.h"
 #include <stdio.h>
 
@@ -88,6 +89,28 @@ static lv_obj_t *make_action_btn(lv_obj_t *parent, const char *label,
 
 /* ── Care callbacks ────────────────────────────────────── */
 
+/* Map a no-op care action to a rejection reaction so the player gets
+ * visible feedback ("pet doesn't need this right now") instead of a
+ * dead button. NULLs leave that channel silent. */
+static void noop_reaction(care_action_t action,
+                          const char **particle, const char **anim)
+{
+    *particle = NULL;
+    *anim     = NULL;
+    switch (action) {
+    case CARE_FEED_MEAL:
+    case CARE_FEED_SNACK:
+        *particle = "particles/question"; *anim = "sad";   break;  /* "no more" */
+    case CARE_PLAY:
+        *particle = "particles/zzz";      *anim = "yawn";  break;  /* too tired */
+    case CARE_CLEAN_ONE:
+        *particle = "particles/sparkle";  *anim = "happy"; break;  /* already clean */
+    case CARE_MEDICINE:
+        *particle = "particles/question"; *anim = "sad";   break;  /* not sick */
+    default: break;
+    }
+}
+
 static void care_cb(lv_event_t *e)
 {
     care_action_t action = (care_action_t)(uintptr_t)lv_event_get_user_data(e);
@@ -99,10 +122,20 @@ static void care_cb(lv_event_t *e)
         if (action == CARE_FEED_MEAL || action == CARE_FEED_SNACK) {
             pet_renderer_play_eat();
         }
+    } else {
+        const char *particle, *anim;
+        noop_reaction(action, &particle, &anim);
+        if (particle || anim) {
+            pet_renderer_play_reaction(particle, anim);
+            audio_jingles_play(JINGLE_SAD);
+        }
     }
     ui_screens_apply_state(s_pet);
-    /* Pop back to status so the player sees the result */
-    if (action != CARE_SLEEP_TOGGLE && action != CARE_CLEAN_ONE) {
+    /* Pop back to status so the player sees the result. CLEAN stays put
+     * on success (so the player can wipe several poops in a row), but on
+     * a no-op we still pop so the rejection FX — parented to the status
+     * screen — is actually visible. */
+    if (action != CARE_SLEEP_TOGGLE && (action != CARE_CLEAN_ONE || !ok)) {
         ui_screens_show(SCREEN_STATUS);
     }
 }

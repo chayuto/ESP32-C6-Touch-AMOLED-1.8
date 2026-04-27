@@ -53,6 +53,13 @@ void pet_renderer_play_stageup(void);
  *  x/y are absolute screen coordinates from the LVGL pointer event. */
 void pet_renderer_react_to_touch(int x, int y);
 
+/** Brief rejection / acknowledgment reaction. Pops a particle FX above
+ *  the pet for ~700 ms and plays a one-shot body anim. Either argument
+ *  may be NULL. Used to make no-op care actions visible (e.g. medicine
+ *  on a healthy pet, food on a full pet). */
+void pet_renderer_play_reaction(const char *particle_name,
+                                const char *body_anim);
+
 #ifdef __cplusplus
 }
 #endif
