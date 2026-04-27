@@ -17,8 +17,8 @@
   same limitation confirmed that the S3 board does not: the S3 has two
   user-available SPI hosts (SPI2 + SPI3) and a real SDMMC controller, so the
   SD card and QSPI display can be on separate buses.
-- **Related docs:** [`18-sd-display-spi-sharing.md`](../../18-sd-display-spi-sharing.md),
-  [`07-complete-gpio-and-io-map.md`](../../07-complete-gpio-and-io-map.md)
+- **Related docs:** [`18-sd-display-spi-sharing.md`](../board-research/18-sd-display-spi-sharing.md),
+  [`07-complete-gpio-and-io-map.md`](../board-research/07-complete-gpio-and-io-map.md)
 
 ---
 

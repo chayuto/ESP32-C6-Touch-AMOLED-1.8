@@ -2,7 +2,7 @@
 
 A collection of ESP-IDF firmware projects for the **Waveshare ESP32-C6-Touch-AMOLED-1.8** development board.
 
-Built with an **agentic-first development workflow** — each project is developed with [Claude Code](https://claude.ai/code) as the primary agent. Hardware specs, build rules, LVGL gotchas, and lessons learned across all projects live in `CLAUDE.md` and `.claude/commands/`, giving the agent full context from the first message of every session.
+Built with an **agentic-first development workflow** — each project is developed with [Claude Code](https://claude.ai/code) as the primary agent. Hardware specs, build rules, LVGL gotchas, and lessons learned across all projects live in [`CLAUDE.md`](CLAUDE.md) and `.claude/commands/`, giving the agent full context from the first message of every session.
 
 ---
 
@@ -27,43 +27,21 @@ Built with an **agentic-first development workflow** — each project is develop
 
 ## Projects
 
-| # | Project | Description |
+| # | Project | One-liner |
 |---|---|---|
-| 11 | [MCP Canvas](projects/11_mcp_canvas/) | MCP server — AI draws to AMOLED over WiFi (12 tools, battery, power) |
-| 12 | [Baby Cry DSP](projects/12_baby_cry_dsp/) | Baby cry detection via pure DSP — FFT spectrum, adaptive threshold, SD logging |
-| 13 | [Baby Cry VAD](projects/13_baby_cry_vad/) | Baby cry detection with VAD gate + DSP (ESP-SR research documented) |
-| 14 | [Sensory Play](projects/14_sensory_play/) | IMU-driven sensory toy — particle physics, tilt gestures, touch keyboard |
-| 15 | [Nursery Rhymes](projects/15_nursery_rhymes/) | Music-box player with realistic synthesis — harmonics, metric accent, vibrato, tempo |
-| 16 | [BitChat Relay](projects/16_bitchat_relay/) | BLE mesh relay for BitChat protocol — opaque forwarding, telemetry dashboard, SD logging |
+| 11 | [MCP Canvas](projects/11_mcp_canvas/) | MCP server — AI agent draws to AMOLED over WiFi (12 tools) |
+| 12 | [Baby Cry DSP](projects/12_baby_cry_dsp/) | Crying detection via pure DSP — FFT, adaptive threshold, SD logging |
+| 13 | [Baby Cry VAD](projects/13_baby_cry_vad/) | Crying detection with VAD gate + DSP (ESP-SR research documented) |
+| 14 | [Sensory Play](projects/14_sensory_play/) | IMU-driven toy — particle physics, tilt gestures, touch keyboard |
+| 15 | [Nursery Rhymes](projects/15_nursery_rhymes/) | Music-box player with realistic harmonic synthesis |
+| 16 | [BitChat Relay](projects/16_bitchat_relay/) | BLE mesh relay for BitChat protocol — telemetry + SD logging |
+| 17 | [PixelPet](projects/17_pixelpet/) | Tamagotchi-style virtual pet with sprite renderer + RTC decay |
 
-### MCP Canvas Demo
-
-An AI agent controls the 368x448 AMOLED display over WiFi using the [Model Context Protocol](https://modelcontextprotocol.io/). Widget-based rendering at full resolution — no framebuffer needed (display GRAM holds the pixels).
+Each project's own README has the detail (architecture, build steps, screenshots).
 
 <p align="center">
   <img src="docs/media/mcp_canvas_demo.jpg" alt="MCP Canvas Demo" width="200">
 </p>
-
-**12 MCP tools:** `clear_canvas` `draw_rect` `draw_line` `draw_arc` `draw_text` `draw_path` `get_canvas_info` `get_canvas_snapshot` `get_battery_info` `set_brightness` `get_system_info` `power_off`
-
-### Nursery Rhyme Player
-
-20 classic nursery rhymes with a realistic music-box synthesis engine. Demonstrates applied music theory in embedded C:
-
-- **4-harmonic timbre** (fundamental + octave + fifth + double-octave) — sounds like a glockenspiel, not a beep
-- **Tempo-aware playback** — lullabies at 80 BPM, action songs at 120 BPM
-- **Metric accent** — downbeats louder, off-beats softer, derived from time signature (4/4, 3/4, 6/8)
-- **Duration-proportional ADSR** — short notes snap, long notes breathe
-- **Vibrato + rallentando** — pitch wobble on sustained notes, natural slowdown at endings
-- **Rhythm-audited** — automated Python script verifies every song sums to complete measures
-
-Touch UI with song list, now-playing progress, volume, loop/shuffle modes, battery gauge, child lock.
-
-### Baby Cry Detection
-
-Pure DSP crying detection using the onboard ES8311 codec + dual MEMS microphones. Real-time FFT spectrum visualization on the AMOLED, adaptive noise floor, NTP timestamps, SD card logging. BOOT button cycles display brightness (4 levels including off).
-
-Two variants explore different detection architectures — project 12 (pure DSP) and project 13 (VAD gate + DSP). Key finding: ESP-SR's VADNet is not available standalone on ESP32-C6 (AFE supports ESP32/S3/P4 only).
 
 ---
 
@@ -100,21 +78,31 @@ idf.py -C projects/<name> -p /dev/cu.usbmodem1101 flash
 
 ```
 ESP32-C6-Touch-AMOLED-1.8/
-├── shared/components/
-│   └── amoled_driver/       # AMOLED display, touch, PMIC, LVGL driver
-├── projects/
-│   ├── 11_mcp_canvas/       # MCP server with 12 drawing + device tools
-│   ├── 12_baby_cry_dsp/     # Baby cry detection — pure DSP, FFT spectrum, SD logging
-│   ├── 13_baby_cry_vad/     # Baby cry detection — VAD gate + DSP (ESP-SR research)
-│   ├── 14_sensory_play/     # IMU-driven sensory toy — particles, tilt, music keyboard
-│   ├── 15_nursery_rhymes/   # Music-box player — harmonic synthesis, music theory
-│   └── 16_bitchat_relay/    # BLE mesh relay — BitChat protocol, AMOLED telemetry
-├── ref/                     # Vendor reference code (gitignored)
-├── docs/                    # Board research, reference documents
-├── .claude/commands/        # Agent skills for Claude Code
-├── CLAUDE.md                # Agent context: board specs, build rules, gotchas
-└── README.md
+├── shared/components/      # Shared ESP-IDF components (amoled_driver, lvgl, ...)
+├── projects/               # One subdirectory per firmware project (11_…, 12_…, …)
+├── docs/
+│   ├── board-research/     # Numbered research docs — board, silicon, peripherals
+│   ├── waveshare-support/  # Verbatim vendor support correspondence
+│   ├── research/           # External research artefacts (e.g. BitChat protocol)
+│   ├── reference/          # Score sheets, lookup tables
+│   ├── media/              # Photos and demo videos for READMEs
+│   └── *.md                # Loose blog posts and ad-hoc setup notes
+├── ref/                    # Vendor reference code (gitignored)
+├── .claude/commands/       # Agent skills for Claude Code
+├── CLAUDE.md               # Operational summary: pin map, build rules, gotchas
+└── README.md               # You are here
 ```
+
+## Documentation
+
+- **[`CLAUDE.md`](CLAUDE.md)** — pin map, build commands, init sequence, every "gotcha" we've hit. Read this first.
+- **[`docs/board-research/`](docs/board-research/)** — long-form research backing `CLAUDE.md`: official docs digest, chip reference, GPIO map, I2C bus, RTC/audio, power saving, project plans, etc. See its [index](docs/board-research/README.md).
+- **[`docs/waveshare-support/`](docs/waveshare-support/)** — exact vendor support tickets and replies, kept verbatim.
+- **Per-project READMEs** — each `projects/<name>/README.md` covers that project's architecture and quirks.
+
+> The `01-…18-…md` files at the repo root are now thin redirects pointing to
+> [`docs/board-research/`](docs/board-research/). Old links continue to work
+> but the canonical location is the new path.
 
 ## Critical Hardware Notes
 
@@ -124,29 +112,7 @@ ESP32-C6-Touch-AMOLED-1.8/
 4. **Nearly all GPIOs are used** by onboard peripherals — very few free pins for external hardware
 5. **6 I2C devices** share one bus (GPIO 7/8): TCA9554, AXP2101, FT3168, QMI8658, PCF85063, ES8311
 6. **AXP2101 PMIC** — long-press power button (2.5s) for hardware shutdown
-
----
-
-## Board Research
-
-Comprehensive research documents are included in the repo root:
-
-| # | Document | Description |
-|---|---|---|
-| 01 | [Official Docs](01-official-docs.md) | Waveshare wiki, product page, specs, pinout, demos, pricing |
-| 02 | [ESP32-C6 Chip Reference](02-esp32-c6-chip-reference.md) | Espressif datasheet, WiFi 6, BLE 5, Thread/Zigbee, C6 vs S3 |
-| 03 | [Community Projects](03-community-projects-and-resources.md) | GitHub repos, articles, comparable boards |
-| 04 | [Display & Touch Drivers](04-display-touch-drivers.md) | SH8601 QSPI, FT3168 I2C, library support matrix |
-| 05 | [Development Setup Guide](05-development-setup-guide.md) | Arduino, PlatformIO, ESP-IDF, MicroPython, ESPHome, LVGL |
-| 06 | [Comparison with LCD-1.47](06-comparison-with-lcd147-project.md) | Side-by-side with [esp32c6-lcd147-projects](https://github.com/chayuto/esp32c6-lcd147-projects) |
-| 07 | [Complete GPIO & IO Map](07-complete-gpio-and-io-map.md) | Every GPIO assignment, pin_config.h, free pin analysis |
-| 08 | [I2C Bus & Peripherals](08-i2c-bus-and-peripherals.md) | All 6 I2C devices, power architecture, init sequence |
-| 10 | [RTC & Audio Peripherals](10-rtc-audio-peripherals.md) | PCF85063 RTC, ES8311 audio codec, XiaoZhi AI |
-| 11 | [MCP Canvas Ref Architecture](11-mcp-canvas-reference-architecture.md) | LCD-1.47 MCP server + canvas drawing pipeline |
-| 12 | [AMOLED MCP Canvas Strategy](12-amoled-mcp-canvas-strategy.md) | Canvas RAM strategy, option analysis, recommendation |
-| 13 | [Implementation Plan](13-implementation-plan.md) | MCP canvas project architecture, module design, RAM budget |
-| 14 | [Crying Detection Research](14-crying-detection-research.md) | ML/DSP algorithms, ESP-SR/TFLite/Edge Impulse on C6, RAM budget |
-| 15 | [Power Saving Strategies](15-power-saving-strategies.md) | WiFi off after NTP, display off, duty cycles, battery life estimates |
+7. **SD card and AMOLED display share SPI2** — cannot be active simultaneously. See [`docs/board-research/18-sd-display-spi-sharing.md`](docs/board-research/18-sd-display-spi-sharing.md).
 
 ## Key Links
 

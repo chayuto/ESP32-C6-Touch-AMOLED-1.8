@@ -14,9 +14,9 @@ were useful — without re-running round-trips that take days.
 - Do not paraphrase vendor replies — copy them exactly. First-line support
   sometimes gives answers that look plausible but are wrong at the level
   we're asking about, and the exact wording matters for future re-reads.
-- Link each ticket from the relevant technical doc in the repo root (e.g.
-  `18-sd-display-spi-sharing.md`) so readers hitting the topic can find the
-  correspondence without knowing it exists.
+- Link each ticket from the relevant technical doc under
+  `docs/board-research/` (e.g. `18-sd-display-spi-sharing.md`) so readers
+  hitting the topic can find the correspondence without knowing it exists.
 
 ## General observations
 
