@@ -8,6 +8,7 @@
 
 #include "stat_engine.h"
 #include "audio_jingles.h"
+#include "daily_quests.h"
 #include "esp_log.h"
 #include <stdlib.h>
 
@@ -111,6 +112,7 @@ bool stat_engine_apply_care(pet_state_t *p, care_action_t action)
         p->hunger = clamp_add(p->hunger, 30);
         p->happy  = clamp_add(p->happy,  5);
         p->care_score += 5;
+        p->total_meals++;
         audio_jingles_play(JINGLE_EAT);
         break;
 
@@ -118,6 +120,7 @@ bool stat_engine_apply_care(pet_state_t *p, care_action_t action)
         p->hunger = clamp_add(p->hunger, 10);
         p->happy  = clamp_add(p->happy,  15);
         p->care_score += 1;  /* less nutritious */
+        p->total_meals++;
         audio_jingles_play(JINGLE_EAT);
         break;
 
@@ -126,6 +129,7 @@ bool stat_engine_apply_care(pet_state_t *p, care_action_t action)
         p->happy  = clamp_add(p->happy,  20);
         p->energy = clamp_sub(p->energy, 15);
         p->care_score += 4;
+        p->total_plays++;
         audio_jingles_play(JINGLE_HAPPY);
         break;
 
@@ -134,6 +138,7 @@ bool stat_engine_apply_care(pet_state_t *p, care_action_t action)
         p->poop_count--;
         p->clean = clamp_add(p->clean, 25);
         p->care_score += 3;
+        p->total_cleans++;
         break;
 
     case CARE_SLEEP_TOGGLE:
@@ -150,11 +155,13 @@ bool stat_engine_apply_care(pet_state_t *p, care_action_t action)
         if (p->health > 70) return false;
         p->health = clamp_add(p->health, 30);
         p->care_score += 2;
+        p->total_meds++;
         break;
 
     default:
         return false;
     }
+    daily_quests_on_care(p, action);
     return true;
 }
 

@@ -15,6 +15,10 @@
 #include "minigame_catch.h"
 #include "power_manager.h"
 #include "fishbowl.h"
+#include "audio_jingles.h"
+#include "story_card.h"
+#include "daily_quests.h"
+#include "intro_screens.h"
 #include "esp_log.h"
 #include <stdio.h>
 
@@ -29,8 +33,10 @@ static screen_id_t s_current = SCREEN_STATUS;
 static pet_state_t *s_pet;
 
 /* Status widgets */
+static lv_obj_t *s_lbl_name;
 static lv_obj_t *s_lbl_stage;
 static lv_obj_t *s_lbl_age;
+static lv_obj_t *s_lbl_quest;
 static lv_obj_t *s_bar_hunger;
 static lv_obj_t *s_bar_happy;
 static lv_obj_t *s_bar_energy;
@@ -40,7 +46,9 @@ static lv_obj_t *s_sleep_btn_label;
 
 /* Memorial overlay (shown automatically when stage == STAGE_DEAD) */
 static lv_obj_t *s_memorial;
+static lv_obj_t *s_memorial_name;
 static lv_obj_t *s_memorial_lifespan;
+static lv_obj_t *s_memorial_stats;
 
 /* Track previous stage so we can fire the stage-up celebration on
  * transition. Initialised on the first apply_state. */
@@ -88,6 +96,28 @@ static lv_obj_t *make_action_btn(lv_obj_t *parent, const char *label,
 
 /* ── Care callbacks ────────────────────────────────────── */
 
+/* Map a no-op care action to a rejection reaction so the player gets
+ * visible feedback ("pet doesn't need this right now") instead of a
+ * dead button. NULLs leave that channel silent. */
+static void noop_reaction(care_action_t action,
+                          const char **particle, const char **anim)
+{
+    *particle = NULL;
+    *anim     = NULL;
+    switch (action) {
+    case CARE_FEED_MEAL:
+    case CARE_FEED_SNACK:
+        *particle = "particles/question"; *anim = "sad";   break;  /* "no more" */
+    case CARE_PLAY:
+        *particle = "particles/zzz";      *anim = "yawn";  break;  /* too tired */
+    case CARE_CLEAN_ONE:
+        *particle = "particles/sparkle";  *anim = "happy"; break;  /* already clean */
+    case CARE_MEDICINE:
+        *particle = "particles/question"; *anim = "sad";   break;  /* not sick */
+    default: break;
+    }
+}
+
 static void care_cb(lv_event_t *e)
 {
     care_action_t action = (care_action_t)(uintptr_t)lv_event_get_user_data(e);
@@ -99,10 +129,23 @@ static void care_cb(lv_event_t *e)
         if (action == CARE_FEED_MEAL || action == CARE_FEED_SNACK) {
             pet_renderer_play_eat();
         }
+    } else if (s_pet->stage != STAGE_EGG && s_pet->stage != STAGE_DEAD) {
+        /* Skip the rejection FX for egg/dead pets — they shouldn't be
+         * reacting to care input at all (memorial / hatching is the
+         * scene). The noop is expected; no need to surface it. */
+        const char *particle, *anim;
+        noop_reaction(action, &particle, &anim);
+        if (particle || anim) {
+            pet_renderer_play_reaction(particle, anim);
+            audio_jingles_play(JINGLE_SAD);
+        }
     }
     ui_screens_apply_state(s_pet);
-    /* Pop back to status so the player sees the result */
-    if (action != CARE_SLEEP_TOGGLE && action != CARE_CLEAN_ONE) {
+    /* Pop back to status so the player sees the result. CLEAN stays put
+     * on success (so the player can wipe several poops in a row), but on
+     * a no-op we still pop so the rejection FX — parented to the status
+     * screen — is actually visible. */
+    if (action != CARE_SLEEP_TOGGLE && (action != CARE_CLEAN_ONE || !ok)) {
         ui_screens_show(SCREEN_STATUS);
     }
 }
@@ -150,17 +193,29 @@ static void build_status_screen(lv_obj_t *scr)
     /* Backdrop first so everything else draws on top. */
     fishbowl_init(scr);
 
+    s_lbl_name = lv_label_create(scr);
+    lv_label_set_text(s_lbl_name, "");
+    lv_obj_set_style_text_color(s_lbl_name, lv_color_hex(0xFFAFCC), 0);
+    lv_obj_set_style_text_font(s_lbl_name, &lv_font_montserrat_20, 0);
+    lv_obj_align(s_lbl_name, LV_ALIGN_TOP_MID, 0, 8);
+
     s_lbl_stage = lv_label_create(scr);
     lv_label_set_text(s_lbl_stage, "EGG");
     lv_obj_set_style_text_color(s_lbl_stage, lv_color_hex(0x00FFAA), 0);
-    lv_obj_set_style_text_font(s_lbl_stage, &lv_font_montserrat_20, 0);
-    lv_obj_align(s_lbl_stage, LV_ALIGN_TOP_MID, 0, 12);
+    lv_obj_set_style_text_font(s_lbl_stage, &lv_font_montserrat_14, 0);
+    lv_obj_align(s_lbl_stage, LV_ALIGN_TOP_MID, 0, 36);
 
     s_lbl_age = lv_label_create(scr);
     lv_label_set_text(s_lbl_age, "age 0s");
     lv_obj_set_style_text_color(s_lbl_age, lv_color_hex(0x808080), 0);
     lv_obj_set_style_text_font(s_lbl_age, &lv_font_montserrat_14, 0);
-    lv_obj_align(s_lbl_age, LV_ALIGN_TOP_MID, 0, 38);
+    lv_obj_align(s_lbl_age, LV_ALIGN_TOP_MID, 0, 56);
+
+    s_lbl_quest = lv_label_create(scr);
+    lv_label_set_text(s_lbl_quest, "");
+    lv_obj_set_style_text_color(s_lbl_quest, lv_color_hex(0xFFD166), 0);
+    lv_obj_set_style_text_font(s_lbl_quest, &lv_font_montserrat_14, 0);
+    lv_obj_align(s_lbl_quest, LV_ALIGN_TOP_MID, 0, 76);
 
     pet_renderer_init(scr);
 
@@ -194,10 +249,12 @@ static void minigame_cb(lv_event_t *e)
 static void build_play_screen(lv_obj_t *scr)
 {
     make_title(scr, "PLAY", lv_color_hex(0xFF4488));
-    make_action_btn(scr, "Quick play",  lv_color_hex(0xEF476F), 220, -40,
+    make_action_btn(scr, "Quick play",   lv_color_hex(0xEF476F), 220, -80,
                     care_cb, (void *)(uintptr_t)CARE_PLAY);
-    make_action_btn(scr, "Catch apples", lv_color_hex(0xFFD166), 220,  60,
+    make_action_btn(scr, "Catch apples", lv_color_hex(0xFFD166), 220,   0,
                     minigame_cb, NULL);
+    make_action_btn(scr, "Scold",        lv_color_hex(0xCDB4DB), 220,  80,
+                    care_cb, (void *)(uintptr_t)CARE_DISCIPLINE);
 }
 
 static void build_clean_screen(lv_obj_t *scr)
@@ -221,12 +278,15 @@ static void rebirth_cb(lv_event_t *e)
     (void)e;
     if (!s_pet) return;
     pet_save_clear();
-    pet_state_init_new(s_pet);
+    pet_state_init_new(s_pet);                  /* intro_done=false, name="" */
     s_pet->hatched_unix     = rtc_manager_now_unix();
     s_pet->last_update_unix = s_pet->hatched_unix;
-    pet_save_commit(s_pet);
+    /* Don't commit yet — onboarding will fill in name + species and
+     * commit on completion (mirrors the first-boot path in main.c). */
+    s_prev_stage = STAGE_COUNT;                 /* re-arm stage-up cards */
     ui_screens_apply_state(s_pet);
     ui_screens_show(SCREEN_STATUS);
+    intro_screens_show();                       /* pick name + species again */
 }
 
 static void build_memorial(lv_obj_t *parent)
@@ -243,12 +303,18 @@ static void build_memorial(lv_obj_t *parent)
     lv_label_set_text(rip, "R.I.P.");
     lv_obj_set_style_text_color(rip, lv_color_hex(0xFFE066), 0);
     lv_obj_set_style_text_font(rip, &lv_font_montserrat_28, 0);
-    lv_obj_align(rip, LV_ALIGN_TOP_MID, 0, 60);
+    lv_obj_align(rip, LV_ALIGN_TOP_MID, 0, 40);
+
+    s_memorial_name = lv_label_create(s_memorial);
+    lv_label_set_text(s_memorial_name, "");
+    lv_obj_set_style_text_color(s_memorial_name, lv_color_hex(0xFFAFCC), 0);
+    lv_obj_set_style_text_font(s_memorial_name, &lv_font_montserrat_20, 0);
+    lv_obj_align(s_memorial_name, LV_ALIGN_TOP_MID, 0, 80);
 
     s_memorial_lifespan = lv_label_create(s_memorial);
     lv_label_set_text(s_memorial_lifespan, "lived 0 days");
     lv_obj_set_style_text_color(s_memorial_lifespan, lv_color_hex(0xCCCCCC), 0);
-    lv_obj_set_style_text_font(s_memorial_lifespan, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_font(s_memorial_lifespan, &lv_font_montserrat_14, 0);
     lv_obj_align(s_memorial_lifespan, LV_ALIGN_TOP_MID, 0, 110);
 
     lv_obj_t *halo = lv_obj_create(s_memorial);
@@ -258,7 +324,16 @@ static void build_memorial(lv_obj_t *parent)
     lv_obj_set_style_bg_opa(halo, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_color(halo, lv_color_hex(0xFFE066), 0);
     lv_obj_set_style_border_width(halo, 4, 0);
-    lv_obj_align(halo, LV_ALIGN_CENTER, 0, -20);
+    lv_obj_align(halo, LV_ALIGN_CENTER, 0, -40);
+
+    s_memorial_stats = lv_label_create(s_memorial);
+    lv_label_set_text(s_memorial_stats, "");
+    lv_obj_set_style_text_color(s_memorial_stats, lv_color_hex(0x808080), 0);
+    lv_obj_set_style_text_font(s_memorial_stats, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_align(s_memorial_stats, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_width(s_memorial_stats, 320);
+    lv_label_set_long_mode(s_memorial_stats, LV_LABEL_LONG_WRAP);
+    lv_obj_align(s_memorial_stats, LV_ALIGN_CENTER, 0, 30);
 
     make_action_btn(s_memorial, "Hatch new pet", lv_color_hex(0x06D6A0),
                     240, 80, rebirth_cb, NULL);
@@ -301,6 +376,10 @@ void ui_screens_init(lv_obj_t *parent, pet_state_t *pet)
 void ui_screens_show(screen_id_t id)
 {
     if (id >= SCREEN_COUNT) return;
+    /* When the pet is gone, the memorial owns the screen — disallow
+     * navigation so the player can't accidentally tab the live screens
+     * back on top of it via boot button or care_cb pop. */
+    if (s_pet && s_pet->stage == STAGE_DEAD) return;
     lv_obj_add_flag(s_screens[s_current], LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(s_screens[id], LV_OBJ_FLAG_HIDDEN);
     s_current = id;
@@ -309,6 +388,7 @@ void ui_screens_show(screen_id_t id)
 
 void ui_screens_next(void)
 {
+    if (s_pet && s_pet->stage == STAGE_DEAD) return;
     ui_screens_show((s_current + 1) % SCREEN_COUNT);
 }
 
@@ -328,9 +408,20 @@ void ui_screens_apply_state(const pet_state_t *p)
     if (s_prev_stage != STAGE_COUNT && p->stage != s_prev_stage
         && p->stage != STAGE_DEAD && p->stage != STAGE_EGG) {
         pet_renderer_play_stageup();
+        /* ADULT gets the form-reveal beat (more interesting than the
+         * generic "you're now ADULT"). Other stages get the generic
+         * stage-up tip. */
+        if (p->stage == STAGE_ADULT) {
+            story_card_show_adult(p->name, p->adult_form);
+        } else {
+            story_card_show_stageup(p->name, p->stage);
+        }
     }
     s_prev_stage = p->stage;
 
+    if (s_lbl_name) {
+        lv_label_set_text(s_lbl_name, p->name[0] ? p->name : "");
+    }
     if (s_lbl_stage) lv_label_set_text(s_lbl_stage, pet_stage_name(p->stage));
 
     if (s_lbl_age) {
@@ -342,6 +433,13 @@ void ui_screens_apply_state(const pet_state_t *p)
         else if (age_s < 86400)    snprintf(buf, sizeof(buf), "age %lldh", age_s / 3600);
         else                       snprintf(buf, sizeof(buf), "age %lldd", age_s / 86400);
         lv_label_set_text(s_lbl_age, buf);
+    }
+
+    if (s_lbl_quest) {
+        char qbuf[40];
+        if (daily_quests_status_line(p, qbuf, sizeof(qbuf)) > 0) {
+            lv_label_set_text(s_lbl_quest, qbuf);
+        }
     }
 
     if (s_bar_hunger) lv_bar_set_value(s_bar_hunger, p->hunger, LV_ANIM_OFF);
@@ -362,6 +460,20 @@ void ui_screens_apply_state(const pet_state_t *p)
             else if (age_s < 86400)  snprintf(buf, sizeof(buf), "lived %lldh", age_s / 3600);
             else                     snprintf(buf, sizeof(buf), "lived %lldd", age_s / 86400);
             lv_label_set_text(s_memorial_lifespan, buf);
+            if (s_memorial_name) {
+                lv_label_set_text(s_memorial_name,
+                                  p->name[0] ? p->name : "your pet");
+            }
+            if (s_memorial_stats) {
+                char stats[96];
+                snprintf(stats, sizeof(stats),
+                         "%lu meals  %lu plays\n%lu cleans  high %lu",
+                         (unsigned long)p->total_meals,
+                         (unsigned long)p->total_plays,
+                         (unsigned long)p->total_cleans,
+                         (unsigned long)p->minigame_high);
+                lv_label_set_text(s_memorial_stats, stats);
+            }
             lv_obj_clear_flag(s_memorial, LV_OBJ_FLAG_HIDDEN);
             lv_obj_move_foreground(s_memorial);
         } else {

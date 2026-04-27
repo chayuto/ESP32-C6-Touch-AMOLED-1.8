@@ -22,6 +22,9 @@
 #include "asset_loader.h"
 #include "fishbowl.h"
 #include "idle_scheduler.h"
+#include "intro_screens.h"
+#include "story_card.h"
+#include "daily_quests.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -32,6 +35,7 @@
 #include "lvgl.h"
 #include "driver/gpio.h"
 #include <time.h>
+#include <string.h>
 
 static const char *TAG = "main";
 
@@ -67,7 +71,9 @@ static void boot_button_poll(void)
             s_btn_debounce = 0;
             if (raw) {
                 power_manager_notify_activity();
-                ui_screens_next();
+                if (!intro_screens_is_visible() && !story_card_is_visible()) {
+                    ui_screens_next();
+                }
             }
         }
     } else {
@@ -85,8 +91,13 @@ static void pet_boot_load_or_create(void)
     if (err == ESP_OK) {
         int64_t dt = now - s_pet.last_update_unix;
         if (dt < 0) dt = 0;
-        if (dt > 0) {
-            ESP_LOGI(TAG, "fast-forwarding %lld real-seconds of decay", dt);
+        if (dt > 0 && s_pet.stage != STAGE_DEAD) {
+            /* Egg can hatch via fast-forward (check_transitions handles
+             * it); decay is a no-op for egg but harmless. Only log
+             * when there's real wear-and-tear to report. */
+            if (s_pet.stage != STAGE_EGG) {
+                ESP_LOGI(TAG, "fast-forwarding %lld real-seconds of decay", dt);
+            }
             stat_engine_decay(&s_pet, dt);
             stat_engine_check_transitions(&s_pet, now);
         }
@@ -97,8 +108,23 @@ static void pet_boot_load_or_create(void)
         pet_state_init_new(&s_pet);
         s_pet.hatched_unix     = now;
         s_pet.last_update_unix = now;
-        pet_save_commit(&s_pet);
+        /* Don't commit yet — onboarding is about to overwrite name +
+         * species. The first commit lands when intro completes. */
     }
+}
+
+static void on_intro_done(species_id_t species, const char *name)
+{
+    s_pet.species_id = (uint8_t)species;
+    strncpy(s_pet.name, name, PET_NAME_LEN);
+    s_pet.name[PET_NAME_LEN] = '\0';
+    s_pet.intro_done = true;
+    pet_save_commit(&s_pet);
+    ui_screens_apply_state(&s_pet);
+    ESP_LOGI(TAG, "intro complete — pet \"%s\" species=%d ready",
+             s_pet.name, s_pet.species_id);
+    /* No jingle here — JINGLE_HATCH will fire when the egg actually
+     * transitions to BABY a few seconds later. Playing both doubles up. */
 }
 
 /* ── LVGL timers ───────────────────────────────────────── */
@@ -111,9 +137,46 @@ static void apply_minigame_score(int score)
     s_pet.happy = (new_happy > 100) ? 100 : (uint8_t)new_happy;
     s_pet.energy = (s_pet.energy > 15) ? s_pet.energy - 15 : 0;
     s_pet.care_score += (uint32_t)score;
+    s_pet.total_plays++;
+    if ((uint32_t)score > s_pet.minigame_high) {
+        s_pet.minigame_high = (uint32_t)score;
+        ESP_LOGI(TAG, "new minigame high: %d", score);
+    }
     audio_jingles_play(JINGLE_HAPPY);
+    daily_quests_on_minigame(&s_pet, score);
     pet_save_request();
     ESP_LOGI(TAG, "minigame score %d → +%d happy", score, boost);
+}
+
+/* Shake-gesture cooldown so a single vigorous shake counts as one
+ * discipline event, not a stream of them. */
+static int64_t s_shake_cooldown_until_us = 0;
+static int64_t s_shake_warmup_until_us   = 0;
+#define SHAKE_COOLDOWN_US  (3LL * 1000 * 1000)
+#define SHAKE_WARMUP_US    (2LL * 1000 * 1000)   /* IMU filter settle time */
+
+static void shake_check(void)
+{
+    if (!s_imu_ok) return;
+    if (intro_screens_is_visible() || story_card_is_visible()) return;
+    if (s_pet.stage == STAGE_EGG || s_pet.stage == STAGE_DEAD) return;
+
+    int64_t now_us = esp_timer_get_time();
+    /* The QMI8658's high-pass filter has no history at boot, so the first
+     * second of samples register large transient magnitudes (observed
+     * 7-11 m/s² with no real motion). Ignore until the filter settles. */
+    if (now_us < s_shake_warmup_until_us) return;
+
+    imu_state_t imu = {0};
+    imu_manager_get_state(&imu);
+    if (!imu.is_shaking) return;
+    if (now_us < s_shake_cooldown_until_us) return;
+    s_shake_cooldown_until_us = now_us + SHAKE_COOLDOWN_US;
+
+    if (stat_engine_apply_care(&s_pet, CARE_DISCIPLINE)) {
+        ESP_LOGI(TAG, "shake → discipline (mag %.1f)", imu.shake_mag);
+        pet_save_request();
+    }
 }
 
 static void anim_timer_cb(lv_timer_t *t)
@@ -124,6 +187,7 @@ static void anim_timer_cb(lv_timer_t *t)
         int score = minigame_catch_tick(&imu);
         if (score >= 0) apply_minigame_score(score);
     } else {
+        shake_check();
         fishbowl_tick();
         pet_renderer_tick();
         ui_screens_apply_state(&s_pet);
@@ -145,6 +209,7 @@ static void stat_tick_cb(lv_timer_t *t)
         stat_engine_check_transitions(&s_pet, now);
         pet_save_request();
     }
+    daily_quests_check_reset(&s_pet, now);
     pet_save_pump(&s_pet);
 
     /* Refresh day/night tint once per stat tick (1 Hz is plenty). */
@@ -226,6 +291,7 @@ void app_main(void)
     if (imu_manager_init() == ESP_OK) {
         imu_manager_start_task();
         s_imu_ok = true;
+        s_shake_warmup_until_us = esp_timer_get_time() + SHAKE_WARMUP_US;
     } else {
         ESP_LOGW(TAG, "IMU not available — minigame will use neutral tilt");
     }
@@ -233,9 +299,16 @@ void app_main(void)
     ESP_LOGI(TAG, "[10/10] UI + power manager");
     ui_screens_init(lv_scr_act(), &s_pet);
     minigame_catch_init(lv_scr_act());
+    intro_screens_init(lv_scr_act(), on_intro_done);
+    story_card_init(lv_scr_act());
     ui_screens_apply_state(&s_pet);
     power_manager_init();
     idle_scheduler_init();
+
+    if (!s_pet.intro_done) {
+        ESP_LOGI(TAG, "first run — showing onboarding");
+        intro_screens_show();
+    }
 
     xTaskCreate(lvgl_task, "lvgl", 8192, NULL, 2, NULL);
 

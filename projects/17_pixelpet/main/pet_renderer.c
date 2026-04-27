@@ -350,6 +350,17 @@ void pet_renderer_react_to_touch(int x, int y)
     pet_renderer_play_oneshot_anim("happy");
 }
 
+void pet_renderer_play_reaction(const char *particle_name,
+                                const char *body_anim)
+{
+    if (particle_name) {
+        show_fx(particle_name, LV_ALIGN_CENTER, 0, -70, 700);
+    }
+    if (body_anim) {
+        pet_renderer_play_oneshot_anim(body_anim);
+    }
+}
+
 void pet_renderer_tick(void)
 {
     /* Body-frame stepping is driven by its own variable-period timer.

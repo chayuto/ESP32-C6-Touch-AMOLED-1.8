@@ -44,7 +44,29 @@ typedef struct {
 
     /* v2 fields below — append-only so old saves migrate cleanly. */
     uint8_t  species_id;
+
+    /* v3 fields. name[] is a 3-char display name + NUL; intro_done gates
+     * the first-run onboarding flow. */
+    char     name[8];
+    bool     intro_done;
+
+    /* v4 fields — lifetime milestone counters used by the memorial card
+     * and milestone story beats. Append-only. */
+    uint32_t total_meals;       /* CARE_FEED_MEAL + CARE_FEED_SNACK */
+    uint32_t total_plays;       /* CARE_PLAY + completed minigames */
+    uint32_t total_cleans;      /* CARE_CLEAN_ONE */
+    uint32_t total_meds;        /* CARE_MEDICINE */
+    uint32_t minigame_high;     /* best catch score */
+
+    /* v5 fields — three-slot daily quest state, reset at RTC midnight.
+     * quest_id values come from daily_quests.h (uint8 = QUEST_*). */
+    uint8_t  quest_id[3];
+    uint8_t  quest_progress[3];
+    uint8_t  quest_done[3];     /* 0/1; redundant with progress >= target */
+    int64_t  last_quest_reset_unix;
 } pet_state_t;
+
+#define PET_NAME_LEN  3   /* characters used in name[]; name[3] is NUL */
 
 /** Initialise a fresh egg with full stats and unset timestamps (caller fills in). */
 void pet_state_init_new(pet_state_t *p);

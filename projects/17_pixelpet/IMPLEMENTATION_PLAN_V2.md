@@ -424,9 +424,50 @@ renderer. Will land as:
   `blob_eat_<palette>` for one cycle, return to mood anim.
 - `pet_renderer_play_stageup()` — sparkle burst + brief scale tween.
 
-### R9 — polish (deferred to follow-up; not blocking the rework)
+### R8.1 — visible no-op care reactions ✓
+- `pet_renderer_play_reaction(particle, body_anim)` plays a particle
+  FX above the pet plus a one-shot body anim. ui_screens maps each
+  rejected care action to a fitting (particle, anim) pair so dead
+  buttons get a visible reason ("not sick", "too tired", "already
+  clean", "I'm full").
 
-Total: ~10 commits across R1–R8.
+### R9 — onboarding + naming ✓
+- `intro_screens.c/h` first-run flow: welcome → species picker
+  (◀/▶ over an egg sprite) → 3-letter name scroller (▲/▼ per slot,
+  A-Z + blank) → HATCH.
+- `pet_state_t` gains `name[8]` and `intro_done`; save format → v3.
+- v2→v3 migration treats existing pets as already onboarded.
+- Status screen shows the pet name above the stage label.
+
+### R10 — story cards + lifetime milestones ✓
+- `story_card.c/h` reusable full-screen modal overlay; tap to
+  dismiss. Used for stage transitions (BABY/CHILD/TEEN/SENIOR get
+  a generic tip line, ADULT gets the form-reveal beat).
+- Lifetime counters in `pet_state_t`: total_meals, total_plays,
+  total_cleans, total_meds, minigame_high. Bumped in `stat_engine`
+  on care success and in `main` on minigame completion.
+- Memorial extends with the pet's name + counter summary instead
+  of just the lifespan.
+- Save format → v4 with v3→v4 migration that resets counters to 0.
+
+### R11 — discipline + daily quests ✓
+- `CARE_DISCIPLINE` was implemented but unwired. Now exposed via
+  a "Scold" button on PLAY and an IMU shake gesture (3 s cooldown,
+  suppressed in egg/dead/intro/story states).
+- `daily_quests.c/h`: three rotating per-day objectives drawn from
+  a pool (FEED_3, PLAY_2, CLEAN_1, DISCIPLINE_1, MINIGAME_5).
+  Reset at UTC midnight. Completion awards +5 happy and pops a
+  story card. Status screen shows the first unfinished quest.
+- Save format → v5 with v4→v5 migration that leaves quests unset.
+
+### R12 — second minigame + bowl-prop shop *(deferred to a separate branch)*
+The "earn coins, buy decorations" loop introduces a small economy
+plus new sprite-factory asset work (props, second minigame board).
+Big enough to deserve its own branch + PR.
+
+### R13 — polish (deferred to follow-up; not blocking the enrichment)
+
+Total: ~14 commits across R1–R11.
 
 ---
 
