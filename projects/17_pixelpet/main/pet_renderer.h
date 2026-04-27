@@ -32,6 +32,13 @@ void pet_renderer_tick(void);
 /** Pure function: derive mood from stat thresholds. */
 pet_mood_t pet_renderer_derive_mood(const pet_state_t *p);
 
+/** Play a body anim once, then restore the mood-baseline anim. The name
+ *  is a logical anim name like "yawn" or "eat" — the species + palette
+ *  suffix is added internally. Returns true if the asset was found and
+ *  the playback started. A no-op (and false) when the pet is in egg/dead
+ *  stage or the asset is missing. */
+bool pet_renderer_play_oneshot_anim(const char *anim_name);
+
 #ifdef __cplusplus
 }
 #endif

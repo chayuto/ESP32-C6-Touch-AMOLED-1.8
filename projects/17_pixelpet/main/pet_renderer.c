@@ -31,7 +31,9 @@ static lv_obj_t *s_root;
 static lv_obj_t *s_body;          /* lv_img — manual frame swap via timer */
 static lv_obj_t *s_particle;      /* lv_image, hidden when no overlay */
 static lv_timer_t *s_body_timer;
-static const asset_anim_t *s_body_anim;
+static const asset_anim_t *s_body_anim;     /* what's currently on screen */
+static const asset_anim_t *s_mood_anim;     /* mood baseline to restore to */
+static bool                s_body_oneshot;  /* true while playing a one-shot */
 static uint8_t s_body_frame_idx;
 
 /* Cached state — used to avoid restarting animations every tick */
@@ -65,10 +67,23 @@ static const char *MOOD_PARTICLES[MOOD_COUNT] = {
 
 /* ── Helpers ───────────────────────────────────────────────────────────── */
 
+static void start_anim(const asset_anim_t *anim, bool oneshot);
+
 static void body_frame_tick(lv_timer_t *t)
 {
     if (!s_body_anim || s_body_anim->frame_count == 0) return;
-    s_body_frame_idx = (s_body_frame_idx + 1) % s_body_anim->frame_count;
+    uint8_t next_idx = (s_body_frame_idx + 1) % s_body_anim->frame_count;
+
+    /* One-shot just finished its single cycle — hand back to mood anim. */
+    if (s_body_oneshot && next_idx == 0) {
+        s_body_oneshot = false;
+        if (s_mood_anim) {
+            start_anim(s_mood_anim, false);
+            return;
+        }
+    }
+
+    s_body_frame_idx = next_idx;
     lv_img_set_src(s_body, s_body_anim->frames[s_body_frame_idx]);
 
     /* Reschedule the timer with the next frame's duration. */
@@ -83,15 +98,17 @@ static void body_frame_tick(lv_timer_t *t)
     lv_timer_set_period(t, next_ms);
 }
 
-static void show_anim(const asset_anim_t *anim)
+static void start_anim(const asset_anim_t *anim, bool oneshot)
 {
     if (!anim || anim->frame_count == 0) {
         lv_obj_add_flag(s_body, LV_OBJ_FLAG_HIDDEN);
-        s_body_anim = NULL;
+        s_body_anim    = NULL;
+        s_body_oneshot = false;
         return;
     }
     lv_obj_clear_flag(s_body, LV_OBJ_FLAG_HIDDEN);
-    s_body_anim = anim;
+    s_body_anim    = anim;
+    s_body_oneshot = oneshot;
     s_body_frame_idx = 0;
     lv_img_set_src(s_body, anim->frames[0]);
     /* set_src may re-trigger layout against the source image's natural
@@ -109,8 +126,8 @@ static void show_anim(const asset_anim_t *anim)
     } else {
         s_body_timer = lv_timer_create(body_frame_tick, first_ms, NULL);
     }
-    ESP_LOGD(TAG, "anim %ux%u %u frames", anim->width, anim->height,
-             anim->frame_count);
+    ESP_LOGD(TAG, "anim %ux%u %u frames%s", anim->width, anim->height,
+             anim->frame_count, oneshot ? " (oneshot)" : "");
 }
 
 static void show_particle(const char *name)
@@ -170,7 +187,7 @@ void pet_renderer_init(lv_obj_t *parent)
 
     s_body = lv_img_create(s_root);
     /* Sprites are pre-upscaled 3× at build time (32→96), so we render at
-     * native size — no LVGL zoom or pivot games. show_anim() re-pins
+     * native size — no LVGL zoom or pivot games. start_anim() re-pins
      * the size + alignment after every set_src because lv_img_set_src
      * silently invalidates the widget's layout. */
     lv_obj_set_size(s_body, 96, 96);
@@ -212,7 +229,12 @@ void pet_renderer_set_state(const pet_state_t *p)
     if (body_changed) {
         const asset_anim_t *anim = resolve_body_anim(p->species_id,
                                                      p->stage, mood);
-        show_anim(anim);
+        s_mood_anim = anim;
+        /* Don't yank a one-shot mid-cycle — let it finish, body_frame_tick
+         * will hand back to the new mood anim when it wraps. */
+        if (!s_body_oneshot) {
+            start_anim(anim, false);
+        }
         s_last_species = p->species_id;
         s_last_stage   = p->stage;
         s_last_mood    = mood;
@@ -224,8 +246,29 @@ void pet_renderer_set_state(const pet_state_t *p)
     }
 }
 
+bool pet_renderer_play_oneshot_anim(const char *anim_name)
+{
+    if (!anim_name || s_last_species >= SPECIES_COUNT) return false;
+    if (s_last_stage == STAGE_EGG || s_last_stage == STAGE_DEAD) return false;
+    if (s_body_oneshot) return false;   /* don't stack one-shots */
+
+    char buf[64];
+    if (!species_anim_asset_name(s_last_species, anim_name,
+                                 buf, sizeof(buf))) {
+        return false;
+    }
+    const asset_anim_t *anim = asset_get_by_name(buf);
+    if (!anim) {
+        ESP_LOGW(TAG, "oneshot anim missing: %s", buf);
+        return false;
+    }
+    start_anim(anim, true);
+    return true;
+}
+
 void pet_renderer_tick(void)
 {
-    /* Animation is now driven by lv_animimg's internal timer, not us.
-     * Reserved for future ambient effects (eye dart, big-idle picker). */
+    /* Body-frame stepping is driven by its own variable-period timer.
+     * This hook stays for ambient effects that need the renderer's
+     * 33 Hz heartbeat (e.g. particle one-shot expiry — added in R8). */
 }

@@ -21,6 +21,7 @@
 #include "power_manager.h"
 #include "asset_loader.h"
 #include "fishbowl.h"
+#include "idle_scheduler.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -126,6 +127,7 @@ static void anim_timer_cb(lv_timer_t *t)
         fishbowl_tick();
         pet_renderer_tick();
         ui_screens_apply_state(&s_pet);
+        idle_scheduler_update(&s_pet);
     }
 }
 
@@ -233,6 +235,7 @@ void app_main(void)
     minigame_catch_init(lv_scr_act());
     ui_screens_apply_state(&s_pet);
     power_manager_init();
+    idle_scheduler_init();
 
     xTaskCreate(lvgl_task, "lvgl", 8192, NULL, 2, NULL);
 
