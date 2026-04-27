@@ -1,0 +1,80 @@
+palette_variants: [species_blob_pink, species_blob_mint, species_blob_yellow, species_blob_blue, species_blob_purple]
+size: 32x32
+upscale: 3
+frames: 6
+durations_ms: [260, 200, 380, 380, 240, 280]
+# Big-idle stretch — body anticipates with a small crouch, then extends
+# tall over two held frames before settling. Eyes squeeze blissfully and
+# the mouth carries a tiny smile. Roughly 1.7 s end-to-end.
+frames_shape:
+  # Frame 0 — rest
+  - - oval:  {pos: [4, 9], size: [24, 20], color: light}
+    - oval:  {pos: [4, 25], size: [24, 4], color: shadow}
+    - oval:  {pos: [10, 11], size: [12, 5], color: highlight}
+    - oval:  {pos: [3, 17], size: [4, 3], color: cheek}
+    - oval:  {pos: [25, 17], size: [4, 3], color: cheek}
+    - oval:  {pos: [10, 14], size: [3, 4], color: eye}
+    - oval:  {pos: [19, 14], size: [3, 4], color: eye}
+    - rect:  {pos: [14, 21], size: [4, 1], color: eye}
+    - pixel: {pos: [11, 14], color: highlight}
+    - pixel: {pos: [20, 14], color: highlight}
+
+  # Frame 1 — anticipation crouch
+  - - oval:  {pos: [3, 13], size: [26, 16], color: light}
+    - oval:  {pos: [3, 25], size: [26, 4], color: shadow}
+    - oval:  {pos: [10, 15], size: [12, 4], color: highlight}
+    - oval:  {pos: [2, 19], size: [4, 3], color: cheek}
+    - oval:  {pos: [26, 19], size: [4, 3], color: cheek}
+    - oval:  {pos: [10, 17], size: [3, 3], color: eye}
+    - oval:  {pos: [19, 17], size: [3, 3], color: eye}
+    - rect:  {pos: [14, 22], size: [4, 1], color: eye}
+
+  # Frame 2 — peak stretch (body reaches up, eyes bliss-closed)
+  - - oval:  {pos: [5, 3], size: [22, 26], color: light}
+    - oval:  {pos: [4, 25], size: [24, 4], color: shadow}
+    - oval:  {pos: [10, 5], size: [12, 5], color: highlight}
+    - oval:  {pos: [4, 12], size: [4, 3], color: cheek}
+    - oval:  {pos: [24, 12], size: [4, 3], color: cheek}
+    # Bliss eyes (small downward arcs)
+    - rect:  {pos: [9, 10], size: [4, 1], color: eye}
+    - rect:  {pos: [10, 9], size: [2, 1], color: eye}
+    - rect:  {pos: [19, 10], size: [4, 1], color: eye}
+    - rect:  {pos: [20, 9], size: [2, 1], color: eye}
+    # Soft smile
+    - rect:  {pos: [13, 15], size: [6, 1], color: eye}
+    - rect:  {pos: [14, 16], size: [4, 1], color: eye}
+
+  # Frame 3 — peak hold (same shape; uneven hold sells the "ahhh")
+  - - oval:  {pos: [5, 3], size: [22, 26], color: light}
+    - oval:  {pos: [4, 25], size: [24, 4], color: shadow}
+    - oval:  {pos: [10, 5], size: [12, 6], color: highlight}
+    - oval:  {pos: [4, 12], size: [4, 3], color: cheek}
+    - oval:  {pos: [24, 12], size: [4, 3], color: cheek}
+    - rect:  {pos: [9, 10], size: [4, 1], color: eye}
+    - rect:  {pos: [10, 9], size: [2, 1], color: eye}
+    - rect:  {pos: [19, 10], size: [4, 1], color: eye}
+    - rect:  {pos: [20, 9], size: [2, 1], color: eye}
+    - rect:  {pos: [13, 15], size: [6, 1], color: eye}
+    - rect:  {pos: [14, 16], size: [4, 1], color: eye}
+
+  # Frame 4 — relaxing back
+  - - oval:  {pos: [4, 7], size: [24, 22], color: light}
+    - oval:  {pos: [4, 25], size: [24, 4], color: shadow}
+    - oval:  {pos: [10, 9], size: [12, 5], color: highlight}
+    - oval:  {pos: [3, 15], size: [4, 3], color: cheek}
+    - oval:  {pos: [25, 15], size: [4, 3], color: cheek}
+    - oval:  {pos: [10, 12], size: [3, 3], color: eye}
+    - oval:  {pos: [19, 12], size: [3, 3], color: eye}
+    - rect:  {pos: [14, 19], size: [4, 1], color: eye}
+
+  # Frame 5 — settle (back to rest)
+  - - oval:  {pos: [4, 9], size: [24, 20], color: light}
+    - oval:  {pos: [4, 25], size: [24, 4], color: shadow}
+    - oval:  {pos: [10, 11], size: [12, 5], color: highlight}
+    - oval:  {pos: [3, 17], size: [4, 3], color: cheek}
+    - oval:  {pos: [25, 17], size: [4, 3], color: cheek}
+    - oval:  {pos: [10, 14], size: [3, 4], color: eye}
+    - oval:  {pos: [19, 14], size: [3, 4], color: eye}
+    - rect:  {pos: [14, 21], size: [4, 1], color: eye}
+    - pixel: {pos: [11, 14], color: highlight}
+    - pixel: {pos: [20, 14], color: highlight}

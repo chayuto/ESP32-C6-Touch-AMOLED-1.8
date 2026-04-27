@@ -42,6 +42,10 @@ static lv_obj_t *s_sleep_btn_label;
 static lv_obj_t *s_memorial;
 static lv_obj_t *s_memorial_lifespan;
 
+/* Track previous stage so we can fire the stage-up celebration on
+ * transition. Initialised on the first apply_state. */
+static pet_stage_t s_prev_stage = STAGE_COUNT;
+
 static lv_obj_t *make_screen(lv_obj_t *parent)
 {
     lv_obj_t *scr = lv_obj_create(parent);
@@ -90,12 +94,33 @@ static void care_cb(lv_event_t *e)
     if (!s_pet) return;
     bool ok = stat_engine_apply_care(s_pet, action);
     ESP_LOGI(TAG, "care %s -> %s", care_action_name(action), ok ? "ok" : "noop");
-    if (ok) pet_save_request();
+    if (ok) {
+        pet_save_request();
+        if (action == CARE_FEED_MEAL || action == CARE_FEED_SNACK) {
+            pet_renderer_play_eat();
+        }
+    }
     ui_screens_apply_state(s_pet);
     /* Pop back to status so the player sees the result */
     if (action != CARE_SLEEP_TOGGLE && action != CARE_CLEAN_ONE) {
         ui_screens_show(SCREEN_STATUS);
     }
+}
+
+/* ── Touch react on the status screen ──────────────────────────────────── */
+
+static void status_press_cb(lv_event_t *e)
+{
+    if (!s_pet) return;
+    if (s_pet->stage == STAGE_EGG || s_pet->stage == STAGE_DEAD) return;
+    /* Suppress when memorial is up — the press is for the rebirth button. */
+    if (s_memorial && !lv_obj_has_flag(s_memorial, LV_OBJ_FLAG_HIDDEN)) return;
+
+    lv_indev_t *indev = lv_indev_get_act();
+    if (!indev) return;
+    lv_point_t p;
+    lv_indev_get_point(indev, &p);
+    pet_renderer_react_to_touch(p.x, p.y);
 }
 
 /* ── Status screen ─────────────────────────────────────── */
@@ -142,6 +167,11 @@ static void build_status_screen(lv_obj_t *scr)
     s_bar_energy = make_stat_bar(scr, lv_color_hex(0xFFD166), -16, "energy");
     s_bar_happy  = make_stat_bar(scr, lv_color_hex(0xEF476F), -50, "happy");
     s_bar_hunger = make_stat_bar(scr, lv_color_hex(0x06D6A0), -84, "hunger");
+
+    /* Tap anywhere on the status screen → pet acknowledges. The screen
+     * itself is the event target; care buttons live on other screens. */
+    lv_obj_add_flag(scr, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(scr, status_press_cb, LV_EVENT_PRESSED, NULL);
 }
 
 /* ── Other screens ─────────────────────────────────────── */
@@ -290,6 +320,16 @@ screen_id_t ui_screens_current(void)
 void ui_screens_apply_state(const pet_state_t *p)
 {
     pet_renderer_set_state(p);
+
+    /* Stage transition celebration — fire after the renderer has the new
+     * mood baked, so the one-shot of "happy" plays from the right pose.
+     * Skip the very first call (s_prev_stage == STAGE_COUNT) and skip
+     * transitions into DEAD (memorial overlay handles that). */
+    if (s_prev_stage != STAGE_COUNT && p->stage != s_prev_stage
+        && p->stage != STAGE_DEAD && p->stage != STAGE_EGG) {
+        pet_renderer_play_stageup();
+    }
+    s_prev_stage = p->stage;
 
     if (s_lbl_stage) lv_label_set_text(s_lbl_stage, pet_stage_name(p->stage));
 
