@@ -100,10 +100,6 @@ ESP32-C6-Touch-AMOLED-1.8/
 - **[`docs/waveshare-support/`](docs/waveshare-support/)** — exact vendor support tickets and replies, kept verbatim.
 - **Per-project READMEs** — each `projects/<name>/README.md` covers that project's architecture and quirks.
 
-> The `01-…18-…md` files at the repo root are now thin redirects pointing to
-> [`docs/board-research/`](docs/board-research/). Old links continue to work
-> but the canonical location is the new path.
-
 ## Critical Hardware Notes
 
 1. **TCA9554 IO expander** (I2C 0x20) must set P4 and P5 HIGH before display/touch init
