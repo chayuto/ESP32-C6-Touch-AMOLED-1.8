@@ -1,0 +1,55 @@
+palette: ui
+size: 24x24
+upscale: 2
+frames: 6
+durations_ms: [80, 100, 140, 160, 140, 120]
+# Stage-up sparkle burst — radiates from a central point. Six frames of
+# expanding cross + rays, ending on a fading dust ring. Total ~740 ms.
+frames_shape:
+  # Frame 0 — tiny seed
+  - - pixel: {pos: [12, 12], color: white}
+
+  # Frame 1 — starting cross
+  - - rect:  {pos: [11, 10], size: [3, 5], color: white}
+    - rect:  {pos: [10, 11], size: [5, 3], color: white}
+    - pixel: {pos: [12, 12], color: yellow}
+
+  # Frame 2 — small star with rays
+  - - rect:  {pos: [11, 7], size: [3, 11], color: white}
+    - rect:  {pos: [7, 11], size: [11, 3], color: white}
+    - pixel: {pos: [9, 9],  color: yellow}
+    - pixel: {pos: [15, 9],  color: yellow}
+    - pixel: {pos: [9, 15], color: yellow}
+    - pixel: {pos: [15, 15], color: yellow}
+    - pixel: {pos: [12, 12], color: yellow}
+
+  # Frame 3 — peak burst
+  - - rect:  {pos: [11, 3], size: [3, 19], color: yellow}
+    - rect:  {pos: [3, 11], size: [19, 3], color: yellow}
+    - rect:  {pos: [10, 10], size: [5, 5], color: white}
+    - pixel: {pos: [7, 7], color: yellow}
+    - pixel: {pos: [17, 7], color: yellow}
+    - pixel: {pos: [7, 17], color: yellow}
+    - pixel: {pos: [17, 17], color: yellow}
+    - pixel: {pos: [4, 4], color: cream}
+    - pixel: {pos: [20, 4], color: cream}
+    - pixel: {pos: [4, 20], color: cream}
+    - pixel: {pos: [20, 20], color: cream}
+
+  # Frame 4 — rays only (cross dimming)
+  - - rect:  {pos: [12, 4], size: [1, 17], color: yellow}
+    - rect:  {pos: [4, 12], size: [17, 1], color: yellow}
+    - pixel: {pos: [7, 7], color: cream}
+    - pixel: {pos: [17, 7], color: cream}
+    - pixel: {pos: [7, 17], color: cream}
+    - pixel: {pos: [17, 17], color: cream}
+
+  # Frame 5 — fading dust ring
+  - - pixel: {pos: [12, 5], color: cream}
+    - pixel: {pos: [12, 19], color: cream}
+    - pixel: {pos: [5, 12], color: cream}
+    - pixel: {pos: [19, 12], color: cream}
+    - pixel: {pos: [8, 8], color: cream}
+    - pixel: {pos: [16, 8], color: cream}
+    - pixel: {pos: [8, 16], color: cream}
+    - pixel: {pos: [16, 16], color: cream}

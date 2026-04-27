@@ -30,11 +30,15 @@ static const char *TAG = "pet_renderer";
 static lv_obj_t *s_root;
 static lv_obj_t *s_body;          /* lv_img — manual frame swap via timer */
 static lv_obj_t *s_particle;      /* lv_image, hidden when no overlay */
+static lv_obj_t *s_fx;            /* one-shot effects layer (parented to screen) */
 static lv_timer_t *s_body_timer;
 static const asset_anim_t *s_body_anim;     /* what's currently on screen */
 static const asset_anim_t *s_mood_anim;     /* mood baseline to restore to */
 static bool                s_body_oneshot;  /* true while playing a one-shot */
 static uint8_t s_body_frame_idx;
+
+/* FX overlay deadline in lv_tick units (ms). 0 = no fx active. */
+static uint32_t s_fx_until_tick;
 
 /* Cached state — used to avoid restarting animations every tick */
 static species_id_t s_last_species   = SPECIES_COUNT;   /* sentinel */
@@ -183,9 +187,13 @@ void pet_renderer_init(lv_obj_t *parent)
     lv_obj_set_size(s_root, 200, 200);
     lv_obj_set_style_bg_opa(s_root, LV_OPA_TRANSP, 0);
     lv_obj_clear_flag(s_root, LV_OBJ_FLAG_SCROLLABLE);
+    /* Pass touches through to the status screen's press handler so taps
+     * on the pet trigger react_to_touch instead of being eaten here. */
+    lv_obj_clear_flag(s_root, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_align(s_root, LV_ALIGN_CENTER, 0, 0);
 
     s_body = lv_img_create(s_root);
+    lv_obj_clear_flag(s_body, LV_OBJ_FLAG_CLICKABLE);
     /* Sprites are pre-upscaled 3× at build time (32→96), so we render at
      * native size — no LVGL zoom or pivot games. start_anim() re-pins
      * the size + alignment after every set_src because lv_img_set_src
@@ -199,6 +207,15 @@ void pet_renderer_init(lv_obj_t *parent)
     lv_obj_align(s_particle, LV_ALIGN_TOP_RIGHT, -10, 10);
     lv_img_set_antialias(s_particle, false);
     lv_obj_add_flag(s_particle, LV_OBJ_FLAG_HIDDEN);
+
+    /* FX layer is parented to the same parent as s_root, NOT s_root itself,
+     * so we can position it in screen coordinates for touch reactions. */
+    s_fx = lv_img_create(parent);
+    lv_obj_set_size(s_fx, 64, 64);
+    lv_img_set_antialias(s_fx, false);
+    lv_obj_add_flag(s_fx, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(s_fx, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_move_foreground(s_fx);
 
     s_last_species = SPECIES_COUNT;   /* force first-call diff */
     s_last_mood    = MOOD_COUNT;
@@ -266,9 +283,81 @@ bool pet_renderer_play_oneshot_anim(const char *anim_name)
     return true;
 }
 
+/* ── FX overlay ────────────────────────────────────────────────────────── */
+
+static void show_fx(const char *name, lv_align_t align, int x_ofs, int y_ofs,
+                    uint32_t duration_ms)
+{
+    if (!s_fx || !name) return;
+    const asset_anim_t *anim = asset_get_by_name(name);
+    if (!anim) {
+        ESP_LOGW(TAG, "fx asset missing: %s", name);
+        return;
+    }
+    lv_img_set_src(s_fx, anim->frames[0]);
+    lv_obj_set_size(s_fx, anim->width, anim->height);
+    lv_obj_align(s_fx, align, x_ofs, y_ofs);
+    lv_obj_clear_flag(s_fx, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_move_foreground(s_fx);
+    s_fx_until_tick = lv_tick_get() + duration_ms;
+}
+
+static void show_fx_at_point(const char *name, int x, int y,
+                             uint32_t duration_ms)
+{
+    if (!s_fx || !name) return;
+    const asset_anim_t *anim = asset_get_by_name(name);
+    if (!anim) {
+        ESP_LOGW(TAG, "fx asset missing: %s", name);
+        return;
+    }
+    lv_img_set_src(s_fx, anim->frames[0]);
+    lv_obj_set_size(s_fx, anim->width, anim->height);
+    /* Centre the sprite on (x,y), clamped to the parent so it's not
+     * sliced by the screen edge. */
+    lv_obj_t *parent = lv_obj_get_parent(s_fx);
+    int parent_w = parent ? lv_obj_get_width(parent) : 368;
+    int parent_h = parent ? lv_obj_get_height(parent) : 448;
+    int px = x - anim->width / 2;
+    int py = y - anim->height / 2;
+    if (px < 0) px = 0;
+    if (py < 0) py = 0;
+    if (px + anim->width > parent_w)  px = parent_w - anim->width;
+    if (py + anim->height > parent_h) py = parent_h - anim->height;
+    lv_obj_set_pos(s_fx, px, py);
+    lv_obj_clear_flag(s_fx, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_move_foreground(s_fx);
+    s_fx_until_tick = lv_tick_get() + duration_ms;
+}
+
+void pet_renderer_play_eat(void)
+{
+    pet_renderer_play_oneshot_anim("eat");
+}
+
+void pet_renderer_play_stageup(void)
+{
+    /* Sparkle burst lasts ~750 ms (the asset's total duration). The body
+     * one-shot of "happy" runs ~800 ms. Whichever finishes second sets
+     * the visible window. */
+    show_fx("particles/sparkle_burst", LV_ALIGN_CENTER, 0, 0, 800);
+    pet_renderer_play_oneshot_anim("happy");
+}
+
+void pet_renderer_react_to_touch(int x, int y)
+{
+    show_fx_at_point("particles/exclaim", x, y - 20, 600);
+    pet_renderer_play_oneshot_anim("happy");
+}
+
 void pet_renderer_tick(void)
 {
     /* Body-frame stepping is driven by its own variable-period timer.
-     * This hook stays for ambient effects that need the renderer's
-     * 33 Hz heartbeat (e.g. particle one-shot expiry — added in R8). */
+     * This hook is the renderer's 33 Hz heartbeat — used to expire FX
+     * overlays so the eat/stageup/touch effects don't linger. */
+    if (s_fx_until_tick != 0 &&
+        (int32_t)(lv_tick_get() - s_fx_until_tick) >= 0) {
+        lv_obj_add_flag(s_fx, LV_OBJ_FLAG_HIDDEN);
+        s_fx_until_tick = 0;
+    }
 }

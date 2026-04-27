@@ -1,0 +1,84 @@
+palette_variants: [species_blob_pink, species_blob_mint, species_blob_yellow, species_blob_blue, species_blob_purple]
+size: 32x32
+upscale: 3
+frames: 6
+durations_ms: [180, 140, 160, 160, 200, 220]
+# Eating sequence — open wide, chomp, chew left, chew right, gulp, settle.
+# ~1.06 s total. Triggered by feed actions; renderer plays once and falls
+# back to the mood anim.
+frames_shape:
+  # Frame 0 — open wide (eyes alert, mouth round)
+  - - oval:  {pos: [4, 9], size: [24, 20], color: light}
+    - oval:  {pos: [4, 25], size: [24, 4], color: shadow}
+    - oval:  {pos: [10, 11], size: [12, 5], color: highlight}
+    - oval:  {pos: [3, 17], size: [4, 3], color: cheek}
+    - oval:  {pos: [25, 17], size: [4, 3], color: cheek}
+    # Wider eyes
+    - oval:  {pos: [9, 13], size: [4, 5], color: eye}
+    - oval:  {pos: [19, 13], size: [4, 5], color: eye}
+    - pixel: {pos: [10, 14], color: highlight}
+    - pixel: {pos: [20, 14], color: highlight}
+    # Open mouth
+    - oval:  {pos: [13, 20], size: [6, 4], color: eye}
+
+  # Frame 1 — chomp closed (cheeks puff, eyes squint)
+  - - oval:  {pos: [3, 10], size: [26, 19], color: light}
+    - oval:  {pos: [3, 25], size: [26, 4], color: shadow}
+    - oval:  {pos: [10, 12], size: [12, 5], color: highlight}
+    - oval:  {pos: [2, 17], size: [5, 3], color: cheek}
+    - oval:  {pos: [25, 17], size: [5, 3], color: cheek}
+    # Squinted eyes
+    - rect:  {pos: [9, 15], size: [4, 1], color: eye}
+    - rect:  {pos: [19, 15], size: [4, 1], color: eye}
+    # Closed-tight mouth
+    - rect:  {pos: [13, 21], size: [6, 1], color: eye}
+
+  # Frame 2 — chew left
+  - - oval:  {pos: [4, 10], size: [24, 19], color: light}
+    - oval:  {pos: [4, 25], size: [24, 4], color: shadow}
+    - oval:  {pos: [10, 12], size: [12, 5], color: highlight}
+    - oval:  {pos: [2, 17], size: [5, 3], color: cheek}
+    - oval:  {pos: [25, 17], size: [4, 3], color: cheek}
+    - oval:  {pos: [10, 14], size: [3, 3], color: eye}
+    - oval:  {pos: [19, 14], size: [3, 3], color: eye}
+    # Mouth shifted left
+    - rect:  {pos: [11, 21], size: [6, 1], color: eye}
+    - pixel: {pos: [10, 21], color: eye}
+
+  # Frame 3 — chew right
+  - - oval:  {pos: [4, 10], size: [24, 19], color: light}
+    - oval:  {pos: [4, 25], size: [24, 4], color: shadow}
+    - oval:  {pos: [10, 12], size: [12, 5], color: highlight}
+    - oval:  {pos: [3, 17], size: [4, 3], color: cheek}
+    - oval:  {pos: [25, 17], size: [5, 3], color: cheek}
+    - oval:  {pos: [10, 14], size: [3, 3], color: eye}
+    - oval:  {pos: [19, 14], size: [3, 3], color: eye}
+    # Mouth shifted right
+    - rect:  {pos: [15, 21], size: [6, 1], color: eye}
+    - pixel: {pos: [21, 21], color: eye}
+
+  # Frame 4 — gulp (body squashes, eyes briefly close)
+  - - oval:  {pos: [3, 12], size: [26, 17], color: light}
+    - oval:  {pos: [3, 25], size: [26, 4], color: shadow}
+    - oval:  {pos: [10, 14], size: [12, 4], color: highlight}
+    - oval:  {pos: [2, 18], size: [5, 3], color: cheek}
+    - oval:  {pos: [25, 18], size: [5, 3], color: cheek}
+    # Closed eyes
+    - rect:  {pos: [9, 17], size: [4, 1], color: eye}
+    - rect:  {pos: [19, 17], size: [4, 1], color: eye}
+    # Tiny mouth
+    - rect:  {pos: [14, 22], size: [4, 1], color: eye}
+
+  # Frame 5 — contented (subtle smile, eyes open)
+  - - oval:  {pos: [4, 9], size: [24, 20], color: light}
+    - oval:  {pos: [4, 25], size: [24, 4], color: shadow}
+    - oval:  {pos: [10, 11], size: [12, 5], color: highlight}
+    - oval:  {pos: [3, 17], size: [4, 3], color: cheek}
+    - oval:  {pos: [25, 17], size: [4, 3], color: cheek}
+    - oval:  {pos: [10, 14], size: [3, 4], color: eye}
+    - oval:  {pos: [19, 14], size: [3, 4], color: eye}
+    # Subtle smile
+    - rect:  {pos: [13, 21], size: [6, 1], color: eye}
+    - rect:  {pos: [14, 22], size: [4, 1], color: eye}
+    - pixel: {pos: [11, 14], color: highlight}
+    - pixel: {pos: [20, 14], color: highlight}
