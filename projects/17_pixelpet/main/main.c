@@ -91,8 +91,13 @@ static void pet_boot_load_or_create(void)
     if (err == ESP_OK) {
         int64_t dt = now - s_pet.last_update_unix;
         if (dt < 0) dt = 0;
-        if (dt > 0) {
-            ESP_LOGI(TAG, "fast-forwarding %lld real-seconds of decay", dt);
+        if (dt > 0 && s_pet.stage != STAGE_DEAD) {
+            /* Egg can hatch via fast-forward (check_transitions handles
+             * it); decay is a no-op for egg but harmless. Only log
+             * when there's real wear-and-tear to report. */
+            if (s_pet.stage != STAGE_EGG) {
+                ESP_LOGI(TAG, "fast-forwarding %lld real-seconds of decay", dt);
+            }
             stat_engine_decay(&s_pet, dt);
             stat_engine_check_transitions(&s_pet, now);
         }
@@ -118,7 +123,8 @@ static void on_intro_done(species_id_t species, const char *name)
     ui_screens_apply_state(&s_pet);
     ESP_LOGI(TAG, "intro complete — pet \"%s\" species=%d ready",
              s_pet.name, s_pet.species_id);
-    audio_jingles_play(JINGLE_HATCH);
+    /* No jingle here — JINGLE_HATCH will fire when the egg actually
+     * transitions to BABY a few seconds later. Playing both doubles up. */
 }
 
 /* ── LVGL timers ───────────────────────────────────────── */

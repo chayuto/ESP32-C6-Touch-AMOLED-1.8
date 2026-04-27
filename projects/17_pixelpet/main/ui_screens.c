@@ -18,6 +18,7 @@
 #include "audio_jingles.h"
 #include "story_card.h"
 #include "daily_quests.h"
+#include "intro_screens.h"
 #include "esp_log.h"
 #include <stdio.h>
 
@@ -277,12 +278,15 @@ static void rebirth_cb(lv_event_t *e)
     (void)e;
     if (!s_pet) return;
     pet_save_clear();
-    pet_state_init_new(s_pet);
+    pet_state_init_new(s_pet);                  /* intro_done=false, name="" */
     s_pet->hatched_unix     = rtc_manager_now_unix();
     s_pet->last_update_unix = s_pet->hatched_unix;
-    pet_save_commit(s_pet);
+    /* Don't commit yet — onboarding will fill in name + species and
+     * commit on completion (mirrors the first-boot path in main.c). */
+    s_prev_stage = STAGE_COUNT;                 /* re-arm stage-up cards */
     ui_screens_apply_state(s_pet);
     ui_screens_show(SCREEN_STATUS);
+    intro_screens_show();                       /* pick name + species again */
 }
 
 static void build_memorial(lv_obj_t *parent)
