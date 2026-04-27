@@ -50,6 +50,47 @@ Try in order:
 3. After one successful flash with USB Serial JTAG console enabled,
    subsequent re-flashes auto-reset reliably.
 
+### When `agent_monitor.py --reset` reports "could not run esptool"
+
+Happens right after a flash when the port is still held by the previous
+esptool invocation. Three options:
+
+- Wait ~1 s and retry — usually sufficient.
+- Fall back to a passive listen (no `--reset`); the app is already running
+  so you just need to watch.
+- Force a clean reset via `python -m esptool --chip esp32c6 --port $PORT
+  run`, then passive-listen.
+
+A passive listen with no recent activity will return 0 bytes — the app
+only emits during boot or when something happens (touch, stage change,
+etc.). For a fresh boot capture you need either `--reset` or an esptool
+`run` first.
+
+## Asset / data partitions and `erase-flash`
+
+`idf.py erase-flash` wipes **the entire flash**, including any custom
+data partitions defined in `partitions.csv` (e.g. `assets`). The
+standard `idf.py flash` then only re-writes app + bootloader + partition
+table, leaving data partitions empty. The app boots, mmap'd asset
+lookups return null, and you see things like:
+
+```
+asset_loader: assets partition: addr=0x00210000 size=12582912
+asset_loader: loaded 0/N assets   ← bad
+```
+
+If a project uses a separate asset/data partition, follow `erase-flash`
+with the project's data-flash target. For pixelpet that's:
+
+```bash
+idf.py -C projects/<name> -p $PORT flash-assets
+```
+
+Or, if you need the firmware AND data both fresh, chain them:
+`erase-flash → flash → flash-assets`. NVS is the exception — it's
+auto-formatted by `nvs_flash_init` on a blank read, so no separate
+flash step is needed.
+
 ## Agent-friendly serial monitoring
 
 Never run `idf.py monitor` from a non-TTY shell — it silently exits, and if
@@ -111,3 +152,5 @@ esp_log_level_set("pet_save", ESP_LOG_DEBUG);
 | Bash returns 0 bytes from monitor | Did you `--reset`? Is the device actually plugged in (`ls /dev/cu.usb*`)? |
 | Boot loops forever | Read with `--seconds 30 --reset` to catch the panic backtrace |
 | Wrong target chip | `idf.py set-target esp32c6` (default is xtensa esp32 — fails with IRAM overflow) |
+| App boots but display blank / "0 assets loaded" | After `erase-flash`, also run `flash-assets` (or whatever data-partition target the project defines) |
+| `agent_monitor --reset` returns 0 bytes | Port still held by esptool — wait 1 s, retry, or `python -m esptool ... run` then passive listen |
