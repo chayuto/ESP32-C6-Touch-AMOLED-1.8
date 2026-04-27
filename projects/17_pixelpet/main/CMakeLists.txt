@@ -18,6 +18,7 @@ idf_component_register(
         "idle_scheduler.c"
         "intro_screens.c"
         "story_card.c"
+        "daily_quests.c"
     INCLUDE_DIRS "."
     REQUIRES
         amoled_driver

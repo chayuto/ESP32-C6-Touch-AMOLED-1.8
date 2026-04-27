@@ -24,6 +24,7 @@
 #include "idle_scheduler.h"
 #include "intro_screens.h"
 #include "story_card.h"
+#include "daily_quests.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -136,8 +137,33 @@ static void apply_minigame_score(int score)
         ESP_LOGI(TAG, "new minigame high: %d", score);
     }
     audio_jingles_play(JINGLE_HAPPY);
+    daily_quests_on_minigame(&s_pet, score);
     pet_save_request();
     ESP_LOGI(TAG, "minigame score %d → +%d happy", score, boost);
+}
+
+/* Shake-gesture cooldown so a single vigorous shake counts as one
+ * discipline event, not a stream of them. */
+static int64_t s_shake_cooldown_until_us = 0;
+#define SHAKE_COOLDOWN_US  (3LL * 1000 * 1000)
+
+static void shake_check(void)
+{
+    if (!s_imu_ok) return;
+    if (intro_screens_is_visible() || story_card_is_visible()) return;
+    if (s_pet.stage == STAGE_EGG || s_pet.stage == STAGE_DEAD) return;
+
+    imu_state_t imu = {0};
+    imu_manager_get_state(&imu);
+    int64_t now_us = esp_timer_get_time();
+    if (!imu.is_shaking) return;
+    if (now_us < s_shake_cooldown_until_us) return;
+    s_shake_cooldown_until_us = now_us + SHAKE_COOLDOWN_US;
+
+    if (stat_engine_apply_care(&s_pet, CARE_DISCIPLINE)) {
+        ESP_LOGI(TAG, "shake → discipline (mag %.1f)", imu.shake_mag);
+        pet_save_request();
+    }
 }
 
 static void anim_timer_cb(lv_timer_t *t)
@@ -148,6 +174,7 @@ static void anim_timer_cb(lv_timer_t *t)
         int score = minigame_catch_tick(&imu);
         if (score >= 0) apply_minigame_score(score);
     } else {
+        shake_check();
         fishbowl_tick();
         pet_renderer_tick();
         ui_screens_apply_state(&s_pet);
@@ -169,6 +196,7 @@ static void stat_tick_cb(lv_timer_t *t)
         stat_engine_check_transitions(&s_pet, now);
         pet_save_request();
     }
+    daily_quests_check_reset(&s_pet, now);
     pet_save_pump(&s_pet);
 
     /* Refresh day/night tint once per stat tick (1 Hz is plenty). */

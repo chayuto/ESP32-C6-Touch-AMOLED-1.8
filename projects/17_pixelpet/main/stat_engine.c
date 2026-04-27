@@ -8,6 +8,7 @@
 
 #include "stat_engine.h"
 #include "audio_jingles.h"
+#include "daily_quests.h"
 #include "esp_log.h"
 #include <stdlib.h>
 
@@ -160,6 +161,7 @@ bool stat_engine_apply_care(pet_state_t *p, care_action_t action)
     default:
         return false;
     }
+    daily_quests_on_care(p, action);
     return true;
 }
 

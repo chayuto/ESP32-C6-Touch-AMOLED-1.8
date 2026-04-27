@@ -57,6 +57,13 @@ typedef struct {
     uint32_t total_cleans;      /* CARE_CLEAN_ONE */
     uint32_t total_meds;        /* CARE_MEDICINE */
     uint32_t minigame_high;     /* best catch score */
+
+    /* v5 fields — three-slot daily quest state, reset at RTC midnight.
+     * quest_id values come from daily_quests.h (uint8 = QUEST_*). */
+    uint8_t  quest_id[3];
+    uint8_t  quest_progress[3];
+    uint8_t  quest_done[3];     /* 0/1; redundant with progress >= target */
+    int64_t  last_quest_reset_unix;
 } pet_state_t;
 
 #define PET_NAME_LEN  3   /* characters used in name[]; name[3] is NUL */

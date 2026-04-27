@@ -17,6 +17,7 @@
 #include "fishbowl.h"
 #include "audio_jingles.h"
 #include "story_card.h"
+#include "daily_quests.h"
 #include "esp_log.h"
 #include <stdio.h>
 
@@ -34,6 +35,7 @@ static pet_state_t *s_pet;
 static lv_obj_t *s_lbl_name;
 static lv_obj_t *s_lbl_stage;
 static lv_obj_t *s_lbl_age;
+static lv_obj_t *s_lbl_quest;
 static lv_obj_t *s_bar_hunger;
 static lv_obj_t *s_bar_happy;
 static lv_obj_t *s_bar_energy;
@@ -205,6 +207,12 @@ static void build_status_screen(lv_obj_t *scr)
     lv_obj_set_style_text_font(s_lbl_age, &lv_font_montserrat_14, 0);
     lv_obj_align(s_lbl_age, LV_ALIGN_TOP_MID, 0, 56);
 
+    s_lbl_quest = lv_label_create(scr);
+    lv_label_set_text(s_lbl_quest, "");
+    lv_obj_set_style_text_color(s_lbl_quest, lv_color_hex(0xFFD166), 0);
+    lv_obj_set_style_text_font(s_lbl_quest, &lv_font_montserrat_14, 0);
+    lv_obj_align(s_lbl_quest, LV_ALIGN_TOP_MID, 0, 76);
+
     pet_renderer_init(scr);
 
     s_bar_energy = make_stat_bar(scr, lv_color_hex(0xFFD166), -16, "energy");
@@ -237,10 +245,12 @@ static void minigame_cb(lv_event_t *e)
 static void build_play_screen(lv_obj_t *scr)
 {
     make_title(scr, "PLAY", lv_color_hex(0xFF4488));
-    make_action_btn(scr, "Quick play",  lv_color_hex(0xEF476F), 220, -40,
+    make_action_btn(scr, "Quick play",   lv_color_hex(0xEF476F), 220, -80,
                     care_cb, (void *)(uintptr_t)CARE_PLAY);
-    make_action_btn(scr, "Catch apples", lv_color_hex(0xFFD166), 220,  60,
+    make_action_btn(scr, "Catch apples", lv_color_hex(0xFFD166), 220,   0,
                     minigame_cb, NULL);
+    make_action_btn(scr, "Scold",        lv_color_hex(0xCDB4DB), 220,  80,
+                    care_cb, (void *)(uintptr_t)CARE_DISCIPLINE);
 }
 
 static void build_clean_screen(lv_obj_t *scr)
@@ -411,6 +421,13 @@ void ui_screens_apply_state(const pet_state_t *p)
         else if (age_s < 86400)    snprintf(buf, sizeof(buf), "age %lldh", age_s / 3600);
         else                       snprintf(buf, sizeof(buf), "age %lldd", age_s / 86400);
         lv_label_set_text(s_lbl_age, buf);
+    }
+
+    if (s_lbl_quest) {
+        char qbuf[40];
+        if (daily_quests_status_line(p, qbuf, sizeof(qbuf)) > 0) {
+            lv_label_set_text(s_lbl_quest, qbuf);
+        }
     }
 
     if (s_bar_hunger) lv_bar_set_value(s_bar_hunger, p->hunger, LV_ANIM_OFF);
