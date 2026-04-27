@@ -128,7 +128,10 @@ static void care_cb(lv_event_t *e)
         if (action == CARE_FEED_MEAL || action == CARE_FEED_SNACK) {
             pet_renderer_play_eat();
         }
-    } else {
+    } else if (s_pet->stage != STAGE_EGG && s_pet->stage != STAGE_DEAD) {
+        /* Skip the rejection FX for egg/dead pets — they shouldn't be
+         * reacting to care input at all (memorial / hatching is the
+         * scene). The noop is expected; no need to surface it. */
         const char *particle, *anim;
         noop_reaction(action, &particle, &anim);
         if (particle || anim) {
@@ -369,6 +372,10 @@ void ui_screens_init(lv_obj_t *parent, pet_state_t *pet)
 void ui_screens_show(screen_id_t id)
 {
     if (id >= SCREEN_COUNT) return;
+    /* When the pet is gone, the memorial owns the screen — disallow
+     * navigation so the player can't accidentally tab the live screens
+     * back on top of it via boot button or care_cb pop. */
+    if (s_pet && s_pet->stage == STAGE_DEAD) return;
     lv_obj_add_flag(s_screens[s_current], LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(s_screens[id], LV_OBJ_FLAG_HIDDEN);
     s_current = id;
@@ -377,6 +384,7 @@ void ui_screens_show(screen_id_t id)
 
 void ui_screens_next(void)
 {
+    if (s_pet && s_pet->stage == STAGE_DEAD) return;
     ui_screens_show((s_current + 1) % SCREEN_COUNT);
 }
 

@@ -145,7 +145,9 @@ static void apply_minigame_score(int score)
 /* Shake-gesture cooldown so a single vigorous shake counts as one
  * discipline event, not a stream of them. */
 static int64_t s_shake_cooldown_until_us = 0;
+static int64_t s_shake_warmup_until_us   = 0;
 #define SHAKE_COOLDOWN_US  (3LL * 1000 * 1000)
+#define SHAKE_WARMUP_US    (2LL * 1000 * 1000)   /* IMU filter settle time */
 
 static void shake_check(void)
 {
@@ -153,9 +155,14 @@ static void shake_check(void)
     if (intro_screens_is_visible() || story_card_is_visible()) return;
     if (s_pet.stage == STAGE_EGG || s_pet.stage == STAGE_DEAD) return;
 
+    int64_t now_us = esp_timer_get_time();
+    /* The QMI8658's high-pass filter has no history at boot, so the first
+     * second of samples register large transient magnitudes (observed
+     * 7-11 m/s² with no real motion). Ignore until the filter settles. */
+    if (now_us < s_shake_warmup_until_us) return;
+
     imu_state_t imu = {0};
     imu_manager_get_state(&imu);
-    int64_t now_us = esp_timer_get_time();
     if (!imu.is_shaking) return;
     if (now_us < s_shake_cooldown_until_us) return;
     s_shake_cooldown_until_us = now_us + SHAKE_COOLDOWN_US;
@@ -278,6 +285,7 @@ void app_main(void)
     if (imu_manager_init() == ESP_OK) {
         imu_manager_start_task();
         s_imu_ok = true;
+        s_shake_warmup_until_us = esp_timer_get_time() + SHAKE_WARMUP_US;
     } else {
         ESP_LOGW(TAG, "IMU not available — minigame will use neutral tilt");
     }

@@ -79,9 +79,14 @@ static void roll_quests(pet_state_t *p)
              p->quest_id[0], p->quest_id[1], p->quest_id[2]);
 }
 
+/* 2020-01-01 UTC. Anything below this means the RTC is unset / wrong
+ * and the day-bucket math (gmtime / yday) is meaningless. */
+#define MIN_VALID_UNIX  1577836800LL
+
 void daily_quests_check_reset(pet_state_t *p, int64_t now_unix)
 {
     if (p->stage == STAGE_EGG || p->stage == STAGE_DEAD) return;
+    if (now_unix < MIN_VALID_UNIX) return;
 
     bool need_roll = false;
     if (p->last_quest_reset_unix == 0) {
