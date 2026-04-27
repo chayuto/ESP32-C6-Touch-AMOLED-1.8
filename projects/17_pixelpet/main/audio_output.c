@@ -312,6 +312,7 @@ void audio_output_start_task(void)
 
 void audio_output_play_tone(float freq_hz, int duration_ms, float volume)
 {
+    if (!s_snd_queue) return;   /* called before init / after init failed */
     snd_cmd_t cmd = {
         .type = SND_TONE,
         .freq = freq_hz,
@@ -323,6 +324,7 @@ void audio_output_play_tone(float freq_hz, int duration_ms, float volume)
 
 void audio_output_play_noise(int duration_ms, float volume)
 {
+    if (!s_snd_queue) return;
     snd_cmd_t cmd = {
         .type = SND_NOISE,
         .volume = volume,
