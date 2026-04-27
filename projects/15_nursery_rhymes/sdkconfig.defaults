@@ -1,6 +1,9 @@
 # Target
 CONFIG_IDF_TARGET="esp32c6"
 
+# Console — board's USB-C is wired to native USB (GPIO 12/13), not UART0
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+
 # Flash
 CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
 
