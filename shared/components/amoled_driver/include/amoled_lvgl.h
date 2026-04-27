@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdbool.h>
+
 #include "esp_err.h"
 #include "esp_lcd_panel_ops.h"
 #include "esp_lcd_touch.h"
@@ -33,6 +35,14 @@ lv_disp_t *amoled_lvgl_get_disp(void);
  * Set to NULL to disable. Used by snapshot module for flush-callback capture.
  */
 void amoled_lvgl_set_flush_hook(amoled_flush_hook_t hook);
+
+/**
+ * Enable/disable the touch input device. When disabled, the touch read
+ * callback reports RELEASED and skips the I2C read entirely. Useful when
+ * blanking the screen for power-saving so stray touches don't trigger UI.
+ * Touch is enabled by default after amoled_lvgl_init().
+ */
+void amoled_lvgl_set_touch_enabled(bool enabled);
 
 #ifdef __cplusplus
 }
