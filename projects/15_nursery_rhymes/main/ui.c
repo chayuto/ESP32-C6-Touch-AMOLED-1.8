@@ -13,6 +13,7 @@
 #include "audio_player.h"
 #include "song_data.h"
 #include "amoled.h"
+#include "amoled_lvgl.h"
 
 #include "esp_log.h"
 #include <stdio.h>
@@ -166,16 +167,26 @@ static void build_song_list(lv_obj_t *parent)
 
 /* ── Now Playing View ─────────────────────────────────── */
 
+static void show_song_list_view(void)
+{
+    lv_obj_clear_flag(s_song_list, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(s_now_playing, LV_OBJ_FLAG_HIDDEN);
+    lv_bar_set_value(s_np_progress, 0, LV_ANIM_OFF);
+    s_last_playing = -1;
+}
+
 static void stop_btn_cb(lv_event_t *e)
 {
     (void)e;
     audio_player_stop();
+    show_song_list_view();
 }
 
 static void back_btn_cb(lv_event_t *e)
 {
     (void)e;
     audio_player_stop();
+    show_song_list_view();
 }
 
 static void prev_btn_cb(lv_event_t *e)
@@ -512,6 +523,7 @@ void ui_set_screen_off(bool off)
 {
     s_screen_off = off;
     amoled_display_on_off(!off);
+    amoled_lvgl_set_touch_enabled(!off);
     if (off) {
         amoled_set_brightness(0);
     } else {

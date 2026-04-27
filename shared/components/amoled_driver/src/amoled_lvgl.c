@@ -3,6 +3,7 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "driver/gpio.h"
 #include "esp_log.h"
 #include "esp_check.h"
 #include "esp_timer.h"
@@ -19,6 +20,11 @@ static lv_disp_t          *s_disp = NULL;
 static lv_disp_drv_t       s_disp_drv;
 static lv_disp_draw_buf_t  s_draw_buf;
 static amoled_flush_hook_t s_flush_hook = NULL;
+
+/* Cached at touch register time so the read callback doesn't poke into the
+ * touch handle's private struct on every poll. -1 means "no INT pin". */
+static int  s_touch_int_gpio = -1;
+static bool s_touch_enabled  = true;
 
 /* ── ISR: DMA transfer to display complete ────────────────── */
 static bool flush_ready_cb(esp_lcd_panel_io_handle_t io,
@@ -57,7 +63,15 @@ static void lvgl_rounder_cb(lv_disp_drv_t *drv, lv_area_t *area)
 static void lvgl_touch_cb(lv_indev_drv_t *drv, lv_indev_data_t *data)
 {
     esp_lcd_touch_handle_t tp = (esp_lcd_touch_handle_t)drv->user_data;
-    if (!tp) {
+    if (!tp || !s_touch_enabled) {
+        data->state = LV_INDEV_STATE_RELEASED;
+        return;
+    }
+
+    /* FT3168 only has valid data when INT is asserted (active LOW). Reading
+     * while INT is HIGH causes periodic I2C NACK bursts when the chip is
+     * idle/asleep. */
+    if (s_touch_int_gpio >= 0 && gpio_get_level(s_touch_int_gpio) == 1) {
         data->state = LV_INDEV_STATE_RELEASED;
         return;
     }
@@ -138,6 +152,9 @@ esp_err_t amoled_lvgl_init(esp_lcd_panel_handle_t panel, esp_lcd_touch_handle_t 
 
     /* Touch input device */
     if (touch) {
+        s_touch_int_gpio = touch->config.int_gpio_num;
+        s_touch_enabled  = true;
+
         static lv_indev_drv_t indev_drv;
         lv_indev_drv_init(&indev_drv);
         indev_drv.type    = LV_INDEV_TYPE_POINTER;
@@ -145,7 +162,7 @@ esp_err_t amoled_lvgl_init(esp_lcd_panel_handle_t panel, esp_lcd_touch_handle_t 
         indev_drv.read_cb = lvgl_touch_cb;
         indev_drv.user_data = touch;
         lv_indev_drv_register(&indev_drv);
-        ESP_LOGI(TAG, "Touch input registered");
+        ESP_LOGI(TAG, "Touch input registered (INT=GPIO%d)", s_touch_int_gpio);
     } else {
         ESP_LOGW(TAG, "No touch — skipping input device");
     }
@@ -164,4 +181,9 @@ lv_disp_t *amoled_lvgl_get_disp(void)
 void amoled_lvgl_set_flush_hook(amoled_flush_hook_t hook)
 {
     s_flush_hook = hook;
+}
+
+void amoled_lvgl_set_touch_enabled(bool enabled)
+{
+    s_touch_enabled = enabled;
 }
