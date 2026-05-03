@@ -11,6 +11,7 @@
  */
 
 #include "audio_player.h"
+#include "noise_player.h"
 #include "song_data.h"
 #include "ui.h"
 #include "amoled.h"
@@ -135,6 +136,9 @@ void app_main(void)
 
     /* 6. Audio (I2S + ES8311) */
     ESP_ERROR_CHECK(audio_player_init());
+
+    /* 6b. Noise generator (shares I2S with audio_player; exclusive routing) */
+    ESP_ERROR_CHECK(noise_player_init());
 
     /* 7. Speaker amp ON */
     audio_player_amp_enable(true);

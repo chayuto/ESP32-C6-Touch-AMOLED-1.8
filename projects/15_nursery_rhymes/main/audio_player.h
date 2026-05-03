@@ -2,6 +2,7 @@
 
 #include "esp_err.h"
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -61,6 +62,22 @@ void audio_player_set_mode(play_mode_t mode);
 
 /** Get current play mode. */
 play_mode_t audio_player_get_mode(void);
+
+/** Pause the song player and release I2S so the noise generator can drive it.
+ *  Aborts the current song (sets s_stop_req) and waits up to 100 ms for the
+ *  audio task to leave its playback path. After this returns, the audio task
+ *  yields its idle-silence loop so noise_player can write to I2S. */
+void audio_player_yield_to_noise(void);
+
+/** Resume the audio task's idle-silence loop after noise stops. Idempotent. */
+void audio_player_resume_from_noise(void);
+
+/** Returns true if the audio task is currently yielding I2S to the noise generator. */
+bool audio_player_is_yielded_to_noise(void);
+
+/** Stereo-write helper used by the noise generator. The noise task is the sole
+ *  I2S writer while audio_player_is_yielded_to_noise() is true. */
+void audio_player_write_stereo(const int16_t *buf, size_t stereo_samples);
 
 #ifdef __cplusplus
 }

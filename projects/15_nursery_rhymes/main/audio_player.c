@@ -51,6 +51,7 @@ static volatile int  s_current_song = -1;
 static volatile int  s_note_index  = 0;
 static volatile int  s_note_total  = 0;
 static volatile int  s_volume      = 70;   /* 0-100 */
+static volatile bool s_yielded_to_noise = false;
 
 /*
  * Transpose offset in semitones. +12 = one octave up.
@@ -337,7 +338,31 @@ static bool play_note_ex(float freq, int dur_ms, float accent)
 
     int pos = 0;
     while (pos < total_samples) {
-        if (s_stop_req) return true;
+        if (s_stop_req) {
+            /* Stop tapped mid-note — fade the current tone down over ~80 ms
+             * so the speaker hits zero before the I2S DMA buffer drains.
+             * Otherwise the tone truncates abruptly and feels sluggish
+             * because the user hears ~90 ms of buffered audio before silence. */
+            int fade_samples = SAMPLE_RATE * 80 / 1000;
+            int written_in_fade = 0;
+            while (written_in_fade < fade_samples) {
+                int chunk = CHUNK_SAMPLES;
+                if (written_in_fade + chunk > fade_samples) chunk = fade_samples - written_in_fade;
+                for (int i = 0; i < chunk; i++) {
+                    float t = (float)(written_in_fade + i) / (float)fade_samples;
+                    float fade = 1.0f - t;
+                    float raw = synth_sample(phase, 1.0f);
+                    int16_t sample = (int16_t)(fade * amplitude * raw);
+                    phase += phase_inc;
+                    if (phase > 2.0f * M_PI) phase -= 2.0f * M_PI;
+                    s_stereo_buf[i * 2]     = sample;
+                    s_stereo_buf[i * 2 + 1] = sample;
+                }
+                write_stereo(s_stereo_buf, chunk);
+                written_in_fade += chunk;
+            }
+            return true;
+        }
 
         int chunk = CHUNK_SAMPLES;
         if (pos + chunk > total_samples) chunk = total_samples - pos;
@@ -531,6 +556,9 @@ static void audio_task(void *arg)
                 }
                 s_current_song = -1;
             }
+        } else if (s_yielded_to_noise) {
+            /* Noise generator owns I2S. Don't write zeros — yield CPU. */
+            vTaskDelay(pdMS_TO_TICKS(50));
         } else {
             /* Idle — output silence to keep I2S DMA happy */
             play_silence(50);
@@ -641,4 +669,35 @@ void audio_player_set_mode(play_mode_t mode)
 play_mode_t audio_player_get_mode(void)
 {
     return s_play_mode;
+}
+
+void audio_player_yield_to_noise(void)
+{
+    s_stop_req = true;
+    s_play_song = -1;
+    /* Wait for the song path to bail. Worst case ~30 ms (chunk write). */
+    for (int i = 0; i < 20 && s_playing; i++) {
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+    s_stop_req = false;
+    s_yielded_to_noise = true;
+    ESP_LOGI(TAG, "I2S yielded to noise generator");
+}
+
+void audio_player_resume_from_noise(void)
+{
+    s_yielded_to_noise = false;
+    ESP_LOGI(TAG, "I2S reclaimed from noise generator");
+}
+
+bool audio_player_is_yielded_to_noise(void)
+{
+    return s_yielded_to_noise;
+}
+
+void audio_player_write_stereo(const int16_t *buf, size_t stereo_samples)
+{
+    size_t bytes = stereo_samples * 2 * sizeof(int16_t);
+    size_t written = 0;
+    i2s_channel_write(s_tx_handle, (void *)buf, bytes, &written, pdMS_TO_TICKS(100));
 }

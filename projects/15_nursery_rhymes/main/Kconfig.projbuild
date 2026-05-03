@@ -207,3 +207,34 @@ menu "Nursery Rhyme Song Selection"
         depends on !SONG_INCLUDE_ALL
 
 endmenu
+
+menu "White Noise Generator"
+
+    config NOISE_VOL_CAP
+        int "Maximum volume (% of full-scale)"
+        range 1 100
+        default 80
+        help
+            Hard cap on the noise generator's output level. The UI volume
+            slider scales 0..100 of this cap. Default 80 keeps headroom
+            below clipping and aligns with the AAP's < 50 dB guidance for
+            infant sleep environments. Raise toward 100 only if you have
+            a quieter speaker and have measured SPL at the bedside.
+
+    config NOISE_VOICE_WHITE
+        bool "Include White voice"
+        default y
+
+    config NOISE_VOICE_PINK
+        bool "Include Pink voice (default at first boot)"
+        default y
+
+    config NOISE_VOICE_BROWN
+        bool "Include Brown voice"
+        default y
+
+    config NOISE_VOICE_WOMB
+        bool "Include Womb voice (brown + LFO + heartbeat)"
+        default y
+
+endmenu

@@ -2,6 +2,7 @@ idf_component_register(
     SRCS
         "main.c"
         "audio_player.c"
+        "noise_player.c"
         "song_data.c"
         "ui.c"
     INCLUDE_DIRS "."
