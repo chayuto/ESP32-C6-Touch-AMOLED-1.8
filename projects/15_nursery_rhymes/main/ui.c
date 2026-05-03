@@ -10,7 +10,9 @@
  */
 
 #include "ui.h"
+#include "ui_noise.h"
 #include "audio_player.h"
+#include "noise_player.h"
 #include "song_data.h"
 #include "amoled.h"
 #include "amoled_lvgl.h"
@@ -72,6 +74,10 @@ static int  s_last_playing = -1;
 /* Song list item buttons */
 static lv_obj_t *s_song_btns[40];
 
+/* White-noise row at top of song list */
+static lv_obj_t *s_noise_row     = NULL;
+static lv_obj_t *s_noise_sub_lbl = NULL;
+
 /* ── Helpers ──────────────────────────────────────────── */
 
 static lv_obj_t *create_label(lv_obj_t *parent, const char *text,
@@ -92,7 +98,24 @@ static void song_btn_cb(lv_event_t *e)
 
     int idx = (int)(intptr_t)lv_event_get_user_data(e);
     ESP_LOGI(TAG, "Song selected: %d — %s", idx, g_songs[idx].title);
+    /* Exclusive routing: starting a song stops any running noise. */
+    if (noise_player_is_playing()) noise_player_stop();
     audio_player_play(idx);
+}
+
+static void noise_row_cb(lv_event_t *e)
+{
+    (void)e;
+    if (s_child_locked) return;
+    ESP_LOGI(TAG, "White Noise row tapped");
+    lv_obj_add_flag(s_song_list, LV_OBJ_FLAG_HIDDEN);
+    ui_noise_show();
+}
+
+void ui_show_song_list_from_noise(void)
+{
+    ui_noise_hide();
+    lv_obj_clear_flag(s_song_list, LV_OBJ_FLAG_HIDDEN);
 }
 
 static void build_song_list(lv_obj_t *parent)
@@ -120,6 +143,42 @@ static void build_song_list(lv_obj_t *parent)
     lv_obj_t *title = create_label(header, LV_SYMBOL_AUDIO "  Nursery Rhymes",
                                     &lv_font_montserrat_18, COL_NOTE);
     lv_obj_align(title, LV_ALIGN_LEFT_MID, 0, 0);
+
+    /* White-noise row (sits above the songs; styled distinctly so it
+     * reads as a separate feature rather than another song). */
+    s_noise_row = lv_obj_create(s_song_list);
+    lv_obj_remove_style_all(s_noise_row);
+    lv_obj_set_size(s_noise_row, SCR_W - 16, 60);
+    lv_obj_set_style_bg_color(s_noise_row, lv_color_make(35, 30, 75), 0);
+    lv_obj_set_style_bg_opa(s_noise_row, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(s_noise_row, COL_ITEM_PRESSED, LV_STATE_PRESSED);
+    lv_obj_set_style_radius(s_noise_row, 12, 0);
+    lv_obj_set_style_pad_left(s_noise_row, 14, 0);
+    lv_obj_set_style_pad_right(s_noise_row, 10, 0);
+    lv_obj_set_style_border_color(s_noise_row, COL_ACCENT, 0);
+    lv_obj_set_style_border_width(s_noise_row, 1, 0);
+    lv_obj_clear_flag(s_noise_row, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(s_noise_row, LV_OBJ_FLAG_CLICKABLE);
+
+    lv_obj_t *n_icon = create_label(s_noise_row, LV_SYMBOL_VOLUME_MID,
+                                     &lv_font_montserrat_22, COL_NOTE);
+    lv_obj_align(n_icon, LV_ALIGN_LEFT_MID, 0, 0);
+
+    lv_obj_t *n_title = create_label(s_noise_row, "White Noise",
+                                      &lv_font_montserrat_18, COL_TEXT);
+    lv_obj_align(n_title, LV_ALIGN_LEFT_MID, 36, -10);
+
+    s_noise_sub_lbl = create_label(s_noise_row, "Soothe to sleep",
+                                    &lv_font_montserrat_12, COL_TEXT_DIM);
+    lv_obj_align(s_noise_sub_lbl, LV_ALIGN_LEFT_MID, 36, 12);
+    lv_label_set_long_mode(s_noise_sub_lbl, LV_LABEL_LONG_DOT);
+    lv_obj_set_width(s_noise_sub_lbl, SCR_W - 100);
+
+    lv_obj_t *n_chev = create_label(s_noise_row, LV_SYMBOL_RIGHT,
+                                     &lv_font_montserrat_16, COL_ACCENT);
+    lv_obj_align(n_chev, LV_ALIGN_RIGHT_MID, 0, 0);
+
+    lv_obj_add_event_cb(s_noise_row, noise_row_cb, LV_EVENT_CLICKED, NULL);
 
     /* Song buttons */
     for (int i = 0; i < g_song_count && i < 40; i++) {
@@ -417,6 +476,7 @@ void ui_init(lv_obj_t *screen)
 
     build_song_list(screen);
     build_now_playing(screen);
+    ui_noise_build(screen);
     build_lock_overlay(screen);
 
     ESP_LOGI(TAG, "UI initialized with %d songs", g_song_count);
@@ -424,6 +484,23 @@ void ui_init(lv_obj_t *screen)
 
 void ui_update(void)
 {
+    /* Refresh the noise view if it's visible, then keep going so the
+     * song-related state below stays in sync as well. */
+    ui_noise_update();
+
+    /* Keep the noise-row subtitle in sync with engine state so users
+     * can see at a glance whether noise is currently soothing the room. */
+    if (s_noise_sub_lbl) {
+        if (noise_player_is_playing()) {
+            char sub[32];
+            snprintf(sub, sizeof(sub), "Playing  %s",
+                     noise_player_voice_name(noise_player_get_voice()));
+            lv_label_set_text(s_noise_sub_lbl, sub);
+        } else {
+            lv_label_set_text(s_noise_sub_lbl, "Soothe to sleep");
+        }
+    }
+
     bool playing = audio_player_is_playing();
     int cur = audio_player_current_song();
 
