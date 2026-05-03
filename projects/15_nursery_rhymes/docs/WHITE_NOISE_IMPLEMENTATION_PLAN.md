@@ -657,25 +657,27 @@ voices.
 
 ---
 
-## 15. Open decisions for the maintainer
+## 15. Resolved decisions (2026-05-03)
 
-These are the pending judgment calls that need a +1 before implementation
-starts:
+Maintainer locked these calls before Phase 1 began. They are recorded
+here so the implementer doesn't have to re-litigate them.
 
-1. **Default voice** — Pink (this plan) or Brown? Pink is "safer" for the
-   broadest age range; Brown sounds richer through a small speaker.
-2. **Timer presets** — `15/30/60/120/∞` proposed. Some sleep-coaches
-   recommend "all night" (∞) as default; others say 60 min. Recommended:
-   keep ∞ available but default to 60 min (auto-off is the AAP-aligned
-   behaviour).
-3. **Volume cap** — 80 % proposed; some parents will want louder for
-   newborn shusher. Hard cap of 80 with a documented note that exceeding
-   AAP guidance is the parent's responsibility, vs. a Kconfig that allows
-   raising the cap to 100 for advanced users (recommended: Kconfig).
-4. **Noise vs. song** — exclusive-only (this plan) vs. mixer (v2). Exclusive
-   is simpler and matches every commercial sound machine; ship v1 with it.
-5. **Where to put `ui_noise.c`** — separate file (this plan) or inline in
-   `ui.c`. Separate file is cleaner; both are fine.
+1. **Default voice — Pink, switchable.** Voice picker in the UI lets the
+   user move between White / Pink / Brown / Womb at runtime; Pink is
+   selected on first boot and whenever NVS is empty.
+2. **Timer presets — `15 / 30 / 60 / 120 / ∞`, default ∞.** Departs from
+   the AAP-aligned default (60 min) the plan originally recommended.
+   Maintainer's call as the product owner; document in the README that
+   parents who want auto-off should pick a preset.
+3. **Volume cap — Kconfig.** `CONFIG_NOISE_VOL_CAP` (default 80, range
+   1..100). UI volume slider runs 0..100 of the configured cap. Advanced
+   users can raise the cap by editing Kconfig; the README warns about the
+   AAP 50 dB guidance.
+4. **Noise vs. song — exclusive-only.** Option A in §4. No software mixer
+   in v1. Starting noise stops the current song; starting a song stops
+   noise (with fade-out).
+5. **`ui_noise.c` placement — separate file.** Keeps `ui.c` from
+   ballooning past its current 538 lines.
 
 ---
 
@@ -715,3 +717,54 @@ For the implementer's grep convenience:
 
 End of plan. See `WHITE_NOISE_RESEARCH.md` and `WHITE_NOISE_UI_PLAN.md` for
 the audio and UX rationale this plan is built on.
+
+---
+
+## 18. Implementation status (2026-05-03)
+
+v1 shipped in a single feature branch, collapsing Phases 1 + 2 + most of
+Phase 3 into one delivery (the maintainer chose to skip the BOOT-button
+debug hook and verify on hardware via the real UI). Deltas vs the plan:
+
+### Shipped
+- Engine (`noise_player.{c,h}`): White / Pink / Brown / Womb generators,
+  `noise_task` at priority 3, fade-in (3 s), fade-out (1.5 s user-stop /
+  12 s timer-expiry), live volume tracking, per-second timer countdown.
+- Audio routing (`audio_player_yield_to_noise` / `_resume_from_noise` /
+  `_write_stereo`): exclusive Option-A handover. Idle silence loop steps
+  aside while yielded.
+- UI: white-noise row at top of song list, dedicated full-screen view
+  (`ui_noise.{c,h}`) with 2×2 voice picker, big play/pause button with
+  three states (idle / playing / stopping), volume up/down, timer cycle.
+- Kconfig: `NOISE_VOL_CAP` (1..100, default 80), per-voice toggles.
+- Bonus: 80 ms cosine fade-out on the *song* stop button too — same
+  perceived-snappiness fix transferred to the existing audio_player.
+
+### Tuning deltas vs plan §6
+Per-voice gains were re-calibrated empirically after hardware listening
+(plan numbers had Brown/Womb ~6–10 dB quieter than White and Pink
+hard-clipping into the post-shape limiter):
+
+| Voice | Plan implied | Shipped (Q12) | Effective ×        |
+|-------|--------------|---------------|--------------------|
+| White | ~0.61        | 2503          | ~0.61              |
+| Pink  | ~?           | 6144          | ~1.5 (was clipping at 4.4) |
+| Brown | ~1.0         | 10240         | ~2.5               |
+| Womb  | ~1.0         | 14336         | ~3.5 (envelope drops it) |
+
+### Glyph note
+The `∞` symbol (U+221E) isn't in any of the loaded Montserrat fonts and
+rendered as a square. The shipped UI substitutes `LV_SYMBOL_LOOP` (the
+loop icon already used by the song player's "Loop All" mode) for the
+"continuous timer" label.
+
+### Deferred
+- NVS persistence of voice / volume / timer (plan §8)
+- Cross-fade between voices (plan §5 / §14 Phase 3) — currently a hard
+  swap; voice changes can produce a small click on jump from Brown→White
+- v1.5 voices: Rain / Fan / Ocean
+- Halo animation around the play button (plan §7.2)
+- Live-lyrics-style "now noising" countdown overlay on the song list
+
+Total LoC delivered: ~700 (engine ~290, UI ~310, plus scaffolding).
+Binary footprint: ~5 KB increase, well within the 2.4 MB headroom.

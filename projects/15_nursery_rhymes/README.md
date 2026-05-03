@@ -130,6 +130,55 @@ Tap the mode button on the Now Playing screen to cycle:
 
 250ms silence gap between auto-advancing songs.
 
+## White Noise Sleep Generator
+
+A continuous-playback noise generator for soothing babies and helping
+toddlers fall asleep. Tap the **White Noise** row at the top of the
+song list to open the dedicated player.
+
+### Voices
+
+Four real-time-synthesised voices (no pre-recorded audio — all generated
+from algorithms, ~290 LoC):
+
+| Voice | Algorithm | Character |
+|-------|-----------|-----------|
+| **White** | xorshift32, top 16 bits | Bright, broadband — like static |
+| **Pink** | Voss-McCartney 7-row | Equal energy per octave — calmer than white |
+| **Brown** | leaky-integrator 1-pole IIR (α=0.99) | Deep low-end — like rain on a roof |
+| **Womb** | Brown × 4 Hz LFO + 70 BPM heartbeat | Mimics in-utero soundscape for newborns |
+
+Voices are calibrated to roughly match each other's RMS at full volume
+(within ~3 dB), and the volume slider runs 0..100 of `CONFIG_NOISE_VOL_CAP`
+(default 80%, raise to 100% in menuconfig if your speaker is quieter).
+
+### Auto-off timer
+
+`15 / 30 / 60 / 120 min` or **continuous** (default). When a preset timer
+expires, the engine performs a 12-second gentle fade-out so a sleeping
+baby isn't startled by an abrupt cut. The stop button uses a snappier
+1.5-second fade — different intent, different ramp.
+
+### Audio routing
+
+The noise engine and song player are mutually exclusive: starting noise
+yields I2S from the song player; tapping a song stops noise (with fade)
+and starts the song. The song stop button also got a small 80 ms
+cosine fade-out as part of this work, so neither player produces a
+truncation pop on stop.
+
+### AAP guidance
+
+The American Academy of Pediatrics recommends infant sleep environments
+stay below 50 dB and that sound machines auto-off after the baby falls
+asleep. The default volume cap (80%) and timer presets are aimed at that
+guidance — but the firmware lets you choose a continuous timer if you
+want, and the volume cap is a Kconfig knob. Measure SPL at the bedside
+once before relying on it overnight.
+
+See `docs/WHITE_NOISE_RESEARCH.md` and `docs/WHITE_NOISE_IMPLEMENTATION_PLAN.md`
+for the full audio + safety + engineering rationale.
+
 ## Build Configuration
 
 ### Compile-Time Song Selection
