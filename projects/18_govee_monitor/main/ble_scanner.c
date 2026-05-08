@@ -15,6 +15,8 @@
 
 static const char *TAG = "ble";
 
+static bool s_scanning = false;
+
 static void start_scan(void);
 
 static int gap_event_cb(struct ble_gap_event *event, void *arg)
@@ -89,9 +91,35 @@ static void start_scan(void)
     int rc = ble_gap_disc(BLE_OWN_ADDR_PUBLIC, BLE_HS_FOREVER, &p, gap_event_cb, NULL);
     if (rc != 0) {
         ESP_LOGE(TAG, "ble_gap_disc failed: %d", rc);
+        s_scanning = false;
     } else {
         ESP_LOGI(TAG, "scan started");
+        s_scanning = true;
     }
+}
+
+esp_err_t ble_scanner_pause(void)
+{
+    int rc = ble_gap_disc_cancel();
+    if (rc == 0 || rc == BLE_HS_EALREADY) {
+        s_scanning = false;
+        ESP_LOGI(TAG, "scan paused");
+        return ESP_OK;
+    }
+    ESP_LOGW(TAG, "ble_gap_disc_cancel rc=%d", rc);
+    return ESP_FAIL;
+}
+
+esp_err_t ble_scanner_resume(void)
+{
+    if (s_scanning) return ESP_OK;
+    start_scan();
+    return s_scanning ? ESP_OK : ESP_FAIL;
+}
+
+bool ble_scanner_is_running(void)
+{
+    return s_scanning;
 }
 
 static void on_sync(void)

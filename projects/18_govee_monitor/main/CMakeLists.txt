@@ -5,6 +5,7 @@ idf_component_register(
         "slot_store.c"
         "govee_decoder.c"
         "ble_scanner.c"
+        "power_save.c"
     INCLUDE_DIRS "."
     REQUIRES
         amoled_driver

@@ -18,6 +18,7 @@
 #include "ui.h"
 #include "slot_store.h"
 #include "ble_scanner.h"
+#include "power_save.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -32,6 +33,7 @@ static esp_lcd_touch_handle_t s_touch = NULL;
 static void refresh_timer_cb(lv_timer_t *t)
 {
     (void)t;
+    if (power_save_is_active()) return;     /* skip work while screen is off */
     slot_store_tick();
     ui_refresh();
 }
@@ -44,6 +46,7 @@ static void lvgl_task(void *arg)
     lv_timer_create(refresh_timer_cb, 1000, NULL);
 
     while (1) {
+        power_save_poll();
         vTaskDelay(pdMS_TO_TICKS(10));
         lv_timer_handler();
     }
@@ -74,6 +77,8 @@ void app_main(void)
 
     slot_store_init();
     ui_create(lv_scr_act());
+
+    power_save_init();
 
     xTaskCreate(lvgl_task, "lvgl", 8192, NULL, 2, NULL);
 
