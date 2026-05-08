@@ -1,9 +1,14 @@
 /*
- * main.c — Govee Monitor: 3× H5075 BLE temperature/humidity tiles.
+ * main.c — Govee Monitor: Govee H5075 BLE temperature/humidity tiles.
  *
- * Phase 1: scaffold only. Boots the AMOLED + LVGL stack, paints a static
- * 3-tile UI from slot_store_load_placeholders() so we can verify display
- * and layout before any BLE work. NimBLE scanner lands in phase 2.
+ * Boots the AMOLED + LVGL stack, paints N tiles (N=CONFIG_GOVEE_MAX_SLOTS),
+ * then starts a NimBLE passive scanner that decodes Govee H5075 advertisements
+ * and routes them into the slot store. The LVGL refresh timer pulls a snapshot
+ * every second and repaints.
+ *
+ * Pinned MACs (compile-time list in device_config.h) get fixed slots and
+ * friendly labels. Remaining slots auto-fill by RSSI; if more than N H5075s
+ * are in range, the strongest N win (with 6 dB hysteresis to prevent thrash).
  */
 
 #include "amoled.h"
@@ -68,16 +73,13 @@ void app_main(void)
     ESP_ERROR_CHECK(amoled_lvgl_init(amoled_get_panel(), s_touch));
 
     slot_store_init();
-    slot_store_load_placeholders();   /* phase 1: static demo data */
-
     ui_create(lv_scr_act());
 
     xTaskCreate(lvgl_task, "lvgl", 8192, NULL, 2, NULL);
 
     amoled_set_brightness(180);
 
-    /* Phase 2: BLE scanner only logs raw adverts; slot store still drives the
-     * UI from placeholder data. Decoder + slot wiring land in later phases. */
+    /* BLE scanner runs its own NimBLE host task. */
     ESP_ERROR_CHECK(ble_scanner_start());
 
     ESP_LOGI(TAG, "Ready. Free heap: %lu (min: %lu)",

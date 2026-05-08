@@ -1,9 +1,11 @@
 #include "ble_scanner.h"
 #include "govee_decoder.h"
+#include "slot_store.h"
 
 #include <string.h>
 
 #include "esp_log.h"
+#include "esp_timer.h"
 
 #include "nimble/nimble_port.h"
 #include "nimble/nimble_port_freertos.h"
@@ -24,6 +26,8 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg)
 
     const struct ble_gap_disc_desc *d = &event->disc;
 
+    /* Parse the advertisement TLV fields. NimBLE returns the first
+     * manufacturer-specific block; that's enough for Govee thermo-hygrometers. */
     struct ble_hs_adv_fields f;
     if (ble_hs_adv_parse_fields(&f, d->data, d->length_data) != 0) {
         return 0;
@@ -34,13 +38,16 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg)
 
     uint16_t company_id = (uint16_t)f.mfg_data[0] | ((uint16_t)f.mfg_data[1] << 8);
 
+    /* Local-name extraction (may be shortened or complete). */
     char name[32] = {0};
     if (f.name && f.name_len) {
         size_t n = f.name_len < sizeof(name) - 1 ? f.name_len : sizeof(name) - 1;
         memcpy(name, f.name, n);
     }
 
-    /* Govee H5075 quick filter: 0xEC88 + GVH5075 prefix. */
+    /* Govee H5075 quick filter: company ID 0xEC88 + local name starting with "GVH5075"
+     * OR raw mfg_data length 6. We accept by name to avoid noise from other 0xEC88
+     * Govee variants in range. */
     bool is_govee_h5075 =
         (company_id == 0xEC88) &&
         ((name[0] && strncmp(name, "GVH5075", 7) == 0) ||
@@ -54,7 +61,7 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg)
         return 0;
     }
 
-    /* MAC arrives little-endian; reverse for printable big-endian. */
+    /* MAC arrives little-endian in d->addr.val[0..5]; reverse for printable + storage. */
     uint8_t mac_be[6];
     for (int i = 0; i < 6; i++) {
         mac_be[i] = d->addr.val[5 - i];
@@ -65,7 +72,7 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg)
              mac_be[0], mac_be[1], mac_be[2], mac_be[3], mac_be[4], mac_be[5],
              r.temp_c, r.humid_pct, r.battery_pct, d->rssi);
 
-    /* Phase 3: decoded readings logged only; slot wiring lands in phase 4. */
+    slot_store_update(mac_be, &r, d->rssi);
     return 0;
 }
 
@@ -105,7 +112,7 @@ static void on_reset(int reason)
 static void host_task(void *param)
 {
     (void)param;
-    nimble_port_run();
+    nimble_port_run();      /* blocks until nimble_port_stop() */
     nimble_port_freertos_deinit();
 }
 
