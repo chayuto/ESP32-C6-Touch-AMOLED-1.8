@@ -1,7 +1,7 @@
 #include "ble_scanner.h"
+#include "govee_decoder.h"
 
 #include <string.h>
-#include <stdio.h>
 
 #include "esp_log.h"
 
@@ -28,7 +28,7 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg)
     if (ble_hs_adv_parse_fields(&f, d->data, d->length_data) != 0) {
         return 0;
     }
-    if (f.mfg_data == NULL || f.mfg_data_len < 2) {
+    if (f.mfg_data == NULL || f.mfg_data_len < 6) {
         return 0;
     }
 
@@ -40,17 +40,32 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg)
         memcpy(name, f.name, n);
     }
 
-    /* Hex-dump up to 16 mfg-data bytes for protocol inspection. */
-    char hex[64] = {0};
-    int hl = f.mfg_data_len > 16 ? 16 : f.mfg_data_len;
-    for (int i = 0; i < hl; i++) {
-        snprintf(hex + i * 3, 4, "%02x ", f.mfg_data[i]);
+    /* Govee H5075 quick filter: 0xEC88 + GVH5075 prefix. */
+    bool is_govee_h5075 =
+        (company_id == 0xEC88) &&
+        ((name[0] && strncmp(name, "GVH5075", 7) == 0) ||
+         (f.mfg_data_len - 2 == 6));
+    if (!is_govee_h5075) {
+        return 0;
     }
 
-    ESP_LOGI(TAG, "%-16s cid=0x%04X len=%u rssi=%d  %s",
-             name[0] ? name : "(no name)",
-             company_id, f.mfg_data_len, d->rssi, hex);
+    govee_reading_t r = {0};
+    if (!govee_decode_h5075(f.mfg_data + 2, (uint8_t)(f.mfg_data_len - 2), &r)) {
+        return 0;
+    }
 
+    /* MAC arrives little-endian; reverse for printable big-endian. */
+    uint8_t mac_be[6];
+    for (int i = 0; i < 6; i++) {
+        mac_be[i] = d->addr.val[5 - i];
+    }
+
+    ESP_LOGI(TAG, "%s %02X:%02X:%02X:%02X:%02X:%02X T=%.1f H=%.1f bat=%u rssi=%d",
+             name[0] ? name : "GVH5075",
+             mac_be[0], mac_be[1], mac_be[2], mac_be[3], mac_be[4], mac_be[5],
+             r.temp_c, r.humid_pct, r.battery_pct, d->rssi);
+
+    /* Phase 3: decoded readings logged only; slot wiring lands in phase 4. */
     return 0;
 }
 
