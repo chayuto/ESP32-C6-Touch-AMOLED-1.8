@@ -74,7 +74,7 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg)
              mac_be[0], mac_be[1], mac_be[2], mac_be[3], mac_be[4], mac_be[5],
              r.temp_c, r.humid_pct, r.battery_pct, d->rssi);
 
-    slot_store_update(mac_be, &r, d->rssi);
+    slot_store_update(mac_be, name[0] ? name : NULL, &r, d->rssi);
     return 0;
 }
 

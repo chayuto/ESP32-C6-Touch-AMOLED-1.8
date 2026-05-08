@@ -22,9 +22,19 @@ static int active_slots(void)
     return n;
 }
 
-static void label_from_mac(char *dst, size_t dst_len, const uint8_t mac_be[6])
+static void label_default(char *dst, size_t dst_len,
+                          const char *broadcast_name,
+                          const uint8_t mac_be[6])
 {
-    snprintf(dst, dst_len, "H5075-%02X%02X", mac_be[4], mac_be[5]);
+    /* Prefer the broadcast local name (e.g. "GVH5075_8C9A") so the tile shows
+     * the device's self-reported ID verbatim. Fall back to a MAC-derived
+     * short label if the advert didn't carry a name. */
+    if (broadcast_name && broadcast_name[0]) {
+        strncpy(dst, broadcast_name, dst_len - 1);
+        dst[dst_len - 1] = '\0';
+    } else {
+        snprintf(dst, dst_len, "H5075-%02X%02X", mac_be[4], mac_be[5]);
+    }
 }
 
 static int find_pinned(const uint8_t mac_be[6])
@@ -80,6 +90,7 @@ static int weakest_auto(int8_t *out_rssi_ewma)
 
 static void apply_reading(int idx,
                           const uint8_t mac_be[6],
+                          const char *broadcast_name,
                           const govee_reading_t *r,
                           int8_t rssi,
                           bool first_time)
@@ -89,7 +100,7 @@ static void apply_reading(int idx,
     if (first_time) {
         memcpy(s->mac, mac_be, 6);
         if (!s->pinned) {
-            label_from_mac(s->label, sizeof(s->label), mac_be);
+            label_default(s->label, sizeof(s->label), broadcast_name, mac_be);
         }
         s->rssi_ewma = rssi;
     } else {
@@ -156,6 +167,7 @@ void slot_store_tick(void)
 }
 
 bool slot_store_update(const uint8_t mac_be[6],
+                       const char    *broadcast_name,
                        const govee_reading_t *r,
                        int8_t rssi)
 {
@@ -165,7 +177,7 @@ bool slot_store_update(const uint8_t mac_be[6],
     /* (1) Pinned slot wins. */
     int idx = find_pinned(mac_be);
     if (idx >= 0) {
-        apply_reading(idx, mac_be, r, rssi, !s_slots[idx].valid);
+        apply_reading(idx, mac_be, broadcast_name, r, rssi, !s_slots[idx].valid);
         stored = true;
         goto out;
     }
@@ -173,7 +185,7 @@ bool slot_store_update(const uint8_t mac_be[6],
     /* (2) Already tracked in an auto slot? */
     idx = find_existing_auto(mac_be);
     if (idx >= 0) {
-        apply_reading(idx, mac_be, r, rssi, false);
+        apply_reading(idx, mac_be, broadcast_name, r, rssi, false);
         stored = true;
         goto out;
     }
@@ -181,7 +193,7 @@ bool slot_store_update(const uint8_t mac_be[6],
     /* (3) Free auto slot? */
     idx = first_free_auto();
     if (idx >= 0) {
-        apply_reading(idx, mac_be, r, rssi, true);
+        apply_reading(idx, mac_be, broadcast_name, r, rssi, true);
         stored = true;
         goto out;
     }
@@ -191,7 +203,7 @@ bool slot_store_update(const uint8_t mac_be[6],
     idx = weakest_auto(&weakest_rssi);
     if (idx >= 0 && rssi > weakest_rssi + ROTATION_HYSTERESIS_DB) {
         memset(&s_slots[idx], 0, sizeof(slot_t));
-        apply_reading(idx, mac_be, r, rssi, true);
+        apply_reading(idx, mac_be, broadcast_name, r, rssi, true);
         stored = true;
     }
 

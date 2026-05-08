@@ -44,5 +44,6 @@ void slot_store_tick(void);
  *   - Else ignore.
  * Returns true if the reading was stored (so the caller can log accordingly). */
 bool slot_store_update(const uint8_t mac_be[6],
+                       const char    *broadcast_name,   /* e.g. "GVH5075_8C9A"; NULL → fall back to MAC */
                        const govee_reading_t *r,
                        int8_t rssi);

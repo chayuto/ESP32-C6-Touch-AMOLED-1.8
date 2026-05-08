@@ -26,8 +26,8 @@ typedef struct {
 } govee_known_device_t;
 
 static const govee_known_device_t GOVEE_KNOWN[] = {
-    /* Discovered on first flash via BLE log — uncomment and assign labels:
-     * { {0xA4, 0xC1, 0x38, 0xDE, 0x38, 0x9B}, "Room A" },     // GVH5075_389B
+    { {0xA4, 0xC1, 0x38, 0xDE, 0x38, 0x9B}, "Living room" },   // GVH5075_389B
+    /* Discovered but unlabelled — uncomment and assign as you identify each:
      * { {0xA4, 0xC1, 0x38, 0x1A, 0x8C, 0x9A}, "Room B" },     // GVH5075_8C9A
      * { {0xA4, 0xC1, 0x38, 0x5C, 0x15, 0xF1}, "Room C" },     // GVH5075_15F1 (low battery)
      */
