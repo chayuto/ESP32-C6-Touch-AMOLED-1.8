@@ -1,0 +1,30 @@
+menu "Govee Monitor"
+
+    config GOVEE_MAX_SLOTS
+        int "Max simultaneous sensors on display"
+        range 1 4
+        default 3
+        help
+            Maximum number of H5075 sensors visible at once. Combined with the
+            compile-time GOVEE_KNOWN[] table in device_config.h: pinned slots
+            come first, remaining slots auto-fill by RSSI.
+
+    config GOVEE_STALE_TIMEOUT_S
+        int "Stale (grey-out) timeout in seconds"
+        default 60
+        help
+            A slot is greyed out if no advert arrives within this window.
+
+    config GOVEE_EVICT_TIMEOUT_S
+        int "Auto-evict timeout for unpinned slots in seconds"
+        default 300
+        help
+            Auto-filled (unpinned) slots are released after this much silence,
+            allowing a new device to take their place. Pinned slots are never
+            evicted, only greyed.
+
+    config GOVEE_TEMP_UNIT_F
+        bool "Display temperature in Fahrenheit"
+        default n
+
+endmenu
