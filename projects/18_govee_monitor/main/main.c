@@ -12,6 +12,7 @@
 
 #include "ui.h"
 #include "slot_store.h"
+#include "ble_scanner.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -74,6 +75,10 @@ void app_main(void)
     xTaskCreate(lvgl_task, "lvgl", 8192, NULL, 2, NULL);
 
     amoled_set_brightness(180);
+
+    /* Phase 2: BLE scanner only logs raw adverts; slot store still drives the
+     * UI from placeholder data. Decoder + slot wiring land in later phases. */
+    ESP_ERROR_CHECK(ble_scanner_start());
 
     ESP_LOGI(TAG, "Ready. Free heap: %lu (min: %lu)",
              (unsigned long)esp_get_free_heap_size(),

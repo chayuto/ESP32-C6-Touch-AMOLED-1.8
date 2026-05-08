@@ -3,6 +3,7 @@ idf_component_register(
         "main.c"
         "ui.c"
         "slot_store.c"
+        "ble_scanner.c"
     INCLUDE_DIRS "."
     REQUIRES
         amoled_driver
@@ -11,4 +12,5 @@ idf_component_register(
         esp_system
         freertos
         driver
+        bt
 )
