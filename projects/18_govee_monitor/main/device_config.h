@@ -26,10 +26,10 @@ typedef struct {
 } govee_known_device_t;
 
 static const govee_known_device_t GOVEE_KNOWN[] = {
-    /* Examples — uncomment + replace with real MACs from sensor stickers:
-     * { {0xA4, 0xC1, 0x38, 0x12, 0x34, 0x56}, "Bedroom" },
-     * { {0xA4, 0xC1, 0x38, 0x78, 0x9A, 0xBC}, "Kitchen" },
-     * { {0xA4, 0xC1, 0x38, 0xDE, 0xF0, 0x12}, "Outside" },
+    /* Discovered on first flash via BLE log — uncomment and assign labels:
+     * { {0xA4, 0xC1, 0x38, 0xDE, 0x38, 0x9B}, "Room A" },     // GVH5075_389B
+     * { {0xA4, 0xC1, 0x38, 0x1A, 0x8C, 0x9A}, "Room B" },     // GVH5075_8C9A
+     * { {0xA4, 0xC1, 0x38, 0x5C, 0x15, 0xF1}, "Room C" },     // GVH5075_15F1 (low battery)
      */
 };
 
