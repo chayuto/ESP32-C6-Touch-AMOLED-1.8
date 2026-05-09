@@ -3,7 +3,8 @@
 #include <stdint.h>
 
 /*
- * Compile-time list of pinned Govee sensors.
+ * LOCAL CONFIG — copy this file to `device_config.h` and fill in your sensors.
+ * `device_config.h` is gitignored so your real MACs never get committed.
  *
  * Each entry binds a fixed BLE MAC address (as printed on the sensor sticker,
  * big-endian byte order) to a friendly display label.
@@ -17,7 +18,8 @@
  *                 labels. Pinned slots never rotate or evict; they grey out
  *                 if stale but stay reserved. Remaining slots auto-fill.
  *
- * Edit and rebuild to apply.
+ * To discover MACs: leave the table empty, flash, and read the BLE scanner
+ * log lines (e.g. "GVH5075_DBF8 A4:C1:38:DB:F8:00 T=21.6 H=49.8 bat=100").
  */
 
 typedef struct {
@@ -26,11 +28,9 @@ typedef struct {
 } govee_known_device_t;
 
 static const govee_known_device_t GOVEE_KNOWN[] = {
-    { {0xA4, 0xC1, 0x38, 0xDE, 0x38, 0x9B}, "Living room" },   // GVH5075_389B
-    /* Discovered but unlabelled — uncomment and assign as you identify each:
-     * { {0xA4, 0xC1, 0x38, 0x1A, 0x8C, 0x9A}, "Room B" },     // GVH5075_8C9A
-     * { {0xA4, 0xC1, 0x38, 0x5C, 0x15, 0xF1}, "Room C" },     // GVH5075_15F1 (low battery)
-     */
+    /* { {0xA4, 0xC1, 0x38, 0x12, 0x34, 0x56}, "Bedroom" }, */
+    /* { {0xA4, 0xC1, 0x38, 0x78, 0x9A, 0xBC}, "Kitchen" }, */
+    /* { {0xA4, 0xC1, 0x38, 0xDE, 0xF0, 0x12}, "Outside" }, */
 };
 
 #define GOVEE_KNOWN_COUNT (sizeof(GOVEE_KNOWN) / sizeof(GOVEE_KNOWN[0]))

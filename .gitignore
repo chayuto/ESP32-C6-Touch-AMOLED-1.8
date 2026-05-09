@@ -22,6 +22,9 @@ ref/
 # Internal dev notes (not for public)
 /docs/internal/
 
+# Local device configs (real MACs / labels) — keep .template committed
+projects/*/main/device_config.h
+
 # Vendor component bloat — not needed for builds, safe to exclude
 # LVGL: only src/ and env_support/ are needed; demos/examples/tests/docs are optional extras
 shared/components/lvgl__lvgl/demos/

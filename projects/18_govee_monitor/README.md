@@ -55,7 +55,16 @@ Or use the project skills:
 
 ## Pinning specific sensors with friendly labels
 
-Edit `main/device_config.h`:
+Real MACs and labels live in `main/device_config.h`, which is **gitignored**
+(same pattern as `sdkconfig.defaults` for WiFi creds). Copy the template on
+first checkout:
+
+```
+cp projects/18_govee_monitor/main/device_config.h.template \
+   projects/18_govee_monitor/main/device_config.h
+```
+
+Then edit `main/device_config.h`:
 
 ```c
 static const govee_known_device_t GOVEE_KNOWN[] = {
@@ -69,8 +78,8 @@ The 6-byte MAC is in **big-endian byte order** — exactly as printed on the
 sensor sticker (e.g. `A4:C1:38:12:34:56`). Each pinned entry occupies the
 matching slot index (0, 1, 2…) and shows the configured label.
 
-To find the MAC of a sensor, flash the firmware with `GOVEE_KNOWN[]` empty —
-the boot log prints every decoded advert with its MAC:
+To find the MAC of a sensor, leave `GOVEE_KNOWN[]` empty, flash, and read
+the BLE scanner log:
 
 ```
 I (5234) ble: GVH5075_DBF8 A4:C1:38:DB:F8:00 T=21.6 H=49.8 bat=100 rssi=-52
@@ -96,7 +105,7 @@ main/
 ├── govee_decoder.c      # H5075 packed-int parser (HA parity)
 ├── slot_store.c         # pinned/auto slots, RSSI EWMA, rotation, mutex
 ├── ui.c                 # N-tile vertical layout, refresh from snapshot
-├── device_config.h      # USER-EDITABLE: GOVEE_KNOWN[] pinning table
+├── device_config.h.template  # template — copy to device_config.h (gitignored)
 └── Kconfig.projbuild    # GOVEE_MAX_SLOTS, timeouts, °C/°F
 ```
 
