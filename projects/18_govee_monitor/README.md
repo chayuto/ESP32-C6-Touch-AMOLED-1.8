@@ -36,6 +36,9 @@ as a vertical stack of tiles.
 - **Stale + evict timeouts** — slots grey out after 60 s of silence and
   unpinned slots free up after 5 min so a new device can take their place.
 - **°C / °F toggle** — Kconfig (`CONFIG_GOVEE_TEMP_UNIT_F`).
+- **Type scales with slot count** — at 4 slots each tile is 112 px tall, so the
+  temperature and humidity fonts step down a size to avoid colliding with the
+  header and battery rows.
 
 ## Build / Flash
 
@@ -91,7 +94,7 @@ Copy those MACs into `GOVEE_KNOWN[]` and rebuild.
 
 | Option | Default | Effect |
 |---|---|---|
-| `GOVEE_MAX_SLOTS` | 3 | Max sensors visible at once (1–4) |
+| `GOVEE_MAX_SLOTS` | 4 | Max sensors visible at once (1–4) |
 | `GOVEE_STALE_TIMEOUT_S` | 60 | A slot greys out after this much silence |
 | `GOVEE_EVICT_TIMEOUT_S` | 300 | Unpinned slot is freed for a new device |
 | `GOVEE_TEMP_UNIT_F` | n | Show °F instead of °C |
