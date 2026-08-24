@@ -36,8 +36,11 @@ Built with an **agentic-first development workflow** — each project is develop
 | 15 | [Nursery Rhymes](projects/15_nursery_rhymes/) | Music-box player with realistic harmonic synthesis |
 | 16 | [BitChat Relay](projects/16_bitchat_relay/) | BLE mesh relay for BitChat protocol — telemetry + SD logging |
 | 17 | [PixelPet](projects/17_pixelpet/) | Tamagotchi-style virtual pet with sprite renderer + RTC decay |
+| 18 | [Govee Monitor](projects/18_govee_monitor/) | Live BLE temperature/humidity monitor for Govee H5075 sensors |
 
 Each project's own README has the detail (architecture, build steps, screenshots).
+Numbering continues from an earlier board (ESP32-C6-LCD-1.47) in a separate repo,
+which is why it starts at 11.
 
 <p align="center">
   <img src="docs/media/mcp_canvas_demo.jpg" alt="MCP Canvas Demo" width="200">
