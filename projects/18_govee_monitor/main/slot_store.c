@@ -121,7 +121,7 @@ static void apply_reading(int idx,
     /* Feed the rolling history. Called with the slot mutex held; history takes
      * its own lock and never calls back here, so the order is always
      * slot_store -> history. */
-    history_record(idx, r->temp_c, r->humid_pct);
+    history_record(idx, r->temp_c, r->humid_pct, r->battery_pct, rssi);
 }
 
 void slot_store_init(void)

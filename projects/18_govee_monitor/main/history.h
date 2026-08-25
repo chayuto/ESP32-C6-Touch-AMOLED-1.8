@@ -41,6 +41,8 @@ typedef enum {
 typedef struct {
     int16_t temp_cx100;   /* °C x100, or HISTORY_NO_DATA */
     int16_t humid_x100;   /* %RH x100, or HISTORY_NO_DATA */
+    uint8_t batt_pct;     /* last value in the bucket — a level, not a rate */
+    int8_t  rssi;         /* mean over the bucket — genuinely noisy */
     uint16_t n;           /* adverts averaged into this bucket; 0 == no data */
 } history_point_t;
 
@@ -57,7 +59,8 @@ void history_init(void);
 
 /* Fold one reading into the open bucket of every tier for this slot.
  * Called for each decoded advertisement. */
-void history_record(int slot, float temp_c, float humid_pct);
+void history_record(int slot, float temp_c, float humid_pct,
+                    uint8_t batt_pct, int8_t rssi);
 
 /* Close any buckets whose period has elapsed, back-filling HISTORY_NO_DATA
  * for buckets that saw no adverts. Must be called at least once per shortest
@@ -87,5 +90,6 @@ uint32_t history_window_seconds(history_range_t range);
 /* Test seams: the pure-logic entry points, driven by an explicit clock so the
  * ring/rollover behaviour can be exercised off-target. */
 void history_init_at(int64_t now_us);
-void history_record_at(int slot, float temp_c, float humid_pct, int64_t now_us);
+void history_record_at(int slot, float temp_c, float humid_pct,
+                       uint8_t batt_pct, int8_t rssi, int64_t now_us);
 void history_tick_at(int64_t now_us);

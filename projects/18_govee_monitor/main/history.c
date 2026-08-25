@@ -17,6 +17,8 @@ typedef struct {
     uint8_t  count;           /* buckets holding real data, saturates */
     int32_t  sum_tx100;       /* open-bucket accumulator */
     int32_t  sum_hx100;
+    int32_t  sum_rssi;
+    uint8_t  last_batt;
     uint16_t n;               /* adverts folded into the open bucket */
     int64_t  bucket_end_us;
 } tier_t;
@@ -37,10 +39,12 @@ static int active_slots(void)
 /* Close the open bucket: push its average, or NO_DATA if it saw nothing. */
 static void tier_close_bucket(tier_t *t)
 {
-    history_point_t p = { HISTORY_NO_DATA, HISTORY_NO_DATA, 0 };
+    history_point_t p = { HISTORY_NO_DATA, HISTORY_NO_DATA, 0, 0, 0 };
     if (t->n > 0) {
         p.temp_cx100 = (int16_t)(t->sum_tx100 / t->n);
         p.humid_x100 = (int16_t)(t->sum_hx100 / t->n);
+        p.rssi       = (int8_t)(t->sum_rssi / (int32_t)t->n);
+        p.batt_pct   = t->last_batt;
         p.n          = t->n;
         if (t->count < HISTORY_POINTS) t->count++;
     }
@@ -48,6 +52,7 @@ static void tier_close_bucket(tier_t *t)
     t->head = (uint8_t)((t->head + 1) % HISTORY_POINTS);
     t->sum_tx100 = 0;
     t->sum_hx100 = 0;
+    t->sum_rssi = 0;
     t->n = 0;
 }
 
@@ -72,6 +77,7 @@ static void tier_advance(tier_t *t, int64_t now_us, uint32_t period_s)
         t->count = 0;
         t->sum_tx100 = 0;
         t->sum_hx100 = 0;
+        t->sum_rssi = 0;
         t->n = 0;
     } else {
         for (int64_t i = 0; i < missed; i++) {
@@ -95,6 +101,8 @@ void history_init_at(int64_t now_us)
                 t->pts[i].temp_cx100 = HISTORY_NO_DATA;
                 t->pts[i].humid_x100 = HISTORY_NO_DATA;
                 t->pts[i].n          = 0;
+                t->pts[i].batt_pct   = 0;
+                t->pts[i].rssi       = 0;
             }
             t->bucket_end_us = now_us + (int64_t)s_bucket_s[r] * 1000000LL;
         }
@@ -102,7 +110,8 @@ void history_init_at(int64_t now_us)
     unlock();
 }
 
-void history_record_at(int slot, float temp_c, float humid_pct, int64_t now_us)
+void history_record_at(int slot, float temp_c, float humid_pct,
+                       uint8_t batt_pct, int8_t rssi, int64_t now_us)
 {
     if (slot < 0 || slot >= active_slots()) return;
 
@@ -115,6 +124,8 @@ void history_record_at(int slot, float temp_c, float humid_pct, int64_t now_us)
         tier_advance(t, now_us, s_bucket_s[r]);
         t->sum_tx100 += tx100;
         t->sum_hx100 += hx100;
+        t->sum_rssi  += rssi;
+        t->last_batt  = batt_pct;
         t->n++;
     }
     unlock();
@@ -137,9 +148,10 @@ void history_init(void)
     history_init_at(esp_timer_get_time());
 }
 
-void history_record(int slot, float temp_c, float humid_pct)
+void history_record(int slot, float temp_c, float humid_pct,
+                    uint8_t batt_pct, int8_t rssi)
 {
-    history_record_at(slot, temp_c, humid_pct, esp_timer_get_time());
+    history_record_at(slot, temp_c, humid_pct, batt_pct, rssi, esp_timer_get_time());
 }
 
 void history_tick(void)

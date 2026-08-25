@@ -25,8 +25,8 @@ static void test_windows(void)
 static void test_bucket_average(void)
 {
     history_init_at(0);
-    history_record_at(0, 20.0f, 70.0f, SEC(1));
-    history_record_at(0, 22.0f, 80.0f, SEC(2));
+    history_record_at(0, 20.0f, 70.0f, 90, -70, SEC(1));
+    history_record_at(0, 22.0f, 80.0f, 90, -70, SEC(2));
     history_tick_at(SEC(31));                       /* close the 30 s bucket */
 
     uint16_t n = history_snapshot(0, HISTORY_RANGE_1H, buf);
@@ -46,7 +46,7 @@ static void test_bucket_average(void)
 static void test_gap_backfill(void)
 {
     history_init_at(0);
-    history_record_at(0, 20.0f, 50.0f, SEC(1));
+    history_record_at(0, 20.0f, 50.0f, 90, -70, SEC(1));
     history_tick_at(SEC(31));            /* bucket 1: real */
     history_tick_at(SEC(151));           /* buckets 2..5: silent */
 
@@ -63,7 +63,7 @@ static void test_ring_wrap(void)
 {
     history_init_at(0);
     for (int i = 0; i < HISTORY_POINTS + 10; i++) {
-        history_record_at(0, (float)i, 50.0f, SEC(i * 30 + 1));
+        history_record_at(0, (float)i, 50.0f, 90, -70, SEC(i * 30 + 1));
         history_tick_at(SEC((i + 1) * 30 + 1));
     }
     uint16_t n = history_snapshot(0, HISTORY_RANGE_1H, buf);
@@ -78,7 +78,7 @@ static void test_ring_wrap(void)
 static void test_gap_longer_than_window(void)
 {
     history_init_at(0);
-    history_record_at(0, 20.0f, 50.0f, SEC(1));
+    history_record_at(0, 20.0f, 50.0f, 90, -70, SEC(1));
     history_tick_at(SEC(31));
     history_tick_at(SEC(3600 * 5));      /* 5 h of silence on a 1 h tier */
 
@@ -88,7 +88,7 @@ static void test_gap_longer_than_window(void)
         CHECK(buf[i].temp_cx100 == HISTORY_NO_DATA, "slot %d cleared", i);
     }
     /* And it must keep working afterwards. */
-    history_record_at(0, 25.0f, 60.0f, SEC(3600 * 5 + 1));
+    history_record_at(0, 25.0f, 60.0f, 90, -70, SEC(3600 * 5 + 1));
     history_tick_at(SEC(3600 * 5 + 31));
     CHECK(history_snapshot(0, HISTORY_RANGE_1H, buf) == 1, "recovers after gap");
     CHECK(buf[HISTORY_POINTS - 1].temp_cx100 == 2500, "post-gap value");
@@ -98,9 +98,9 @@ static void test_gap_longer_than_window(void)
 static void test_slot_isolation(void)
 {
     history_init_at(0);
-    history_record_at(0, 20.0f, 50.0f, SEC(1));
-    history_record_at(1, 30.0f, 90.0f, SEC(1));
-    history_record_at(99, 40.0f, 10.0f, SEC(1));     /* must be a no-op */
+    history_record_at(0, 20.0f, 50.0f, 90, -70, SEC(1));
+    history_record_at(1, 30.0f, 90.0f, 90, -70, SEC(1));
+    history_record_at(99, 40.0f, 10.0f, 90, -70, SEC(1));     /* must be a no-op */
     history_tick_at(SEC(31));
 
     history_snapshot(0, HISTORY_RANGE_1H, buf);
@@ -115,7 +115,7 @@ static void test_coarse_tier(void)
 {
     history_init_at(0);
     for (int i = 0; i < 24; i++) {                   /* one advert every 30 s */
-        history_record_at(0, 10.0f + i, 50.0f, SEC(i * 30 + 1));
+        history_record_at(0, 10.0f + i, 50.0f, 90, -70, SEC(i * 30 + 1));
     }
     history_tick_at(SEC(721));                       /* close the 12 min bucket */
     uint16_t n = history_snapshot(0, HISTORY_RANGE_24H, buf);
@@ -123,6 +123,51 @@ static void test_coarse_tier(void)
     /* mean of 10..33 = 21.5 */
     CHECK(buf[HISTORY_POINTS - 1].temp_cx100 == 2150, "24h avg = %d",
           buf[HISTORY_POINTS - 1].temp_cx100);
+}
+
+/* Battery is a level, RSSI is noise: the first takes the bucket's last value,
+ * the second its mean. Getting these the same way round matters — an averaged
+ * battery lags a real drop, and a last-value RSSI is just the final packet. */
+static void test_battery_last_rssi_mean(void)
+{
+    history_init_at(0);
+    history_record_at(0, 20.0f, 50.0f, 90, -60, SEC(1));
+    history_record_at(0, 20.0f, 50.0f, 88, -80, SEC(2));
+    history_record_at(0, 20.0f, 50.0f, 85, -70, SEC(3));
+    history_tick_at(SEC(31));
+
+    history_snapshot(0, HISTORY_RANGE_1H, buf);
+    const history_point_t *p = &buf[HISTORY_POINTS - 1];
+    CHECK(p->batt_pct == 85, "battery should be the last value, got %u", p->batt_pct);
+    CHECK(p->rssi == -70, "rssi should be the mean, got %d", p->rssi);
+    CHECK(p->n == 3, "n should count adverts, got %u", p->n);
+}
+
+/* history_since is the uploader's watermark read path. */
+static void test_since_watermark(void)
+{
+    history_bucket_t out[8];
+    history_init_at(0);
+
+    for (int i = 0; i < 4; i++) {
+        history_record_at(0, 20.0f + i, 50.0f, 90, -70, SEC(i * 30 + 1));
+        history_tick_at(SEC((i + 1) * 30 + 1));
+    }
+
+    uint16_t n = history_since(0, HISTORY_RANGE_1H, 0, out, 8);
+    CHECK(n == 4, "all four buckets are newer than 0, got %u", n);
+    CHECK(out[0].end_uptime_us < out[1].end_uptime_us, "oldest first");
+
+    /* Acknowledge the first two; only the rest should come back. */
+    uint16_t n2 = history_since(0, HISTORY_RANGE_1H, out[1].end_uptime_us, out, 8);
+    CHECK(n2 == 2, "two buckets after the watermark, got %u", n2);
+
+    /* Everything acknowledged. */
+    uint16_t n3 = history_since(0, HISTORY_RANGE_1H, SEC(10000), out, 8);
+    CHECK(n3 == 0, "nothing past a future watermark, got %u", n3);
+
+    /* max is respected. */
+    CHECK(history_since(0, HISTORY_RANGE_1H, 0, out, 2) == 2, "max caps the count");
 }
 
 int main(void)
@@ -134,6 +179,8 @@ int main(void)
     test_gap_longer_than_window();
     test_slot_isolation();
     test_coarse_tier();
+    test_battery_last_rssi_mean();
+    test_since_watermark();
 
     if (fails == 0) {
         printf("all history tests passed\n");
