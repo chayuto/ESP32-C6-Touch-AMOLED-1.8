@@ -27,8 +27,8 @@ the same reason the database keeps it separate: a label is mutable metadata and
 must not be frozen into millions of immutable measurements.
 """
 import argparse
-import io
 import os
+import tempfile
 import sys
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
@@ -169,7 +169,10 @@ def main():
     # A dry run never touches Hugging Face, so it must not demand credentials
     # for it — that is exactly the state you are in while still wiring this up.
     repo = os.environ.get("HF_DATASET") if args.dry_run else need("HF_DATASET")
-    token = os.environ.get("HF_TOKEN") if args.dry_run else need("HF_TOKEN")
+    # HF_TOKEN is optional: huggingface_hub falls back to the machine's cached
+    # login (~/.cache/huggingface/token) when it is None, so a `hf auth login`
+    # is enough and the token need not be copied into .env.
+    token = os.environ.get("HF_TOKEN") or None
 
     since = None
     if not args.all:
@@ -185,8 +188,11 @@ def main():
         print("nothing to sync")
         return
 
-    api = HfApi(token=token) if token else None
+    api = HfApi(token=token)
     if not args.dry_run:
+        who = api.whoami()
+        print(f"hugging face: {who.get('name')} "
+              f"({who.get('auth', {}).get('accessToken', {}).get('role', 'unknown')} token)")
         api.create_repo(repo_id=repo, repo_type="dataset",
                         private=True, exist_ok=True)
 
@@ -213,12 +219,13 @@ def main():
         if args.dry_run:
             continue
 
-        buf = io.BytesIO()
-        pq.write_table(merged, buf, compression="zstd")
-        buf.seek(0)
-        api.upload_file(path_or_fileobj=buf, path_in_repo=path,
-                        repo_id=repo, repo_type="dataset",
-                        commit_message=f"readings {month}: {merged.num_rows} rows")
+        # A real file rather than BytesIO: Xet storage cannot dedupe an
+        # in-memory buffer and falls back to plain HTTP with a warning.
+        with tempfile.NamedTemporaryFile(suffix=".parquet") as tmp:
+            pq.write_table(merged, tmp.name, compression="zstd")
+            api.upload_file(path_or_fileobj=tmp.name, path_in_repo=path,
+                            repo_id=repo, repo_type="dataset",
+                            commit_message=f"readings {month}: {merged.num_rows} rows")
         uploaded += 1
 
     # --- dimension -----------------------------------------------------------
@@ -233,12 +240,11 @@ def main():
                                   if pa.types.is_timestamp(f.type) else s.get(f.name)
                                   for s in sensors]
                          for f in sschema}, schema=sschema)
-        buf = io.BytesIO()
-        pq.write_table(stab, buf, compression="zstd")
-        buf.seek(0)
-        api.upload_file(path_or_fileobj=buf, path_in_repo=SENSORS_PATH,
-                        repo_id=repo, repo_type="dataset",
-                        commit_message=f"sensors: {len(sensors)} rows")
+        with tempfile.NamedTemporaryFile(suffix=".parquet") as tmp:
+            pq.write_table(stab, tmp.name, compression="zstd")
+            api.upload_file(path_or_fileobj=tmp.name, path_in_repo=SENSORS_PATH,
+                            repo_id=repo, repo_type="dataset",
+                            commit_message=f"sensors: {len(sensors)} rows")
         print(f"  {SENSORS_PATH}: {len(sensors)} rows")
 
     print(f"{uploaded} partition(s) written, {skipped} unchanged")

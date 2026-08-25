@@ -23,6 +23,7 @@
 #include "slot_store.h"
 #include "history.h"
 #include "net_time.h"
+#include "uploader.h"
 #include "ble_scanner.h"
 #include "ble_scanner.h"
 #include "power_save.h"
@@ -68,13 +69,19 @@ static void heartbeat_timer_cb(void *arg)
 
     ESP_LOGI(TAG,
              "status: wifi=%s clock=%s sync_age=%llds "
-             "slots=%d/%d/%d(live/stale/max) adverts=%lu screen=%s heap=%lu min=%lu",
+             "slots=%d/%d/%d(live/stale/max) adverts=%lu screen=%s "
+             "up[sent=%lu dup=%lu fail=%lu backlog=%u age=%llds] heap=%lu min=%lu",
              net_time_wifi_up() ? "up" : "down",
              SRC[net_time_clock_src()],
              (long long)sync_age,
              live, stale, CONFIG_GOVEE_MAX_SLOTS,
              (unsigned long)ble_scanner_advert_count(),
              power_save_is_active() ? "off" : "on",
+             (unsigned long)uploader_rows_sent(),
+             (unsigned long)uploader_rows_duplicate(),
+             (unsigned long)uploader_failures(),
+             uploader_backlog(),
+             (long long)uploader_since_success_s(),
              (unsigned long)esp_get_free_heap_size(),
              (unsigned long)esp_get_minimum_free_heap_size());
 }
@@ -131,6 +138,7 @@ void app_main(void)
     /* Non-blocking: brings up the RTC now, WiFi and NTP whenever they become
      * available. The monitor is fully functional if neither ever does. */
     net_time_init();
+    uploader_start();
     ui_create(lv_scr_act());
 
     const esp_timer_create_args_t history_timer_args = {

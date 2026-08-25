@@ -10,6 +10,7 @@ idf_component_register(
         "ble_scanner.c"
         "power_save.c"
         "net_time.c"
+        "uploader.c"
         "rtc_manager.c"
     INCLUDE_DIRS "."
     REQUIRES
@@ -24,4 +25,7 @@ idf_component_register(
         esp_netif
         esp_event
         lwip
+        esp_http_client
+        esp-tls
+        mbedtls
 )

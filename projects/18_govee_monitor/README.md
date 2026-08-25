@@ -150,9 +150,31 @@ and the H5051/52/71 legacy variants. Drop additional branches into
 
 ## Cloud upload
 
-Readings are uploaded to a Supabase project (buffer, not archive) and archived
-onward from there. Credentials, the psql connection gotchas, and the schema
-design are documented in [`supabase/README.md`](supabase/README.md).
+```
+board ──3-min buckets──> Supabase (90d buffer) ──parquet──> Hugging Face (archive)
+        INSERT-only key                          /sync-data
+```
+
+The board POSTs closed history buckets every 60 s. Uploads never block
+collection: if WiFi, the clock or the server are unavailable the watermark
+simply does not advance and the readings wait in the history ring, giving
+6 hours of offline tolerance (120 buckets x 3 min) before the oldest roll off.
+
+Every row carries a deterministic UUIDv7 minted from (bucket ms, device id,
+sensor MAC), so a replay is provably the same row. The device therefore uses a
+plain insert and treats the server's `409 / 23505` as success — retrying is
+always safe and never duplicates.
+
+Credentials, the psql connection gotchas and the schema design are in
+[`supabase/README.md`](supabase/README.md).
+
+| Script | Does |
+|---|---|
+| `supabase/apply_schema.sh` | idempotent DDL |
+| `supabase/seed_sensors.sh` | publish labels from `device_config.h` |
+| `supabase/verify.sh` | assert the firmware key cannot read or delete |
+| `supabase/check_ids.sh` | re-derive live row ids and prove they reproduce |
+| `tools/sync.sh` | Supabase → Hugging Face parquet (`/sync-data`) |
 
 ## Tests
 
