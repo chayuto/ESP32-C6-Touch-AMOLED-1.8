@@ -1,3 +1,11 @@
+# Template — copy to `sdkconfig.defaults` and fill in any secrets.
+#
+# `sdkconfig.defaults` is gitignored so credentials never reach this public
+# repo. It holds no secrets today, but WiFi upload is coming and the ignore
+# rule only protects files git is not already tracking.
+#
+#   cp sdkconfig.defaults.template sdkconfig.defaults
+#
 CONFIG_IDF_TARGET="esp32c6"
 CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
 CONFIG_PARTITION_TABLE_CUSTOM=y

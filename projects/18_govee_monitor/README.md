@@ -55,6 +55,9 @@ as a vertical stack of tiles.
 ## Build / Flash
 
 ```zsh
+cp projects/18_govee_monitor/sdkconfig.defaults.template \
+   projects/18_govee_monitor/sdkconfig.defaults          # first checkout only
+
 . ~/esp/esp-idf/export.sh
 idf.py -C projects/18_govee_monitor set-target esp32c6      # one-time
 idf.py -C projects/18_govee_monitor build
