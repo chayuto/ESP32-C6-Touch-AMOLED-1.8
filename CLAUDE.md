@@ -291,6 +291,29 @@ Headroom:                  ~168 KB (tight — avoid large heap allocations)
 - **QMI8658 axis mapping**: Chip is mounted 90° CCW on the PCB back. For portrait display: `screen_x = -chip_y`, `screen_y = chip_x`. Verified on hardware in project 14.
 - **SD card shares SPI2 with display**: ESP32-C6 has no SDMMC host (only SDIO slave). SD card uses SDSPI on SPI2_HOST — same bus as the QSPI display. Cannot access both simultaneously. Use `amoled_release_spi()` / `amoled_reclaim_spi()` for runtime switching, or access SD before display init.
 
+## Project 18 Telemetry Pipeline
+
+`18_govee_monitor` uploads to Supabase and archives to Hugging Face:
+
+```
+board --3-min buckets--> Supabase (90d buffer) --parquet--> HF dataset
+        INSERT-only key                          /sync-data
+```
+
+- **Row ids are deterministic UUIDv7** from (bucket ms, device id, sensor MAC).
+  Every retry, replay and re-export is idempotent because of it. Changing the
+  id inputs re-keys the entire archive — treat `uuid7.c` as frozen, and run
+  `supabase/check_ids.sh` if you touch it.
+- **The device inserts, never upserts.** PostgREST implements `on_conflict` as
+  `INSERT .. ON CONFLICT`, which needs `SELECT` — and the publishable key is
+  recoverable from the firmware image. A `409 / 23505` is success, not an error.
+- **History is RAM-only, giving ~6 hours of offline tolerance.** This is an
+  accepted limit, not pending work; do not propose NVS persistence again unless
+  the deployment changes.
+- Credentials live only in `projects/18_govee_monitor/.env` (gitignored). The
+  key in `sdkconfig.defaults` is the INSERT-only one and is deliberately
+  powerless.
+
 ## Agent Skills
 
 Use these slash commands for common operations:
@@ -304,3 +327,4 @@ Use these slash commands for common operations:
 | `/display-ui` | LVGL UI reference for 368×448 AMOLED + touch |
 | `/mcp-tool-design` | MCP tool design checklist |
 | `/peripherals` | I2C peripheral reference: AXP2101, QMI8658, PCF85063, ES8311 |
+| `/sync-data` | Sync project 18 readings from Supabase to Hugging Face |

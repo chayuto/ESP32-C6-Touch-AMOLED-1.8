@@ -38,7 +38,8 @@ as a vertical stack of tiles.
 - **°C / °F toggle** — Kconfig (`CONFIG_GOVEE_TEMP_UNIT_F`).
 - **Rolling history** — every reading is bucketed into three per-sensor tiers
   (1 h @ 30 s, 6 h @ 3 min, 24 h @ 12 min, 120 points each) for the chart
-  views. Costs ~6 KB of RAM and is lost on reboot.
+  views. Costs ~6 KB of RAM and is lost on reboot — see the accepted-limits
+  note under Cloud upload.
 - **Chart views** — tap anywhere to cycle tiles → humidity → temperature.
   Both charts overlay all four rooms so they can be compared on one axis;
   `[1h] [6h] [24h]` buttons pick the range.
@@ -159,6 +160,14 @@ The board POSTs closed history buckets every 60 s. Uploads never block
 collection: if WiFi, the clock or the server are unavailable the watermark
 simply does not advance and the readings wait in the history ring, giving
 6 hours of offline tolerance (120 buckets x 3 min) before the oldest roll off.
+
+**This bound is accepted, not a gap awaiting work.** The board sits inside WiFi
+range essentially always, so an outage long enough to lose data is unlikely and
+the loss would be a few hours of humidity readings from a multi-month record.
+NVS persistence would close it and was deliberately not built: it buys little
+here and adds flash wear plus a restore path to get wrong. Revisit only if the
+board moves somewhere with unreliable WiFi, or if a real outage exceeds the
+window.
 
 Every row carries a deterministic UUIDv7 minted from (bucket ms, device id,
 sensor MAC), so a replay is provably the same row. The device therefore uses a

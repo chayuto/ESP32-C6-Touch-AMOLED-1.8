@@ -78,6 +78,20 @@ and can be awkward with DDL.
 Supabase does not display the DB password after project creation. If you no
 longer have it: **Project Settings → Database → Reset database password**.
 
+## Gaps you may see in the data
+
+Two causes, both expected:
+
+- **A sensor missed its bucket.** Weak sensors drop advertisements; a bucket
+  with none is simply absent rather than zero.
+- **The board was offline for more than 6 hours, or rebooted.** History is
+  RAM-only and holds 120 x 3-minute buckets, so unsent readings older than that
+  roll off. This limit is **accepted by design** — the board is effectively
+  always in WiFi range, and NVS persistence was judged not worth its flash wear
+  and restore complexity for a few hours of a multi-month record.
+
+Neither is recoverable after the fact, so do not treat a gap as a bug to chase.
+
 ## Scripts
 
 ```zsh
