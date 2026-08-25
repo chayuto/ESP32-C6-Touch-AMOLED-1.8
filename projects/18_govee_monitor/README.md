@@ -36,6 +36,9 @@ as a vertical stack of tiles.
 - **Stale + evict timeouts** — slots grey out after 60 s of silence and
   unpinned slots free up after 5 min so a new device can take their place.
 - **°C / °F toggle** — Kconfig (`CONFIG_GOVEE_TEMP_UNIT_F`).
+- **Rolling history** — every reading is bucketed into three per-sensor tiers
+  (1 h @ 30 s, 6 h @ 3 min, 24 h @ 12 min, 120 points each) for the chart
+  views. Costs ~6 KB of RAM and is lost on reboot.
 - **Humidity is first-class** — it is rendered at the same size as temperature,
   not as a secondary value, because damp/mould watching is the point here.
 - **Type scales with slot count** — at 4 slots each tile is 112 px tall, so both
@@ -109,6 +112,7 @@ main/
 ├── ble_scanner.c        # NimBLE observer, GAP callback, MAC reverse, log
 ├── govee_decoder.c      # H5075 packed-int parser (HA parity)
 ├── slot_store.c         # pinned/auto slots, RSSI EWMA, rotation, mutex
+├── history.c            # rolling 1 h / 6 h / 24 h ring buffers per sensor
 ├── ui.c                 # N-tile vertical layout, refresh from snapshot
 ├── device_config.h.template  # template — copy to device_config.h (gitignored)
 └── Kconfig.projbuild    # GOVEE_MAX_SLOTS, timeouts, °C/°F
@@ -132,3 +136,17 @@ The protocol research doc covers H5074 (`<hHB` LE format), H5100 family
 (packed-int @ d[2..4], company ID 0x0001), H5179 (old fw 0x8801, new fw 0x0001),
 and the H5051/52/71 legacy variants. Drop additional branches into
 `govee_decoder.c` and adjust the filter in `ble_scanner.c::gap_event_cb`.
+
+## Tests
+
+`history.c` keeps three tiers of ring buffer per sensor, and its rollover and
+gap-filling behaviour is awkward to check on hardware — a 24 h tier takes a day
+to fill. The logic is therefore driven through `*_at()` entry points that take
+an explicit clock, and exercised on the host:
+
+```zsh
+./test/run.sh      # no board, no ESP-IDF needed
+```
+
+This covers bucket averaging, silent-bucket back-fill, ring wrap, recovery from
+a gap longer than the whole window, and slot isolation.

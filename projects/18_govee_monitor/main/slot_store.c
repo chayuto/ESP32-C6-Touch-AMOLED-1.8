@@ -1,5 +1,6 @@
 #include "slot_store.h"
 #include "device_config.h"
+#include "history.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -116,6 +117,11 @@ static void apply_reading(int idx,
     s->battery_pct  = r->battery_pct;
     s->rssi         = rssi;
     s->last_seen_us = esp_timer_get_time();
+
+    /* Feed the rolling history. Called with the slot mutex held; history takes
+     * its own lock and never calls back here, so the order is always
+     * slot_store -> history. */
+    history_record(idx, r->temp_c, r->humid_pct);
 }
 
 void slot_store_init(void)
