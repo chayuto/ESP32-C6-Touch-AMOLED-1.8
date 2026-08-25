@@ -148,6 +148,12 @@ The protocol research doc covers H5074 (`<hHB` LE format), H5100 family
 and the H5051/52/71 legacy variants. Drop additional branches into
 `govee_decoder.c` and adjust the filter in `ble_scanner.c::gap_event_cb`.
 
+## Cloud upload
+
+Readings are uploaded to a Supabase project (buffer, not archive) and archived
+onward from there. Credentials, the psql connection gotchas, and the schema
+design are documented in [`supabase/README.md`](supabase/README.md).
+
 ## Tests
 
 `history.c` keeps three tiers of ring buffer per sensor, and its rollover and
