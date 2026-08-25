@@ -1,4 +1,5 @@
 #include "ui.h"
+#include "chart_view.h"
 #include "slot_store.h"
 #include "sdkconfig.h"
 
@@ -53,6 +54,7 @@ static void build_tile(tile_t *t, lv_obj_t *parent, int y, int h)
     lv_obj_set_style_pad_all(t->root, 8, 0);
     lv_obj_set_style_bg_color(t->root, lv_color_black(), 0);
     lv_obj_clear_flag(t->root, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_clear_flag(t->root, LV_OBJ_FLAG_CLICKABLE);
 
     /* Header row: label (left) + RSSI (right) */
     t->label_name = make_label(t->root, &lv_font_montserrat_16, lv_color_white());
@@ -137,25 +139,76 @@ static void render_slot(tile_t *t, const slot_t *s)
     lv_obj_set_style_text_color(t->label_humid, fg, 0);
 }
 
+/* Views cycle on a tap anywhere that is not a control: tiles -> humidity
+ * chart -> temperature chart -> tiles. */
+typedef enum {
+    VIEW_TILES = 0,
+    VIEW_HUMIDITY,
+    VIEW_TEMP,
+    VIEW_COUNT,
+} view_t;
+
+static view_t    s_view = VIEW_TILES;
+static lv_obj_t *s_page_tiles;
+static lv_obj_t *s_page_chart;
+
+static void apply_view(void)
+{
+    if (s_view == VIEW_TILES) {
+        lv_obj_clear_flag(s_page_tiles, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(s_page_chart, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(s_page_tiles, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(s_page_chart, LV_OBJ_FLAG_HIDDEN);
+        chart_view_set_metric(s_view == VIEW_HUMIDITY ? CHART_METRIC_HUMIDITY
+                                                      : CHART_METRIC_TEMP);
+    }
+    ui_refresh();
+}
+
+static void screen_click_cb(lv_event_t *e)
+{
+    (void)e;
+    s_view = (view_t)((s_view + 1) % VIEW_COUNT);
+    apply_view();
+}
+
 void ui_create(lv_obj_t *parent)
 {
     lv_obj_set_style_bg_color(parent, lv_color_black(), 0);
     lv_obj_clear_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_event_cb(parent, screen_click_cb, LV_EVENT_CLICKED, NULL);
+
+    s_page_tiles = lv_obj_create(parent);
+    lv_obj_set_size(s_page_tiles, SCREEN_W, SCREEN_H);
+    lv_obj_set_pos(s_page_tiles, 0, 0);
+    lv_obj_set_style_radius(s_page_tiles, 0, 0);
+    lv_obj_set_style_border_width(s_page_tiles, 0, 0);
+    lv_obj_set_style_pad_all(s_page_tiles, 0, 0);
+    lv_obj_set_style_bg_color(s_page_tiles, lv_color_black(), 0);
+    lv_obj_clear_flag(s_page_tiles, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_clear_flag(s_page_tiles, LV_OBJ_FLAG_CLICKABLE);
 
     int n = CONFIG_GOVEE_MAX_SLOTS;
     int tile_h = SCREEN_H / n;
     for (int i = 0; i < n; i++) {
-        build_tile(&s_tiles[i], parent, i * tile_h, tile_h);
+        build_tile(&s_tiles[i], s_page_tiles, i * tile_h, tile_h);
     }
 
-    ui_refresh();
+    s_page_chart = chart_view_create(parent);
+
+    apply_view();
 }
 
 void ui_refresh(void)
 {
-    slot_t snap[SLOT_STORE_MAX];
-    slot_store_snapshot(snap);
-    for (int i = 0; i < CONFIG_GOVEE_MAX_SLOTS; i++) {
-        render_slot(&s_tiles[i], &snap[i]);
+    if (s_view == VIEW_TILES) {
+        slot_t snap[SLOT_STORE_MAX];
+        slot_store_snapshot(snap);
+        for (int i = 0; i < CONFIG_GOVEE_MAX_SLOTS; i++) {
+            render_slot(&s_tiles[i], &snap[i]);
+        }
+    } else {
+        chart_view_refresh();
     }
 }

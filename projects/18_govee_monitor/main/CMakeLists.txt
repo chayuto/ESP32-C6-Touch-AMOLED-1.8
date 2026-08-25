@@ -4,6 +4,7 @@ idf_component_register(
         "ui.c"
         "slot_store.c"
         "history.c"
+        "chart_view.c"
         "govee_decoder.c"
         "ble_scanner.c"
         "power_save.c"

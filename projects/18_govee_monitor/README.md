@@ -39,6 +39,13 @@ as a vertical stack of tiles.
 - **Rolling history** — every reading is bucketed into three per-sensor tiers
   (1 h @ 30 s, 6 h @ 3 min, 24 h @ 12 min, 120 points each) for the chart
   views. Costs ~6 KB of RAM and is lost on reboot.
+- **Chart views** — tap anywhere to cycle tiles → humidity → temperature.
+  Both charts overlay all four rooms so they can be compared on one axis;
+  `[1h] [6h] [24h]` buttons pick the range.
+- **Fixed humidity axis (30–100 %) with a 65 % mould line** — auto-scaling
+  would render a 74→76 %RH wiggle as a mountain range and a flat 78 %RH as
+  unremarkable. Temperature auto-scales, where shape matters more than the
+  absolute value.
 - **Humidity is first-class** — it is rendered at the same size as temperature,
   not as a secondary value, because damp/mould watching is the point here.
 - **Type scales with slot count** — at 4 slots each tile is 112 px tall, so both
@@ -113,6 +120,7 @@ main/
 ├── govee_decoder.c      # H5075 packed-int parser (HA parity)
 ├── slot_store.c         # pinned/auto slots, RSSI EWMA, rotation, mutex
 ├── history.c            # rolling 1 h / 6 h / 24 h ring buffers per sensor
+├── chart_view.c         # humidity/temperature line chart page + range buttons
 ├── ui.c                 # N-tile vertical layout, refresh from snapshot
 ├── device_config.h.template  # template — copy to device_config.h (gitignored)
 └── Kconfig.projbuild    # GOVEE_MAX_SLOTS, timeouts, °C/°F
@@ -150,3 +158,29 @@ an explicit clock, and exercised on the host:
 
 This covers bucket averaging, silent-bucket back-fill, ring wrap, recovery from
 a gap longer than the whole window, and slot isolation.
+
+## Views
+
+Tap anywhere on the screen (outside the range buttons) to cycle:
+
+```
+   tiles  →  humidity chart  →  temperature chart  →  tiles
+
+┌──────────────────────────┐
+│ Humidity          -1h→now│
+│100%                      │
+│ ╭─╮   ╭──╮               │
+│─┴─┴───┴──┴───────────────│  65% mould line (red)
+│                          │
+│ 30%                      │
+│ ● Living room ● Bed room │
+│ ● Room B      ● Laundry  │
+│ [1h]   [6h]   [24h]      │
+└──────────────────────────┘
+```
+
+Gaps in a trace are real: a bucket with no advertisement is drawn as a break
+rather than a drop to zero, so a weak sensor looks intermittent instead of
+looking like it read 0 %RH.
+
+Charts are empty for the first 30 s after boot, and reflashing clears history.
