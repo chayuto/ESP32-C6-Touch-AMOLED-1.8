@@ -126,6 +126,44 @@ from reading r
 left join sensor s on s.mac = r.mac
 group by 1, 2, 3, 4;
 
+-- Supabase configures default privileges that grant `anon` on every new object
+-- in `public`, so the view above was readable by the firmware's key the moment
+-- it was created — silently undoing the whole point of a separate dashboard
+-- role. Least privilege here needs an explicit revoke after each create, not
+-- just an absence of grants.
+revoke all on table reading_5m from anon;
+
+-- ---------------------------------------------------------------------------
+-- Dashboard read role.
+--
+-- The SPA does NOT reuse the publishable key. Every publishable key maps to
+-- `anon`, so sharing one would weld the dashboard's credential to the board's:
+-- rotating a leaked dashboard key would mean reflashing the firmware. A
+-- separate role keeps the two independent, which is the point.
+--
+-- Scope is the reading_5m view and nothing else. Because a Postgres view runs
+-- with its owner's privileges, granting the view is sufficient — the role
+-- needs no privileges on `reading` or `sensor` at all, and cannot read them.
+--
+-- PostgREST connects as `authenticator` and SET ROLEs to the JWT's `role`
+-- claim, so authenticator must be a member of this role or the switch fails.
+-- ---------------------------------------------------------------------------
+do $$
+begin
+    if not exists (select 1 from pg_roles where rolname = 'dashboard_reader') then
+        create role dashboard_reader nologin;
+    end if;
+end
+$$;
+
+grant usage  on schema public to dashboard_reader;
+grant select on table reading_5m to dashboard_reader;
+revoke all   on table reading      from dashboard_reader;
+revoke all   on table sensor       from dashboard_reader;
+revoke all   on table sensor_label from dashboard_reader;
+
+grant dashboard_reader to authenticator;
+
 -- Retention: run from the export job only after a successful archive push, so
 -- rows are dropped only once they are durably stored somewhere else.
 -- delete from reading where ts < now() - interval '90 days';

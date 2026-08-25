@@ -13,6 +13,8 @@ this wrong is the most likely way to leak something that matters.
 | Publishable key | `sb_publishable_…` | `sdkconfig.defaults` → **firmware** | INSERT readings, upsert sensors. Nothing else. |
 | Secret key | `sb_secret_…` | `.env` (host only) | Full REST access — read, delete, prune. **Never** in firmware. |
 | DB password | plain string | `.env` as `DATABASE_URL` | DDL via psql. Schema changes only. |
+| Dashboard JWT | `eyJ…` | SPA build config | SELECT on `reading_5m` only. Public once shipped. |
+| JWT signing secret | plain string | `.env` only | Signs credentials for **every** role incl. service_role. Never ships. |
 | Personal access token | `sbp_…` | not used here | Account-wide. Avoided on purpose — see below. |
 
 The publishable key **ships inside the firmware image and is recoverable with
@@ -77,6 +79,30 @@ and can be awkward with DDL.
 
 Supabase does not display the DB password after project creation. If you no
 longer have it: **Project Settings → Database → Reset database password**.
+
+## Why the dashboard does not reuse the publishable key
+
+Every Supabase publishable key maps to the same `anon` role, so a dashboard
+sharing that key would share a credential with the firmware. The decisive
+problem is not privilege but **rotation**: cycling a leaked dashboard key would
+mean reflashing the board. So the SPA gets its own role.
+
+`dashboard_reader` can select `reading_5m` and nothing else. Because a Postgres
+view executes with its owner's privileges, granting the view alone is enough —
+the role has no privileges on `reading` or `sensor` and cannot read them.
+PostgREST connects as `authenticator` and SET ROLEs to the JWT's `role` claim,
+which is why `authenticator` must be a member of the role.
+
+Mint the token with `mint_dashboard_jwt.py`; it needs the project's JWT secret,
+which signs credentials for every role including `service_role` and therefore
+never leaves `.env`. Only the minted token ships.
+
+**Watch for Supabase's default privileges.** The project grants `anon` on every
+new object in `public`, so `reading_5m` was readable by the firmware key the
+moment it was created — silently undoing the separation. `schema.sql` revokes
+it explicitly after the view is created, and `verify.sh` has a regression check
+for it. Any new table or view needs the same treatment: absence of a grant is
+not the same as a revoke here.
 
 ## Gaps you may see in the data
 

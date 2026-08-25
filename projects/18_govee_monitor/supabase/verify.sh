@@ -37,6 +37,9 @@ check "cannot delete reading"           401 "$(req DELETE "/rest/v1/reading?devi
 check "cannot read sensor labels"       401 "$(req GET "/rest/v1/sensor?select=mac&limit=1" "$PUB")"
 check "cannot write sensor labels"      401 "$(req POST "/rest/v1/sensor" "$PUB" $JSON \
         -H 'Prefer: return=minimal' -d '[{"mac":"00:00:00:00:00:00","label":"pwned"}]')"
+# Regression: Supabase default privileges grant anon on every new object in
+# public, so the view was silently readable by the firmware key when created.
+check "cannot read the reading_5m view" 401 "$(req GET "/rest/v1/reading_5m?select=bucket&limit=1" "$PUB")"
 
 echo "== firmware key can insert readings, and replays are safe =="
 ROW='[{"id":"00000000-0000-7000-8000-0000000000ff","ts":"2026-01-01T00:00:00Z","device_id":"verify","mac":"00:00:00:00:00:00","temp_c":1,"humid":2,"battery":50,"rssi":-70,"n_samples":3}]'
@@ -49,6 +52,17 @@ check "replay rejected as duplicate"    409 "$(req POST "/rest/v1/reading" "$PUB
 grep -q 23505 /tmp/gv_verify.out \
     && echo "ok    replay is a unique violation (23505), safe to ignore on device" \
     || { echo "FAIL  replay error was not 23505: $(cat /tmp/gv_verify.out)"; fail=$((fail+1)); }
+
+if [ -n "$DASHBOARD_JWT" ]; then
+echo "== dashboard token reads the view and nothing else =="
+check "dashboard CAN read reading_5m"   200 "$(req GET "/rest/v1/reading_5m?select=bucket&limit=1" "$DASHBOARD_JWT")"
+check "dashboard CANNOT read reading"   401 "$(req GET "/rest/v1/reading?select=id&limit=1" "$DASHBOARD_JWT")"
+check "dashboard CANNOT read sensor"    401 "$(req GET "/rest/v1/sensor?select=mac&limit=1" "$DASHBOARD_JWT")"
+check "dashboard CANNOT insert"         401 "$(req POST "/rest/v1/reading" "$DASHBOARD_JWT" $JSON \
+        -H 'Prefer: return=minimal' -d '[{"id":"00000000-0000-7000-8000-00000000dead","ts":"2026-01-01T00:00:00Z","device_id":"x","mac":"x"}]')"
+else
+echo "== dashboard token checks skipped (DASHBOARD_JWT not set in .env) =="
+fi
 
 echo "== cleanup (secret key) =="
 check "verify row removed"              204 "$(req DELETE "/rest/v1/reading?device_id=eq.verify" "$SEC")"
