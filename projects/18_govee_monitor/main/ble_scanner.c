@@ -15,6 +15,8 @@
 
 static const char *TAG = "ble";
 
+static uint32_t s_advert_count;   /* decoded H5075 adverts since boot */
+
 static bool s_scanning = false;
 
 static void start_scan(void);
@@ -74,6 +76,7 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg)
              mac_be[0], mac_be[1], mac_be[2], mac_be[3], mac_be[4], mac_be[5],
              r.temp_c, r.humid_pct, r.battery_pct, d->rssi);
 
+    s_advert_count++;
     slot_store_update(mac_be, name[0] ? name : NULL, &r, d->rssi);
     return 0;
 }
@@ -157,4 +160,9 @@ esp_err_t ble_scanner_start(void)
 
     nimble_port_freertos_init(host_task);
     return ESP_OK;
+}
+
+uint32_t ble_scanner_advert_count(void)
+{
+    return s_advert_count;
 }

@@ -8,6 +8,8 @@ idf_component_register(
         "govee_decoder.c"
         "ble_scanner.c"
         "power_save.c"
+        "net_time.c"
+        "rtc_manager.c"
     INCLUDE_DIRS "."
     REQUIRES
         amoled_driver
@@ -17,4 +19,8 @@ idf_component_register(
         freertos
         driver
         bt
+        esp_wifi
+        esp_netif
+        esp_event
+        lwip
 )

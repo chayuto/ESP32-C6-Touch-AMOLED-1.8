@@ -42,3 +42,7 @@ CONFIG_ESP_TASK_WDT_TIMEOUT_S=15
 
 # Show all four pinned sensors at once (see main/device_config.h)
 CONFIG_GOVEE_MAX_SLOTS=4
+
+# WiFi — used for NTP and cloud upload. Fill these in locally; never commit.
+CONFIG_GOVEE_WIFI_SSID="YOUR_SSID_HERE"
+CONFIG_GOVEE_WIFI_PASSWORD="YOUR_PASSWORD_HERE"

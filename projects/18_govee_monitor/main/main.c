@@ -22,6 +22,8 @@
 #include "ui.h"
 #include "slot_store.h"
 #include "history.h"
+#include "net_time.h"
+#include "ble_scanner.h"
 #include "ble_scanner.h"
 #include "power_save.h"
 
@@ -42,6 +44,39 @@ static void refresh_timer_cb(lv_timer_t *t)
     if (power_save_is_active()) return;     /* skip work while screen is off */
     slot_store_tick();
     ui_refresh();
+}
+
+/* One line every 30 s summarising everything a human would ask about. Silence
+ * must never be the steady state: without this a WiFi drop, a clock that never
+ * synced or a sensor that went quiet are all invisible until someone plots the
+ * data days later and finds a hole. */
+static void heartbeat_timer_cb(void *arg)
+{
+    (void)arg;
+
+    slot_t snap[SLOT_STORE_MAX];
+    slot_store_snapshot(snap);
+
+    int live = 0, stale = 0;
+    for (int i = 0; i < CONFIG_GOVEE_MAX_SLOTS; i++) {
+        if (!snap[i].valid) continue;
+        if (snap[i].stale) stale++; else live++;
+    }
+
+    static const char *SRC[] = { "NONE", "RTC", "NTP" };
+    int64_t sync_age = net_time_since_sync_s();
+
+    ESP_LOGI(TAG,
+             "status: wifi=%s clock=%s sync_age=%llds "
+             "slots=%d/%d/%d(live/stale/max) adverts=%lu screen=%s heap=%lu min=%lu",
+             net_time_wifi_up() ? "up" : "down",
+             SRC[net_time_clock_src()],
+             (long long)sync_age,
+             live, stale, CONFIG_GOVEE_MAX_SLOTS,
+             (unsigned long)ble_scanner_advert_count(),
+             power_save_is_active() ? "off" : "on",
+             (unsigned long)esp_get_free_heap_size(),
+             (unsigned long)esp_get_minimum_free_heap_size());
 }
 
 /* History must keep bucketing while the display is off, so it runs on its own
@@ -92,6 +127,10 @@ void app_main(void)
 
     slot_store_init();
     history_init();
+
+    /* Non-blocking: brings up the RTC now, WiFi and NTP whenever they become
+     * available. The monitor is fully functional if neither ever does. */
+    net_time_init();
     ui_create(lv_scr_act());
 
     const esp_timer_create_args_t history_timer_args = {
@@ -101,6 +140,14 @@ void app_main(void)
     esp_timer_handle_t history_timer = NULL;
     ESP_ERROR_CHECK(esp_timer_create(&history_timer_args, &history_timer));
     ESP_ERROR_CHECK(esp_timer_start_periodic(history_timer, 1000000));  /* 1 s */
+
+    const esp_timer_create_args_t heartbeat_timer_args = {
+        .callback = heartbeat_timer_cb,
+        .name     = "heartbeat",
+    };
+    esp_timer_handle_t heartbeat_timer = NULL;
+    ESP_ERROR_CHECK(esp_timer_create(&heartbeat_timer_args, &heartbeat_timer));
+    ESP_ERROR_CHECK(esp_timer_start_periodic(heartbeat_timer, 30000000));  /* 30 s */
 
     power_save_init();
 

@@ -1,5 +1,27 @@
 menu "Govee Monitor"
 
+    config GOVEE_WIFI_SSID
+        string "WiFi SSID"
+        default "YOUR_SSID_HERE"
+        help
+            WiFi network used for clock sync and cloud upload. Leave at the
+            placeholder to run fully offline — the monitor works without it.
+
+    config GOVEE_WIFI_PASSWORD
+        string "WiFi Password"
+        default "YOUR_PASSWORD_HERE"
+        help
+            WiFi network password.
+
+    config GOVEE_NTP_SERVER
+        string "NTP server"
+        default "pool.ntp.org"
+        help
+            Opportunistic time source. Readings are stamped with uptime and
+            converted to wall clock only on upload, so a late sync still
+            back-dates everything correctly.
+
+
     config GOVEE_MAX_SLOTS
         int "Max simultaneous sensors on display"
         range 1 4

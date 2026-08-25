@@ -19,3 +19,6 @@ esp_err_t ble_scanner_resume(void);
 
 /* True while a scan is active. */
 bool      ble_scanner_is_running(void);
+
+/* Decoded H5075 adverts since boot — for the health heartbeat. */
+uint32_t ble_scanner_advert_count(void);

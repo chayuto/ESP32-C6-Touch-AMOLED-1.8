@@ -186,6 +186,42 @@ Default IDF partition = 1MB app. Too small for LVGL + AMOLED projects. Always us
 - `sdkconfig.defaults.template` — placeholder values, committed to git
 - README instructs: copy template → sdkconfig.defaults, fill in WiFi credentials
 
+## Logging & Debuggability (Standing Rule)
+
+Write every subsystem so its behaviour can be reconstructed from the serial
+console alone. The board has no debugger attached in normal use and the display
+shows only what the UI chooses to show — the console is the ground truth.
+
+**Default to more logging, not less.** If you are deciding whether a line is
+worth logging, log it.
+
+- **Every module owns a `static const char *TAG`** and logs through `ESP_LOG*`,
+  never `printf`.
+- **Log every state transition** — init done, connected, disconnected, synced,
+  paused, resumed, mode changed. A subsystem that changes state silently is
+  undebuggable after the fact.
+- **Log values, not adjectives.** `"WiFi down, retry in 8000 ms"` beats
+  `"WiFi problem"`. Include the number, the address, the error code, the
+  measured heap. Failures must carry `esp_err_to_name(err)` or the raw `rc`.
+- **Never swallow an error.** Every non-OK return either propagates or gets a
+  `ESP_LOGW`/`ESP_LOGE` line explaining what was lost as a result.
+- **Emit a periodic one-line health heartbeat** from any long-running project
+  (typically every 30–60 s) summarising the state a human would ask about:
+  link status, clock source, queue depth, free heap, per-peer counts. Silence
+  must never be the normal steady state.
+- **Rate-limit, don't delete.** For per-sample events, log every sample at
+  `ESP_LOGD` and a rolled-up count at `ESP_LOGI`, rather than dropping the
+  information entirely.
+- **Prefer `esp_console` commands** for anything a human would want to poke
+  on demand (dump history, force a resync, show slots). A console command is
+  cheaper than reflashing with extra printfs.
+- Keep the log readable at 115200 baud: one line per event, TAG-prefixed,
+  no multi-line banners in steady state.
+
+Remember `.claude/bin/agent_monitor.py` is how an agent reads this output —
+logs are the primary interface for verifying work on hardware, not an
+afterthought.
+
 ## Critical Rules
 
 - **Never build without setting target to esp32c6** — default esp32 builds fail with IRAM overflow
