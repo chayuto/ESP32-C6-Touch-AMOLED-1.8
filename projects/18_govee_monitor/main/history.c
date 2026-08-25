@@ -37,10 +37,11 @@ static int active_slots(void)
 /* Close the open bucket: push its average, or NO_DATA if it saw nothing. */
 static void tier_close_bucket(tier_t *t)
 {
-    history_point_t p = { HISTORY_NO_DATA, HISTORY_NO_DATA };
+    history_point_t p = { HISTORY_NO_DATA, HISTORY_NO_DATA, 0 };
     if (t->n > 0) {
         p.temp_cx100 = (int16_t)(t->sum_tx100 / t->n);
         p.humid_x100 = (int16_t)(t->sum_hx100 / t->n);
+        p.n          = t->n;
         if (t->count < HISTORY_POINTS) t->count++;
     }
     t->pts[t->head] = p;
@@ -93,6 +94,7 @@ void history_init_at(int64_t now_us)
             for (int i = 0; i < HISTORY_POINTS; i++) {
                 t->pts[i].temp_cx100 = HISTORY_NO_DATA;
                 t->pts[i].humid_x100 = HISTORY_NO_DATA;
+                t->pts[i].n          = 0;
             }
             t->bucket_end_us = now_us + (int64_t)s_bucket_s[r] * 1000000LL;
         }
@@ -164,6 +166,32 @@ uint16_t history_snapshot(int slot, history_range_t range, history_point_t *out)
     uint16_t valid = t->count;
     unlock();
     return valid;
+}
+
+uint16_t history_since(int slot, history_range_t range, int64_t after_uptime_us,
+                       history_bucket_t *out, uint16_t max)
+{
+    if (!out || max == 0) return 0;
+    if (slot < 0 || slot >= active_slots() || range >= HISTORY_RANGE_COUNT) return 0;
+
+    uint16_t written = 0;
+    lock();
+    const tier_t *t = &s_tier[slot][range];
+    int64_t period_us = (int64_t)s_bucket_s[range] * 1000000LL;
+
+    /* out[i] of a snapshot is pts[(head+i) % N]; the newest closed bucket is
+     * pts[head-1] and ended one period before the open bucket's end. */
+    for (int i = 0; i < HISTORY_POINTS && written < max; i++) {
+        const history_point_t *p = &t->pts[(t->head + i) % HISTORY_POINTS];
+        if (p->n == 0) continue;                       /* never filled, or a gap */
+        int64_t end_us = t->bucket_end_us - period_us * (int64_t)(HISTORY_POINTS - i);
+        if (end_us <= after_uptime_us) continue;
+        out[written].end_uptime_us = end_us;
+        out[written].p             = *p;
+        written++;
+    }
+    unlock();
+    return written;
 }
 
 uint32_t history_bucket_seconds(history_range_t range)

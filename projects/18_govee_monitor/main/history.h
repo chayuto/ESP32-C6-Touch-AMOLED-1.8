@@ -41,7 +41,16 @@ typedef enum {
 typedef struct {
     int16_t temp_cx100;   /* °C x100, or HISTORY_NO_DATA */
     int16_t humid_x100;   /* %RH x100, or HISTORY_NO_DATA */
+    uint16_t n;           /* adverts averaged into this bucket; 0 == no data */
 } history_point_t;
+
+/* A closed bucket plus when it closed, in esp_timer uptime. Wall-clock is
+ * applied later by net_time, which is what lets a late NTP sync back-date
+ * buckets collected before the clock existed. */
+typedef struct {
+    int64_t         end_uptime_us;
+    history_point_t p;
+} history_bucket_t;
 
 /* Zeroes every tier and anchors the first bucket to the current time. */
 void history_init(void);
@@ -60,6 +69,14 @@ void history_tick(void);
  * element and the x-axis stays anchored to "now" at the right edge.
  * Returns the number of buckets holding real data. */
 uint16_t history_snapshot(int slot, history_range_t range, history_point_t *out);
+
+/* Copy buckets from `range` for `slot` that closed strictly after
+ * `after_uptime_us`, oldest first, skipping empty ones. Returns how many were
+ * written (at most `max`). This is the uploader's read path: it keeps a
+ * watermark instead of a second queue, so an outage costs no extra memory and
+ * tolerance equals tier depth. */
+uint16_t history_since(int slot, history_range_t range, int64_t after_uptime_us,
+                       history_bucket_t *out, uint16_t max);
 
 /* Bucket period in seconds, for axis labelling. */
 uint32_t history_bucket_seconds(history_range_t range);
