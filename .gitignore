@@ -38,3 +38,6 @@ shared/components/lvgl__lvgl/scripts/
 **/.env
 .env.*
 !.env.template
+
+# project-local tooling venv
+projects/*/tools/.venv/
