@@ -46,3 +46,9 @@ CONFIG_GOVEE_MAX_SLOTS=4
 # WiFi — used for NTP and cloud upload. Fill these in locally; never commit.
 CONFIG_GOVEE_WIFI_SSID="YOUR_SSID_HERE"
 CONFIG_GOVEE_WIFI_PASSWORD="YOUR_PASSWORD_HERE"
+
+# Supabase upload. The key here must be the publishable/anon key with an
+# INSERT-only RLS policy — it ships in the firmware image.
+CONFIG_GOVEE_DEVICE_ID="device 1"
+CONFIG_GOVEE_SUPABASE_URL=""
+CONFIG_GOVEE_SUPABASE_KEY=""

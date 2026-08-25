@@ -13,6 +13,28 @@ menu "Govee Monitor"
         help
             WiFi network password.
 
+    config GOVEE_DEVICE_ID
+        string "Device identifier"
+        default "device 1"
+        help
+            Identifies this board in uploaded rows, and salts the deterministic
+            UUIDv7 so two boards watching the same sensor never collide.
+
+    config GOVEE_SUPABASE_URL
+        string "Supabase project URL"
+        default ""
+        help
+            e.g. https://abcdefgh.supabase.co — leave empty to disable upload.
+
+    config GOVEE_SUPABASE_KEY
+        string "Supabase publishable key"
+        default ""
+        help
+            The sb_publishable_/anon key ONLY, paired with an RLS policy that
+            grants INSERT and nothing else. This key ships inside the firmware
+            image and can be read back out of flash, so it must not be one that
+            can read or delete data.
+
     config GOVEE_NTP_SERVER
         string "NTP server"
         default "pool.ntp.org"

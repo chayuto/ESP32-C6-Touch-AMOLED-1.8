@@ -32,3 +32,9 @@ shared/components/lvgl__lvgl/examples/
 shared/components/lvgl__lvgl/tests/
 shared/components/lvgl__lvgl/docs/
 shared/components/lvgl__lvgl/scripts/
+
+# Secrets for host-side tooling (Supabase service key, HF token)
+.env
+**/.env
+.env.*
+!.env.template
