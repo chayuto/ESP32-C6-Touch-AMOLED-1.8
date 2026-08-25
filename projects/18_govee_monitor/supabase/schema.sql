@@ -70,12 +70,25 @@ create index if not exists reading_mac_ts_idx on reading (mac, ts desc);
 -- The publishable key is compiled into the firmware image and can be read back
 -- out of flash, so it must do as little as possible.
 --
---   reading  INSERT only. No select/update/delete policy exists, which denies
---            those to `anon`. Consequence for the device: it must send
---            `Prefer: return=minimal`, since returning the row needs select.
---   sensor   INSERT + UPDATE, so the board can upsert its own labels. Worst
---            case a leaked key renames rooms; it still cannot read or destroy
---            measurements.
+--   reading  INSERT only, and nothing else at all.
+--   sensor   NO anon access whatsoever.
+--
+-- The device does a PLAIN insert — never an upsert. PostgREST implements
+-- `on_conflict` as INSERT .. ON CONFLICT, which has to read the table to
+-- detect the conflict, so it demands SELECT:
+--
+--     42501 permission denied for table reading
+--     hint: GRANT SELECT ON public.reading TO anon;
+--
+-- Granting that would let a key recovered from firmware read every reading
+-- ever taken. Not worth it, and not necessary: because ids are deterministic,
+-- a duplicate is provably the same row, so the device treats the resulting
+-- 409 / 23505 as success and moves on. Same idempotency, no read privilege.
+--
+-- The sensor dimension is therefore maintained from the host by
+-- seed_sensors.sh, which reads the labels out of main/device_config.h. Labels
+-- are a human concern that changes a handful of times ever; letting firmware
+-- write them bought nothing and cost the whole INSERT-only property.
 -- ---------------------------------------------------------------------------
 alter table reading enable row level security;
 alter table sensor  enable row level security;
@@ -85,17 +98,13 @@ create policy reading_device_insert on reading
     for insert to anon with check (true);
 
 drop policy if exists sensor_device_insert on sensor;
-create policy sensor_device_insert on sensor
-    for insert to anon with check (true);
-
 drop policy if exists sensor_device_update on sensor;
-create policy sensor_device_update on sensor
-    for update to anon using (true) with check (true);
 
 grant usage on schema public to anon;
 grant insert on table reading to anon;
-grant insert, update, select on table sensor to anon;   -- upsert needs select
 revoke select, update, delete on table reading from anon;
+revoke all on table sensor       from anon;
+revoke all on table sensor_label from anon;
 
 -- ---------------------------------------------------------------------------
 -- Dashboard rollup: a view, not a second table the device writes. One write
