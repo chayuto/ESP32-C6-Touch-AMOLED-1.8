@@ -36,9 +36,11 @@ as a vertical stack of tiles.
 - **Stale + evict timeouts** — slots grey out after 60 s of silence and
   unpinned slots free up after 5 min so a new device can take their place.
 - **°C / °F toggle** — Kconfig (`CONFIG_GOVEE_TEMP_UNIT_F`).
-- **Type scales with slot count** — at 4 slots each tile is 112 px tall, so the
-  temperature and humidity fonts step down a size to avoid colliding with the
-  header and battery rows.
+- **Humidity is first-class** — it is rendered at the same size as temperature,
+  not as a secondary value, because damp/mould watching is the point here.
+- **Type scales with slot count** — at 4 slots each tile is 112 px tall, so both
+  value fonts step down a size to avoid colliding with the header and battery
+  rows.
 
 ## Build / Flash
 

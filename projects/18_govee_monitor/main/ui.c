@@ -8,16 +8,18 @@
 #define SCREEN_W 368
 #define SCREEN_H 448
 
-/* Tile height is SCREEN_H / CONFIG_GOVEE_MAX_SLOTS, so the type has to shrink
- * as slots are added. At 4 slots a tile is 112 px (96 px inside the padding) —
- * a 48 px temperature collides with the header above and the battery row
- * below, so step both value fonts down one size. */
+/* Temperature and humidity share one size — humidity is the reading that
+ * actually matters here (damp/mould watch), so it does not get demoted to
+ * secondary type.
+ *
+ * Tile height is SCREEN_H / CONFIG_GOVEE_MAX_SLOTS, so the type still has to
+ * shrink as slots are added. At 4 slots a tile is 112 px (96 px inside the
+ * padding) and a 48 px value collides with the header above and the battery
+ * row below, so step down one size. */
 #if CONFIG_GOVEE_MAX_SLOTS >= 4
-#define FONT_TEMP   (&lv_font_montserrat_28)
-#define FONT_HUMID  (&lv_font_montserrat_16)
+#define FONT_VALUE  (&lv_font_montserrat_28)
 #else
-#define FONT_TEMP   (&lv_font_montserrat_48)
-#define FONT_HUMID  (&lv_font_montserrat_28)
+#define FONT_VALUE  (&lv_font_montserrat_48)
 #endif
 
 typedef struct {
@@ -60,11 +62,11 @@ static void build_tile(tile_t *t, lv_obj_t *parent, int y, int h)
     lv_obj_align(t->label_rssi, LV_ALIGN_TOP_RIGHT, 0, 2);
 
     /* Big temperature */
-    t->label_temp = make_label(t->root, FONT_TEMP, lv_color_hex(0xFFC857));
+    t->label_temp = make_label(t->root, FONT_VALUE, lv_color_hex(0xFFC857));
     lv_obj_align(t->label_temp, LV_ALIGN_LEFT_MID, 4, 0);
 
     /* Humidity, smaller, right of temp */
-    t->label_humid = make_label(t->root, FONT_HUMID, lv_color_hex(0x4FC3F7));
+    t->label_humid = make_label(t->root, FONT_VALUE, lv_color_hex(0x4FC3F7));
     lv_obj_align(t->label_humid, LV_ALIGN_RIGHT_MID, -8, 0);
 
     /* Battery bar across the bottom */
