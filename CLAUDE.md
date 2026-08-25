@@ -310,6 +310,10 @@ board --3-min buckets--> Supabase (90d buffer) --parquet--> HF dataset
 - **History is RAM-only, giving ~6 hours of offline tolerance.** This is an
   accepted limit, not pending work; do not propose NVS persistence again unless
   the deployment changes.
+- **The Hugging Face archive is append-only.** Published parquet parts are
+  never rewritten, merged or deleted. Part names hash their id set so a re-run
+  is a no-op. Readers dedupe by id. Do not add compaction — merging means
+  download/rewrite/upload, which can replace archived data with a subset.
 - Credentials live only in `projects/18_govee_monitor/.env` (gitignored). The
   key in `sdkconfig.defaults` is the INSERT-only one and is deliberately
   powerless.

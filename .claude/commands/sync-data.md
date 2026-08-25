@@ -41,6 +41,7 @@ nothing is lost.
 | `--all` | export everything Supabase still holds |
 | `--dry-run` | report what would change; upload and prune nothing |
 | `--prune-days N` | after a **successful** upload, delete Supabase rows older than N days |
+| `--self-test` | test the part-naming invariants, no network |
 
 ## Cautions
 
@@ -54,9 +55,19 @@ nothing is lost.
 ## Layout in the dataset repo
 
 ```
-data/readings/YYYY-MM.parquet   monthly fact partitions, zstd
-sensors.parquet                 the dimension, rewritten each run
+data/readings/month=YYYY-MM/part-<from>-<to>-<hash>.parquet
+sensors.parquet                 dimension snapshot, overwritten each run
 ```
+
+**The archive is append-only — never rewrite or delete a published part.** Each
+run writes new immutable files; part names hash the ids they contain, so a
+re-run produces a name the repo already has and is skipped. Do not "tidy up" by
+merging parts into one file per month: parquet cannot be appended in place, so
+merging means download → rewrite → upload, and a bug there replaces archived
+data with a subset of itself.
+
+Overlapping runs mean a reading can appear in several parts. Readers dedupe by
+id; that is exact because ids are deterministic.
 
 Labels live only in `sensors.parquet`, never denormalised into readings — a
 label is mutable metadata and must not be frozen into immutable measurements.

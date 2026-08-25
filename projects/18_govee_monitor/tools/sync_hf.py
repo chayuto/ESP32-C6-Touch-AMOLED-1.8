@@ -5,28 +5,37 @@ Supabase is a buffer with short retention; Hugging Face is the durable archive.
 This script moves rows between them and is safe to run at any cadence, twice in
 a row, or after being skipped for a month.
 
-Idempotency comes from the data, not from bookkeeping. Every row carries a
-deterministic UUIDv7 minted from (bucket ms, device_id, sensor MAC), so the
-same reading always has the same id no matter how many times it is uploaded or
-re-exported. The sync therefore:
+The archive is APPEND-ONLY. A published file is never rewritten, re-merged or
+deleted, because parquet cannot be appended in place — "adding" rows to a month
+would mean downloading it, merging, and uploading a replacement, and a bug or a
+truncated download anywhere in that path silently replaces an archived month
+with a subset of itself. No amount of guarding makes that a good shape for data
+you cannot re-derive. Each run instead writes NEW immutable part files:
 
-  * always re-reads an overlapping window rather than trusting a watermark,
-  * merges into the existing month file and drops duplicates by id,
-  * rewrites only months whose contents actually changed.
+    data/readings/month=YYYY-MM/part-<from>-<to>-<hash>.parquet
+    sensors.parquet                 dimension snapshot; current state, so
+                                    overwriting it is the intent
 
-Skipping runs is safe. The only true deadline is Supabase's retention: as long
-as the gap is shorter than that, nothing is lost.
+Idempotency comes from the data rather than from bookkeeping. Every row carries
+a deterministic UUIDv7 minted from (bucket ms, device_id, sensor MAC), and each
+part is named after a hash of the ids it contains — so re-running a sync
+produces a byte-identical file with an identical name, which the repo already
+has and therefore skips. Nothing is uploaded twice and nothing is overwritten.
 
-Layout in the dataset repo:
+Because runs overlap deliberately, the same reading may appear in more than one
+part. That is correct for an append-only log: readers deduplicate by id, which
+is exact precisely because ids are deterministic. See the README for the
+one-liner.
 
-    data/readings/YYYY-MM.parquet   monthly fact partitions
-    sensors.parquet                 the dimension, rewritten each run
+Skipping runs is safe. The only real deadline is Supabase retention: as long as
+the gap is shorter than that, nothing is lost.
 
-The dimension is kept separate rather than denormalised into every row, for
-the same reason the database keeps it separate: a label is mutable metadata and
+The dimension is kept separate rather than denormalised into every row, for the
+same reason the database keeps it separate: a label is mutable metadata and
 must not be frozen into millions of immutable measurements.
 """
 import argparse
+import hashlib
 import os
 import tempfile
 import sys
@@ -37,7 +46,6 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import requests
 from huggingface_hub import HfApi
-from huggingface_hub.utils import EntryNotFoundError, RepositoryNotFoundError
 
 READINGS_DIR = "data/readings"
 SENSORS_PATH = "sensors.parquet"
@@ -115,36 +123,18 @@ def month_of(ts_str):
     return ts_str[:7]           # ISO8601 'YYYY-MM-...'
 
 
-def download_parquet(api, repo, path):
-    try:
-        local = api.hf_hub_download(repo_id=repo, filename=path,
-                                    repo_type="dataset")
-        return pq.read_table(local)
-    except (EntryNotFoundError, RepositoryNotFoundError):
-        return None
-    except Exception as e:                       # noqa: BLE001 - network etc.
-        if "404" in str(e) or "Entry Not Found" in str(e):
-            return None
-        raise
+def part_name(table):
+    """Content-addressed file name for a batch of rows.
 
-
-def merge_dedupe(existing, new):
-    """Union by id, newest-wins on ties, sorted by ts.
-
-    Returns (table, changed). `changed` is False when the merge added nothing,
-    which is what keeps a re-run from producing a pointless commit.
+    Deterministic in the rows it contains, so re-exporting the same window
+    yields the same name and the repo simply already has it. This is what makes
+    an append-only archive idempotent without any read-modify-write.
     """
-    table = pa.concat_tables([existing, new]) if existing is not None else new
-    seen, keep = set(), []
-    ids = table.column("id").to_pylist()
-    for i, rid in enumerate(ids):
-        if rid in seen:
-            continue
-        seen.add(rid)
-        keep.append(i)
-    deduped = table.take(sorted(keep, key=lambda i: (table.column("ts")[i].as_py(),)))
-    changed = existing is None or deduped.num_rows != existing.num_rows
-    return deduped, changed
+    ids = sorted(table.column("id").to_pylist())
+    digest = hashlib.sha256("\n".join(ids).encode()).hexdigest()[:12]
+    ts = table.column("ts").to_pylist()
+    span = f"{min(ts):%Y%m%dT%H%M%S}-{max(ts):%Y%m%dT%H%M%S}"
+    return f"part-{span}-{digest}.parquet"
 
 
 def main():
@@ -196,25 +186,28 @@ def main():
         api.create_repo(repo_id=repo, repo_type="dataset",
                         private=True, exist_ok=True)
 
-    # --- fact partitions -----------------------------------------------------
+    # --- fact parts: write new files, never touch existing ones ------------
     by_month = defaultdict(list)
     for r in rows:
         by_month[month_of(r["ts"])].append(r)
 
-    uploaded = skipped = 0
-    for month, rs in sorted(by_month.items()):
-        path = f"{READINGS_DIR}/{month}.parquet"
-        new = to_table(rs)
-        existing = None if args.dry_run else download_parquet(api, repo, path)
-        merged, changed = merge_dedupe(existing, new)
+    existing_files = set()
+    if not args.dry_run:
+        existing_files = set(api.list_repo_files(repo_id=repo,
+                                                 repo_type="dataset"))
 
-        if not changed:
-            print(f"  {month}: {merged.num_rows} rows, unchanged")
+    written = skipped = 0
+    for month, rs in sorted(by_month.items()):
+        table = to_table(rs)
+        path = f"{READINGS_DIR}/month={month}/{part_name(table)}"
+
+        if path in existing_files:
+            print(f"  {month}: {table.num_rows} rows already archived "
+                  f"({os.path.basename(path)})")
             skipped += 1
             continue
 
-        added = merged.num_rows - (existing.num_rows if existing is not None else 0)
-        print(f"  {month}: {merged.num_rows} rows (+{added})"
+        print(f"  {month}: {table.num_rows} rows -> {os.path.basename(path)}"
               f"{' [dry-run]' if args.dry_run else ''}")
         if args.dry_run:
             continue
@@ -222,11 +215,11 @@ def main():
         # A real file rather than BytesIO: Xet storage cannot dedupe an
         # in-memory buffer and falls back to plain HTTP with a warning.
         with tempfile.NamedTemporaryFile(suffix=".parquet") as tmp:
-            pq.write_table(merged, tmp.name, compression="zstd")
+            pq.write_table(table, tmp.name, compression="zstd")
             api.upload_file(path_or_fileobj=tmp.name, path_in_repo=path,
                             repo_id=repo, repo_type="dataset",
-                            commit_message=f"readings {month}: {merged.num_rows} rows")
-        uploaded += 1
+                            commit_message=f"readings {month}: +{table.num_rows} rows")
+        written += 1
 
     # --- dimension -----------------------------------------------------------
     if sensors and not args.dry_run:
@@ -247,7 +240,7 @@ def main():
                             commit_message=f"sensors: {len(sensors)} rows")
         print(f"  {SENSORS_PATH}: {len(sensors)} rows")
 
-    print(f"{uploaded} partition(s) written, {skipped} unchanged")
+    print(f"{written} part(s) appended, {skipped} already archived")
 
     # --- prune, only after everything above succeeded ------------------------
     if args.prune_days and not args.dry_run:

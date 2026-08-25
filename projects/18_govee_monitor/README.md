@@ -184,6 +184,45 @@ Credentials, the psql connection gotchas and the schema design are in
 | `supabase/verify.sh` | assert the firmware key cannot read or delete |
 | `supabase/check_ids.sh` | re-derive live row ids and prove they reproduce |
 | `tools/sync.sh` | Supabase → Hugging Face parquet (`/sync-data`) |
+| `tools/sync.sh --self-test` | test the archive's part-naming invariants |
+
+### The archive is append-only
+
+A published parquet file is never rewritten, re-merged or deleted. Parquet
+cannot be appended in place, so "adding" rows to a month would mean download →
+merge → upload a replacement, and any bug or truncated download in that path
+silently replaces an archived month with a subset of itself. Each run writes
+new immutable parts instead:
+
+```
+data/readings/month=YYYY-MM/part-<from>-<to>-<hash>.parquet
+sensors.parquet          dimension snapshot — current state, overwritten
+```
+
+Part names are a hash of the ids they contain, so re-running a sync produces a
+byte-identical file with a name the repo already has, and it is skipped. That
+is what makes the sync idempotent without any read-modify-write.
+
+Runs overlap on purpose, so the same reading can appear in more than one part.
+That is correct for an append-only log — **readers deduplicate by id**, which is
+exact because ids are deterministic:
+
+```sql
+-- duckdb
+select distinct on (id) *
+from read_parquet('data/readings/**/*.parquet', hive_partitioning = true)
+order by id, ts;
+```
+
+```python
+import duckdb
+duckdb.sql("select distinct on (id) * from read_parquet('data/readings/**/*.parquet')")
+```
+
+Compaction is deliberately not implemented. At roughly 700k rows/year a daily
+sync produces a few hundred small parts, which readers glob without trouble;
+adding a destructive merge step to save file count would reintroduce exactly
+the hazard this layout exists to avoid.
 
 ## Tests
 
