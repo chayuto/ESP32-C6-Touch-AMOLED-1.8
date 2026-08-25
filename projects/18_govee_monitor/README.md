@@ -36,6 +36,21 @@ as a vertical stack of tiles.
 - **Stale + evict timeouts** — slots grey out after 60 s of silence and
   unpinned slots free up after 5 min so a new device can take their place.
 - **°C / °F toggle** — Kconfig (`CONFIG_GOVEE_TEMP_UNIT_F`).
+- **Rolling history** — every reading is bucketed into three per-sensor tiers
+  (1 h @ 30 s, 6 h @ 3 min, 24 h @ 12 min, 120 points each) for the chart
+  views. Costs ~6 KB of RAM and is lost on reboot.
+- **Chart views** — tap anywhere to cycle tiles → humidity → temperature.
+  Both charts overlay all four rooms so they can be compared on one axis;
+  `[1h] [6h] [24h]` buttons pick the range.
+- **Fixed humidity axis (30–100 %) with a 65 % mould line** — auto-scaling
+  would render a 74→76 %RH wiggle as a mountain range and a flat 78 %RH as
+  unremarkable. Temperature auto-scales, where shape matters more than the
+  absolute value.
+- **Humidity is first-class** — it is rendered at the same size as temperature,
+  not as a secondary value, because damp/mould watching is the point here.
+- **Type scales with slot count** — at 4 slots each tile is 112 px tall, so both
+  value fonts step down a size to avoid colliding with the header and battery
+  rows.
 
 ## Build / Flash
 
@@ -91,7 +106,7 @@ Copy those MACs into `GOVEE_KNOWN[]` and rebuild.
 
 | Option | Default | Effect |
 |---|---|---|
-| `GOVEE_MAX_SLOTS` | 3 | Max sensors visible at once (1–4) |
+| `GOVEE_MAX_SLOTS` | 4 | Max sensors visible at once (1–4) |
 | `GOVEE_STALE_TIMEOUT_S` | 60 | A slot greys out after this much silence |
 | `GOVEE_EVICT_TIMEOUT_S` | 300 | Unpinned slot is freed for a new device |
 | `GOVEE_TEMP_UNIT_F` | n | Show °F instead of °C |
@@ -104,6 +119,8 @@ main/
 ├── ble_scanner.c        # NimBLE observer, GAP callback, MAC reverse, log
 ├── govee_decoder.c      # H5075 packed-int parser (HA parity)
 ├── slot_store.c         # pinned/auto slots, RSSI EWMA, rotation, mutex
+├── history.c            # rolling 1 h / 6 h / 24 h ring buffers per sensor
+├── chart_view.c         # humidity/temperature line chart page + range buttons
 ├── ui.c                 # N-tile vertical layout, refresh from snapshot
 ├── device_config.h.template  # template — copy to device_config.h (gitignored)
 └── Kconfig.projbuild    # GOVEE_MAX_SLOTS, timeouts, °C/°F
@@ -127,3 +144,43 @@ The protocol research doc covers H5074 (`<hHB` LE format), H5100 family
 (packed-int @ d[2..4], company ID 0x0001), H5179 (old fw 0x8801, new fw 0x0001),
 and the H5051/52/71 legacy variants. Drop additional branches into
 `govee_decoder.c` and adjust the filter in `ble_scanner.c::gap_event_cb`.
+
+## Tests
+
+`history.c` keeps three tiers of ring buffer per sensor, and its rollover and
+gap-filling behaviour is awkward to check on hardware — a 24 h tier takes a day
+to fill. The logic is therefore driven through `*_at()` entry points that take
+an explicit clock, and exercised on the host:
+
+```zsh
+./test/run.sh      # no board, no ESP-IDF needed
+```
+
+This covers bucket averaging, silent-bucket back-fill, ring wrap, recovery from
+a gap longer than the whole window, and slot isolation.
+
+## Views
+
+Tap anywhere on the screen (outside the range buttons) to cycle:
+
+```
+   tiles  →  humidity chart  →  temperature chart  →  tiles
+
+┌──────────────────────────┐
+│ Humidity          -1h→now│
+│100%                      │
+│ ╭─╮   ╭──╮               │
+│─┴─┴───┴──┴───────────────│  65% mould line (red)
+│                          │
+│ 30%                      │
+│ ● Living room ● Bed room │
+│ ● Room B      ● Laundry  │
+│ [1h]   [6h]   [24h]      │
+└──────────────────────────┘
+```
+
+Gaps in a trace are real: a bucket with no advertisement is drawn as a break
+rather than a drop to zero, so a weak sensor looks intermittent instead of
+looking like it read 0 %RH.
+
+Charts are empty for the first 30 s after boot, and reflashing clears history.

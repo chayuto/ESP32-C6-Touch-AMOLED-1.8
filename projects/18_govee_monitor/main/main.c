@@ -6,6 +6,10 @@
  * and routes them into the slot store. The LVGL refresh timer pulls a snapshot
  * every second and repaints.
  *
+ * Every decoded reading is also folded into a rolling in-RAM history (1 h /
+ * 6 h / 24 h tiers) on its own esp_timer, deliberately independent of the LVGL
+ * refresh timer so collection continues while the screen is asleep.
+ *
  * Pinned MACs (compile-time list in device_config.h) get fixed slots and
  * friendly labels. Remaining slots auto-fill by RSSI; if more than N H5075s
  * are in range, the strongest N win (with 6 dB hysteresis to prevent thrash).
@@ -17,12 +21,14 @@
 
 #include "ui.h"
 #include "slot_store.h"
+#include "history.h"
 #include "ble_scanner.h"
 #include "power_save.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "nvs_flash.h"
+#include "esp_timer.h"
 #include "esp_log.h"
 #include "lvgl.h"
 
@@ -36,6 +42,15 @@ static void refresh_timer_cb(lv_timer_t *t)
     if (power_save_is_active()) return;     /* skip work while screen is off */
     slot_store_tick();
     ui_refresh();
+}
+
+/* History must keep bucketing while the display is off, so it runs on its own
+ * timer rather than piggybacking on refresh_timer_cb (which returns early
+ * during power save). */
+static void history_timer_cb(void *arg)
+{
+    (void)arg;
+    history_tick();
 }
 
 static void lvgl_task(void *arg)
@@ -76,7 +91,16 @@ void app_main(void)
     ESP_ERROR_CHECK(amoled_lvgl_init(amoled_get_panel(), s_touch));
 
     slot_store_init();
+    history_init();
     ui_create(lv_scr_act());
+
+    const esp_timer_create_args_t history_timer_args = {
+        .callback = history_timer_cb,
+        .name     = "history",
+    };
+    esp_timer_handle_t history_timer = NULL;
+    ESP_ERROR_CHECK(esp_timer_create(&history_timer_args, &history_timer));
+    ESP_ERROR_CHECK(esp_timer_start_periodic(history_timer, 1000000));  /* 1 s */
 
     power_save_init();
 

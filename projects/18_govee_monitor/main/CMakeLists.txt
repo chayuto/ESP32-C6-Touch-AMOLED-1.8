@@ -3,6 +3,8 @@ idf_component_register(
         "main.c"
         "ui.c"
         "slot_store.c"
+        "history.c"
+        "chart_view.c"
         "govee_decoder.c"
         "ble_scanner.c"
         "power_save.c"
