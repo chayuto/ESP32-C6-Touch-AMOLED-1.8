@@ -9,6 +9,17 @@ menu "Govee Monitor"
             compile-time GOVEE_KNOWN[] table in device_config.h: pinned slots
             come first, remaining slots auto-fill by RSSI.
 
+    config GOVEE_PAUSE_SCAN_IN_POWER_SAVE
+        bool "Also stop BLE scanning during power save"
+        default n
+        help
+            Power save always turns the display off. This additionally stops
+            the BLE scanner, which saves more current but means no readings are
+            recorded while the screen is off — the history simply gains a gap.
+
+            Leave this off if the board is mains-powered and you want an
+            unbroken log; turn it on to squeeze battery runtime.
+
     config GOVEE_STALE_TIMEOUT_S
         int "Stale (grey-out) timeout in seconds"
         default 60

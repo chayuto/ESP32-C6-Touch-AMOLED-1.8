@@ -46,18 +46,26 @@ void power_save_toggle(void)
     s_last_toggle_us = now;
 
     if (!s_active) {
+#if CONFIG_GOVEE_PAUSE_SCAN_IN_POWER_SAVE
         ESP_LOGI(TAG, "→ power save (display off, BLE pause)");
         ble_scanner_pause();
+#else
+        /* Keep scanning: the history log is a consumer in its own right, and
+         * a screen-off period would otherwise punch a flat gap through it. */
+        ESP_LOGI(TAG, "→ power save (display off, BLE still scanning)");
+#endif
         amoled_lvgl_set_touch_enabled(false);
         amoled_set_brightness(0);
         amoled_display_on_off(false);
         s_active = true;
     } else {
-        ESP_LOGI(TAG, "→ resume (display on, BLE scan)");
+        ESP_LOGI(TAG, "→ resume (display on)");
         amoled_display_on_off(true);
         amoled_set_brightness(180);
         amoled_lvgl_set_touch_enabled(true);
+#if CONFIG_GOVEE_PAUSE_SCAN_IN_POWER_SAVE
         ble_scanner_resume();
+#endif
         s_active = false;
     }
 }
