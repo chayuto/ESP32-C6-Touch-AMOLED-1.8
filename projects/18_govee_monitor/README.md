@@ -190,7 +190,9 @@ Credentials, the psql connection gotchas and the schema design are in
 | `supabase/verify.sh` | assert the firmware key cannot read or delete |
 | `supabase/check_ids.sh` | re-derive live row ids and prove they reproduce |
 | `supabase/mint_dashboard_jwt.py` | mint the dashboard's read-only token |
-| `tools/sync.sh` | Supabase → Hugging Face parquet (`/sync-data`) |
+| `tools/sync.sh` | Supabase → Hugging Face parquet, from the archive watermark (`/sync-data`) |
+| `tools/sync.sh --days 30` | ignore the watermark, re-read a fixed window |
+| `tools/sync.sh --all` | re-read everything Supabase still holds (backfill) |
 | `tools/sync.sh --self-test` | test the archive's part-naming invariants |
 
 ### The archive is append-only
@@ -210,9 +212,21 @@ Part names are a hash of the ids they contain, so re-running a sync produces a
 byte-identical file with a name the repo already has, and it is skipped. That
 is what makes the sync idempotent without any read-modify-write.
 
-Runs overlap on purpose, so the same reading can appear in more than one part.
-That is correct for an append-only log — **readers deduplicate by id**, which is
-exact because ids are deterministic:
+Each run reads a watermark off the archive itself — the latest bucket already
+published, taken from the part file names — and rewinds 24 h behind it before
+pulling from Supabase, so rows that arrived late still get collected. It then
+subtracts the ids the overlapping parts already carry, and writes only the
+remainder. The archive keeps no state of its own: its file names *are* the
+bookkeeping.
+
+That subtraction is what keeps the archive proportional to the data. Without it
+every run re-archives its whole window, and a row picks up one extra copy per
+run — harmless for correctness, but the archive grows with how often you sync
+rather than with how much you measure.
+
+Parts are disjoint as a result, but **readers should still deduplicate by id**.
+It costs nothing, it is exact because ids are deterministic, and it keeps both
+the parts written before this rule and a hand-run `--all` backfill harmless:
 
 ```sql
 -- duckdb

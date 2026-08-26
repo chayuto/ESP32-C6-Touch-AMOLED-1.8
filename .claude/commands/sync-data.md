@@ -37,8 +37,10 @@ nothing is lost.
 
 | Flag | Effect |
 |---|---|
-| `--days N` | overlap window to re-read (default 7) |
-| `--all` | export everything Supabase still holds |
+| *(none)* | pull from the archive's own watermark, rewound 24 h |
+| `--days N` | ignore the watermark, re-read a fixed N-day window |
+| `--lookback-hours N` | how far to rewind behind the watermark (default 24) |
+| `--all` | export everything Supabase still holds (backfill) |
 | `--dry-run` | report what would change; upload and prune nothing |
 | `--prune-days N` | after a **successful** upload, delete Supabase rows older than N days |
 | `--self-test` | test the part-naming invariants, no network |

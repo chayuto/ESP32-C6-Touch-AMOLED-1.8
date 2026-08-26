@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 
 import pyarrow as pa
 
-from sync_hf import SCHEMA, part_name
+from sync_hf import SCHEMA, archived_parts, part_name
 
 T0 = datetime(2026, 8, 25, 22, 0, tzinfo=timezone.utc)
 fails = 0
@@ -81,11 +81,45 @@ def test_values_do_not_affect_name():
           "part name addresses ids, not values")
 
 
+def test_archived_parts_reads_the_span_from_the_name():
+    """The archive is its own bookkeeping: the watermark comes from file names."""
+    files = [
+        "data/readings/month=2026-08/part-20260825T220416-20260826T053846-706d0d4dc9aa.parquet",
+        "data/readings/month=2026-08/part-20260826T054146-20260826T121500-6b260647bbdb.parquet",
+    ]
+    parts = archived_parts(files)
+    check(len(parts) == 2, "both parts recognised")
+    check(parts[0][1] == datetime(2026, 8, 25, 22, 4, 16, tzinfo=timezone.utc),
+          "start parsed")
+    check(max(p[2] for p in parts)
+          == datetime(2026, 8, 26, 12, 15, 0, tzinfo=timezone.utc),
+          "watermark is the latest end, not the latest file")
+
+
+def test_archived_parts_ignores_everything_else():
+    """A stray file must never be mistaken for a watermark."""
+    check(archived_parts([
+        "sensors.parquet",
+        ".gitattributes",
+        "README.md",
+        "data/readings/month=2026-08/notes.txt",
+        "data/other/part-20260825T220416-20260826T053846-706d0d4dc9aa.parquet",
+    ]) == [], "no parts found among non-parts")
+
+
+def test_empty_archive_has_no_watermark():
+    """First run: nothing to rewind from, so the caller falls back to --days."""
+    check(archived_parts([]) == [], "empty listing yields no parts")
+
+
 if __name__ == "__main__":
     test_deterministic()
     test_order_independent()
     test_different_rows_differ()
     test_name_is_readable_and_sortable()
     test_values_do_not_affect_name()
+    test_archived_parts_reads_the_span_from_the_name()
+    test_archived_parts_ignores_everything_else()
+    test_empty_archive_has_no_watermark()
     print("all sync tests passed" if not fails else f"{fails} check(s) failed")
     sys.exit(1 if fails else 0)

@@ -2,8 +2,9 @@
 # Sync Supabase -> Hugging Face. Creates a project-local venv on first run so
 # nothing is installed into the system Python.
 #
-#   ./tools/sync.sh                 # sync the last 7 days
-#   ./tools/sync.sh --days 30       # wider window
+#   ./tools/sync.sh                 # archive whatever is new since last time
+#   ./tools/sync.sh --days 30       # ignore the watermark, re-read 30 days
+#   ./tools/sync.sh --all           # backfill everything Supabase still holds
 #   ./tools/sync.sh --dry-run       # show what would happen, upload nothing
 #   ./tools/sync.sh --prune-days 90 # delete rows older than 90d AFTER upload
 #   ./tools/sync.sh --self-test     # test the partition-rewrite guard

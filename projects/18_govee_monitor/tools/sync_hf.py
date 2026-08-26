@@ -22,10 +22,15 @@ part is named after a hash of the ids it contains — so re-running a sync
 produces a byte-identical file with an identical name, which the repo already
 has and therefore skips. Nothing is uploaded twice and nothing is overwritten.
 
-Because runs overlap deliberately, the same reading may appear in more than one
-part. That is correct for an append-only log: readers deduplicate by id, which
-is exact precisely because ids are deterministic. See the README for the
-one-liner.
+Each run starts from a watermark read off the archive itself -- the latest
+bucket already published, rewound by a lookback window so rows that arrive late
+(a board catching up after an outage) are still collected. Rows whose ids are
+already carried by the overlapping parts are then dropped, so a new part holds
+only what the archive does not have. Without that step every run re-archives its
+whole window, and the same reading accumulates one copy per run.
+
+Readers should still deduplicate by id. It costs nothing, it is exact because
+ids are deterministic, and it keeps a hand-run --all backfill harmless.
 
 Skipping runs is safe. The only real deadline is Supabase retention: as long as
 the gap is shorter than that, nothing is lost.
@@ -37,6 +42,7 @@ must not be frozen into millions of immutable measurements.
 import argparse
 import hashlib
 import os
+import re
 import tempfile
 import sys
 from collections import defaultdict
@@ -45,11 +51,17 @@ from datetime import datetime, timedelta, timezone
 import pyarrow as pa
 import pyarrow.parquet as pq
 import requests
-from huggingface_hub import HfApi
+from huggingface_hub import HfApi, hf_hub_download
 
 READINGS_DIR = "data/readings"
 SENSORS_PATH = "sensors.parquet"
 PAGE = 1000                     # PostgREST's default ceiling
+DEFAULT_DAYS = 7                # window used only when the archive is empty
+DEFAULT_LOOKBACK_H = 24         # rewind past the watermark; > the board's ~6h RAM buffer
+
+# part-<from>-<to>-<hash>.parquet -- the span is authoritative enough to place a
+# part on the timeline without opening it.
+PART_RE = re.compile(r"part-(\d{8}T\d{6})-(\d{8}T\d{6})-[0-9a-f]{12}\.parquet$")
 
 SCHEMA = pa.schema([
     ("id", pa.string()),
@@ -137,14 +149,51 @@ def part_name(table):
     return f"part-{span}-{digest}.parquet"
 
 
+def env_bool(name, default=False):
+    v = os.environ.get(name, "").strip().lower()
+    if not v:
+        return default
+    return v in ("1", "true", "yes", "on")
+
+
+def archived_parts(files):
+    """[(path, start, end)] for every readings part in a repo file listing.
+
+    Pure function of the listing: the archive carries its own watermark in its
+    file names, so the sync keeps no state of its own anywhere.
+    """
+    out = []
+    for f in files:
+        m = PART_RE.search(f)
+        if f.startswith(READINGS_DIR) and m:
+            out.append((f,
+                        datetime.strptime(m.group(1), "%Y%m%dT%H%M%S").replace(tzinfo=timezone.utc),
+                        datetime.strptime(m.group(2), "%Y%m%dT%H%M%S").replace(tzinfo=timezone.utc)))
+    return out
+
+
+def archived_ids(repo, parts, token):
+    """Ids already published by `parts`. Only the id column is read."""
+    ids = set()
+    for path, _, _ in parts:
+        local = hf_hub_download(repo_id=repo, repo_type="dataset",
+                                filename=path, token=token)
+        ids.update(pq.read_table(local, columns=["id"]).column("id").to_pylist())
+    return ids
+
+
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     load_env(os.path.join(here, "..", ".env"))
 
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--days", type=int, default=7,
-                    help="overlap window to re-read from Supabase (default 7)")
+    ap.add_argument("--days", type=int, default=None,
+                    help="ignore the archive watermark and re-read a fixed "
+                         "window of this many days")
+    ap.add_argument("--lookback-hours", type=int, default=DEFAULT_LOOKBACK_H,
+                    help=f"rewind this far behind the archive watermark to "
+                         f"catch late rows (default {DEFAULT_LOOKBACK_H})")
     ap.add_argument("--all", action="store_true",
                     help="export everything Supabase still holds")
     ap.add_argument("--dry-run", action="store_true",
@@ -164,37 +213,63 @@ def main():
     # is enough and the token need not be copied into .env.
     token = os.environ.get("HF_TOKEN") or None
 
-    since = None
-    if not args.all:
-        since = (datetime.now(timezone.utc)
-                 - timedelta(days=args.days)).isoformat()
+    api = HfApi(token=token)
+    if not args.dry_run:
+        who = api.whoami()
+        print(f"hugging face: {who.get('name')} "
+              f"({who.get('auth', {}).get('accessToken', {}).get('role', 'unknown')} token)")
+        # Visibility is the operator's call, not this script's. Note that
+        # exist_ok=True does NOT restyle an existing repo -- this only decides
+        # how a repo is born.
+        api.create_repo(repo_id=repo, repo_type="dataset",
+                        private=env_bool("HF_PRIVATE", False), exist_ok=True)
+
+    # --- what does the archive already have? ---------------------------------
+    all_files = []
+    if repo:
+        try:
+            all_files = api.list_repo_files(repo_id=repo, repo_type="dataset")
+        except Exception as e:      # not created yet, or unreadable in a dry run
+            print(f"  archive listing unavailable ({e.__class__.__name__}), "
+                  f"treating it as empty")
+    existing_files = set(all_files)
+    parts = archived_parts(all_files)
+
+    if args.all:
+        since, overlap = None, parts
+    elif args.days is not None or not parts:
+        days = args.days if args.days is not None else DEFAULT_DAYS
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        since, overlap = cutoff.isoformat(), [p for p in parts if p[2] >= cutoff]
+    else:
+        watermark = max(p[2] for p in parts)
+        cutoff = watermark - timedelta(hours=args.lookback_hours)
+        since, overlap = cutoff.isoformat(), [p for p in parts if p[2] >= cutoff]
+        print(f"archive holds {len(parts)} part(s), watermark "
+              f"{watermark:%Y-%m-%d %H:%M}Z, rewound {args.lookback_hours}h")
 
     print(f"pulling readings since {since or 'the beginning'} ...")
     rows = fetch_rows(url, secret, "reading", since)
     sensors = fetch_rows(url, secret, "sensor", None, order="mac")
     print(f"  {len(rows)} readings, {len(sensors)} sensors")
 
+    # Subtract what those parts already carry. Ids are deterministic, so this is
+    # an exact set difference rather than a guess based on timestamps.
+    if overlap and rows:
+        seen = archived_ids(repo, overlap, token)
+        before = len(rows)
+        rows = [r for r in rows if r["id"] not in seen]
+        print(f"  {before - len(rows)} of them already archived across "
+              f"{len(overlap)} part(s); {len(rows)} new")
+
     if not rows and not sensors:
         print("nothing to sync")
         return
-
-    api = HfApi(token=token)
-    if not args.dry_run:
-        who = api.whoami()
-        print(f"hugging face: {who.get('name')} "
-              f"({who.get('auth', {}).get('accessToken', {}).get('role', 'unknown')} token)")
-        api.create_repo(repo_id=repo, repo_type="dataset",
-                        private=True, exist_ok=True)
 
     # --- fact parts: write new files, never touch existing ones ------------
     by_month = defaultdict(list)
     for r in rows:
         by_month[month_of(r["ts"])].append(r)
-
-    existing_files = set()
-    if not args.dry_run:
-        existing_files = set(api.list_repo_files(repo_id=repo,
-                                                 repo_type="dataset"))
 
     written = skipped = 0
     for month, rs in sorted(by_month.items()):
