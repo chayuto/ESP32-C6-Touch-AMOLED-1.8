@@ -296,10 +296,14 @@ Headroom:                  ~168 KB (tight — avoid large heap allocations)
 `18_govee_monitor` uploads to Supabase and archives to Hugging Face:
 
 ```
-board --3-min buckets--> Supabase (90d buffer) --parquet--> HF dataset
-        INSERT-only key                          /sync-data
+board --3-min buckets--> Supabase (full history) --parquet--> HF dataset
+        INSERT-only key                            /sync-data
 ```
 
+- **Nothing prunes Supabase.** Retention is deliberately not enforced — the
+  data is small and the user wants the history kept whole. `--prune-days`
+  exists but defaults to 0; do not schedule it or propose a retention policy.
+  The Hugging Face archive is a durable second copy, not a reason to delete.
 - **Row ids are deterministic UUIDv7** from (bucket ms, device id, sensor MAC).
   Every retry, replay and re-export is idempotent because of it. Changing the
   id inputs re-keys the entire archive — treat `uuid7.c` as frozen, and run

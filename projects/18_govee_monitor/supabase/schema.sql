@@ -1,8 +1,10 @@
 -- Govee monitor — Supabase schema.
 -- Idempotent; applied by ./supabase/apply_schema.sh. Contains no secrets.
 --
--- Supabase is a BUFFER here, not the archive: rows are pruned after 90 days
--- and the durable copy lives elsewhere. Everything below is sized for that.
+-- Supabase keeps EVERYTHING. Nothing prunes it, by decision: the dataset is
+-- small (~8 MB/month at four sensors on 3-minute buckets) and a continuous
+-- history is worth more than the space it costs. The Hugging Face archive is a
+-- durable second copy, not a reason to drop rows from here.
 --
 -- Modelled as fact + dimension, because the two kinds of data have genuinely
 -- different lifetimes:
@@ -208,6 +210,8 @@ revoke all   on table sensor_label from dashboard_reader;
 
 grant dashboard_reader to authenticator;
 
--- Retention: run from the export job only after a successful archive push, so
--- rows are dropped only once they are durably stored somewhere else.
+-- Retention: deliberately none. Left here only so the next person knows the
+-- omission is a choice rather than an oversight. If it ever does need bounding,
+-- run it from the export job after a successful archive push so rows are
+-- dropped only once they are durably stored elsewhere:
 -- delete from reading where ts < now() - interval '90 days';

@@ -47,9 +47,11 @@ nothing is lost.
 
 ## Cautions
 
-- `--prune-days` deletes from Supabase. It runs only after uploads succeed, but
-  confirm with the user before pruning for the first time, and never prune with
-  a window shorter than the sync cadence.
+- **Do not prune.** Retention is deliberately not enforced on this project —
+  the user wants the full history kept in Supabase. `--prune-days` defaults to
+  0; never pass it, never schedule it, and do not suggest a retention policy.
+  (If that decision is ever reversed: it deletes from Supabase, runs only after
+  uploads succeed, and must never use a window shorter than the sync cadence.)
 - Do not schedule this through an agent when cron would do. The transformation
   is fixed and mechanical; an agent adds cost and a failure mode without adding
   judgement. Prefer a cron entry or GitHub Action calling `tools/sync.sh`.

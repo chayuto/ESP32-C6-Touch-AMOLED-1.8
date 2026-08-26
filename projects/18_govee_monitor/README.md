@@ -152,8 +152,10 @@ and the H5051/52/71 legacy variants. Drop additional branches into
 ## Cloud upload
 
 ```
-board ──3-min buckets──> Supabase (90d buffer) ──parquet──> Hugging Face (archive)
-        INSERT-only key                          /sync-data
+board ──3-min buckets──> Supabase (full history) ──parquet──> Hugging Face (archive)
+        INSERT-only key                            /sync-data
+
+Supabase is never pruned — the archive is a second copy, not a retention step.
 ```
 
 The board POSTs closed history buckets every 60 s. Uploads never block
