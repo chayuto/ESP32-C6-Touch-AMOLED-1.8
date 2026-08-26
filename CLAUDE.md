@@ -300,10 +300,13 @@ board --3-min buckets--> Supabase (full history) --parquet--> HF dataset
         INSERT-only key                            /sync-data
 ```
 
-- **Nothing prunes Supabase.** Retention is deliberately not enforced — the
-  data is small and the user wants the history kept whole. `--prune-days`
-  exists but defaults to 0; do not schedule it or propose a retention policy.
-  The Hugging Face archive is a durable second copy, not a reason to delete.
+- **Nothing prunes Supabase, until Supabase says so.** Retention is not
+  enforced on a schedule; the trigger is the project actually hitting its
+  storage limit. `--prune-days` defaults to 0 — do not schedule it and do not
+  propose a retention policy before that. Growth is 343 B/row ≈ 640 kB/day ≈
+  19 MB/month ≈ 229 MB/year, so a 500 MB free-tier database lasts ~2 years.
+  When the limit does arrive: run `/sync-data`, confirm the archive covers the
+  window, and only then prune it.
 - **Row ids are deterministic UUIDv7** from (bucket ms, device id, sensor MAC).
   Every retry, replay and re-export is idempotent because of it. Changing the
   id inputs re-keys the entire archive — treat `uuid7.c` as frozen, and run

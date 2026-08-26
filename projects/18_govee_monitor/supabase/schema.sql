@@ -1,10 +1,12 @@
 -- Govee monitor — Supabase schema.
 -- Idempotent; applied by ./supabase/apply_schema.sh. Contains no secrets.
 --
--- Supabase keeps EVERYTHING. Nothing prunes it, by decision: the dataset is
--- small (~8 MB/month at four sensors on 3-minute buckets) and a continuous
--- history is worth more than the space it costs. The Hugging Face archive is a
--- durable second copy, not a reason to drop rows from here.
+-- Supabase keeps EVERYTHING until the project actually runs short of space.
+-- Measured cost is 343 B/row, so four sensors on 3-minute buckets come to
+-- ~640 kB/day, ~19 MB/month, ~229 MB/year — roughly 2 years inside a 500 MB
+-- free-tier database. A continuous history is worth more than the space until
+-- then. The Hugging Face archive is a durable second copy, not a licence to
+-- delete: prune only once the archive is verified current.
 --
 -- Modelled as fact + dimension, because the two kinds of data have genuinely
 -- different lifetimes:
@@ -210,8 +212,8 @@ revoke all   on table sensor_label from dashboard_reader;
 
 grant dashboard_reader to authenticator;
 
--- Retention: deliberately none. Left here only so the next person knows the
--- omission is a choice rather than an oversight. If it ever does need bounding,
--- run it from the export job after a successful archive push so rows are
--- dropped only once they are durably stored elsewhere:
+-- Retention: none until Supabase reports a storage limit. That is the trigger,
+-- not a calendar. When it fires, archive first and verify the parquet parts
+-- cover the window being dropped, then prune from the export job so rows are
+-- deleted only once they are durably stored elsewhere:
 -- delete from reading where ts < now() - interval '90 days';
