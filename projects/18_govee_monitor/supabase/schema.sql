@@ -65,6 +65,34 @@ create index if not exists reading_ts_idx     on reading (ts desc);
 create index if not exists reading_mac_ts_idx on reading (mac, ts desc);
 
 -- ---------------------------------------------------------------------------
+-- Board telemetry.
+--
+-- Separate from `reading` because it describes the monitor, not the rooms. It
+-- exists because once the board is off USB, a flat battery, a crash and a WiFi
+-- outage all look identical from here: rows simply stop. vbus tells you whether
+-- it is on external power at all, which is the question you actually have.
+-- ---------------------------------------------------------------------------
+create table if not exists device_status (
+    id           uuid        primary key,   -- deterministic, same scheme as reading
+    ts           timestamptz not null,
+    device_id    text        not null,
+    batt_mv      integer,                   -- AXP2101 battery voltage
+    batt_pct     smallint,
+    charging     boolean,
+    vbus         boolean,                   -- external power present
+    batt_present boolean,
+    free_heap    integer,
+    min_heap     integer,                   -- low-water mark; TLS is the tight spot
+    uptime_s     integer,                   -- resets reveal reboots
+    adverts      integer,                   -- cumulative decoded adverts
+    rows_sent    integer,
+    upload_fail  integer,
+    inserted_at  timestamptz not null default now()
+);
+
+create index if not exists device_status_ts_idx on device_status (ts desc);
+
+-- ---------------------------------------------------------------------------
 -- Row Level Security.
 --
 -- The publishable key is compiled into the firmware image and can be read back
@@ -90,8 +118,9 @@ create index if not exists reading_mac_ts_idx on reading (mac, ts desc);
 -- are a human concern that changes a handful of times ever; letting firmware
 -- write them bought nothing and cost the whole INSERT-only property.
 -- ---------------------------------------------------------------------------
-alter table reading enable row level security;
-alter table sensor  enable row level security;
+alter table reading       enable row level security;
+alter table sensor        enable row level security;
+alter table device_status enable row level security;
 
 drop policy if exists reading_device_insert on reading;
 create policy reading_device_insert on reading
@@ -100,8 +129,20 @@ create policy reading_device_insert on reading
 drop policy if exists sensor_device_insert on sensor;
 drop policy if exists sensor_device_update on sensor;
 
+-- Board telemetry: the device writes it, the dashboard reads it, and the
+-- firmware key can never read it back.
+drop policy if exists device_status_insert on device_status;
+create policy device_status_insert on device_status
+    for insert to anon with check (true);
+
+drop policy if exists device_status_read on device_status;
+create policy device_status_read on device_status
+    for select to dashboard_reader using (true);
+
 grant usage on schema public to anon;
-grant insert on table reading to anon;
+grant insert on table reading       to anon;
+grant insert on table device_status to anon;   -- explicit; do not rely on
+                                               -- Supabase's default privileges
 revoke select, update, delete on table reading from anon;
 revoke all on table sensor       from anon;
 revoke all on table sensor_label from anon;
@@ -132,6 +173,8 @@ group by 1, 2, 3, 4;
 -- role. Least privilege here needs an explicit revoke after each create, not
 -- just an absence of grants.
 revoke all on table reading_5m from anon;
+-- Same default-privilege trap as the view: revoke explicitly, do not assume.
+revoke select, update, delete on table device_status from anon;
 
 -- ---------------------------------------------------------------------------
 -- Dashboard read role.
@@ -157,7 +200,8 @@ end
 $$;
 
 grant usage  on schema public to dashboard_reader;
-grant select on table reading_5m to dashboard_reader;
+grant select on table reading_5m     to dashboard_reader;
+grant select on table device_status  to dashboard_reader;
 revoke all   on table reading      from dashboard_reader;
 revoke all   on table sensor       from dashboard_reader;
 revoke all   on table sensor_label from dashboard_reader;

@@ -4,6 +4,8 @@
 #include "slot_store.h"
 #include "net_time.h"
 #include "uuid7.h"
+#include "ble_scanner.h"
+#include "amoled.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -15,6 +17,7 @@
 #include "esp_timer.h"
 #include "esp_log.h"
 #include "esp_heap_caps.h"
+#include "esp_system.h"
 #include "esp_crt_bundle.h"
 
 static const char *TAG = "upload";
@@ -26,6 +29,7 @@ static const char *TAG = "upload";
 #define UPLOAD_PERIOD_MS   60000
 #define MAX_ROWS_PER_POST     40      /* ~200 B/row -> ~8 KB of JSON */
 #define JSON_CAP           12288
+#define STATUS_PERIOD_S      300      /* board telemetry cadence */
 #define RETRY_MIN_MS        5000
 #define RETRY_MAX_MS      300000
 
@@ -34,6 +38,7 @@ static int64_t  s_last_ok_us = -1;
 static uint32_t s_rows_sent, s_rows_dup, s_failures;
 static uint32_t s_backoff_ms = RETRY_MIN_MS;
 static uint16_t s_backlog;
+static int64_t  s_last_status_us = -1;
 
 static bool configured(void)
 {
@@ -118,10 +123,10 @@ done:
     return rows;
 }
 
-static bool post_batch(const char *json, uint16_t rows)
+static bool post_json(const char *table, const char *json, uint16_t rows)
 {
     char url[256];
-    snprintf(url, sizeof(url), "%s/rest/v1/reading", CONFIG_GOVEE_SUPABASE_URL);
+    snprintf(url, sizeof(url), "%s/rest/v1/%s", CONFIG_GOVEE_SUPABASE_URL, table);
 
     esp_http_client_config_t cfg = {
         .url = url,
@@ -153,15 +158,13 @@ static bool post_batch(const char *json, uint16_t rows)
     esp_http_client_cleanup(c);
 
     if (err != ESP_OK) {
-        ESP_LOGW(TAG, "POST %u rows failed: %s (%d ms)",
-                 rows, esp_err_to_name(err), ms);
+        ESP_LOGW(TAG, "POST %s %u rows failed: %s (%d ms)",
+                 table, rows, esp_err_to_name(err), ms);
         return false;
     }
 
     if (status == 201 || status == 200) {
-        s_rows_sent += rows;
-        ESP_LOGI(TAG, "POST %u rows -> %d in %d ms (total sent %lu)",
-                 rows, status, ms, (unsigned long)s_rows_sent);
+        ESP_LOGI(TAG, "POST %s %u rows -> %d in %d ms", table, rows, status, ms);
         return true;
     }
     if (status == 409) {
@@ -169,13 +172,62 @@ static bool post_batch(const char *json, uint16_t rows)
          * a successful no-op, not a failure. Happens after a reboot replays
          * buckets that already landed. */
         s_rows_dup += rows;
-        ESP_LOGI(TAG, "POST %u rows -> 409 already stored (%d ms, total dup %lu)",
-                 rows, ms, (unsigned long)s_rows_dup);
+        ESP_LOGI(TAG, "POST %s %u rows -> 409 already stored (%d ms)", table, rows, ms);
         return true;
     }
 
-    ESP_LOGW(TAG, "POST %u rows -> HTTP %d (%d ms)", rows, status, ms);
+    ESP_LOGW(TAG, "POST %s %u rows -> HTTP %d (%d ms)", table, rows, status, ms);
     return false;
+}
+
+/* Board telemetry. Once the monitor is off USB, a flat battery, a crash and a
+ * WiFi outage are indistinguishable from the far end — rows just stop. This is
+ * what makes the difference visible before the silence starts.
+ *
+ * The timestamp is floored to the status period so a retry mints the same id
+ * and is rejected as a duplicate, exactly like a reading. */
+static bool post_status(char *json, size_t cap)
+{
+    int64_t now_ms = net_time_epoch_ms_at(esp_timer_get_time());
+    if (now_ms <= 0) return false;
+    int64_t slot_ms = (now_ms / (STATUS_PERIOD_S * 1000LL)) * (STATUS_PERIOD_S * 1000LL);
+
+    static const uint8_t ZERO_MAC[6] = {0};
+    char id[UUID7_STR_LEN], ts[48];
+    uuid7_deterministic(slot_ms, CONFIG_GOVEE_DEVICE_ID, ZERO_MAC, id);
+    iso8601(slot_ms, ts, sizeof(ts));
+
+    amoled_battery_info_t bat = {0};
+    esp_err_t berr = amoled_get_battery_info(&bat);
+    if (berr != ESP_OK) {
+        ESP_LOGW(TAG, "battery read failed: %s", esp_err_to_name(berr));
+    }
+
+    snprintf(json, cap,
+        "[{\"id\":\"%s\",\"ts\":\"%s\",\"device_id\":\"%s\","
+        "\"batt_mv\":%u,\"batt_pct\":%u,\"charging\":%s,\"vbus\":%s,"
+        "\"batt_present\":%s,\"free_heap\":%lu,\"min_heap\":%lu,"
+        "\"uptime_s\":%lld,\"adverts\":%lu,\"rows_sent\":%lu,"
+        "\"upload_fail\":%lu}]",
+        id, ts, CONFIG_GOVEE_DEVICE_ID,
+        bat.voltage_mv, bat.percentage,
+        bat.charging ? "true" : "false",
+        bat.vbus_present ? "true" : "false",
+        bat.battery_present ? "true" : "false",
+        (unsigned long)esp_get_free_heap_size(),
+        (unsigned long)esp_get_minimum_free_heap_size(),
+        (long long)(esp_timer_get_time() / 1000000),
+        (unsigned long)ble_scanner_advert_count(),
+        (unsigned long)s_rows_sent,
+        (unsigned long)s_failures);
+
+    bool ok = post_json("device_status", json, 1);
+    if (ok) {
+        ESP_LOGI(TAG, "status: batt=%umV/%u%% vbus=%d charging=%d uptime=%llds",
+                 bat.voltage_mv, bat.percentage, bat.vbus_present, bat.charging,
+                 (long long)(esp_timer_get_time() / 1000000));
+    }
+    return ok;
 }
 
 static void uploader_task(void *arg)
@@ -204,12 +256,19 @@ static void uploader_task(void *arg)
             continue;
         }
 
+        int64_t now = esp_timer_get_time();
+        if (s_last_status_us < 0 ||
+            (now - s_last_status_us) >= (int64_t)STATUS_PERIOD_S * 1000000LL) {
+            if (post_status(json, JSON_CAP)) s_last_status_us = now;
+        }
+
         int64_t  newest = s_watermark_us;
         uint16_t rows = build_batch(json, JSON_CAP, &newest);
         s_backlog = rows;
         if (rows == 0) continue;
 
-        if (post_batch(json, rows)) {
+        if (post_json("reading", json, rows)) {
+            s_rows_sent += rows;
             s_watermark_us = newest;
             s_last_ok_us   = esp_timer_get_time();
             s_backoff_ms   = RETRY_MIN_MS;

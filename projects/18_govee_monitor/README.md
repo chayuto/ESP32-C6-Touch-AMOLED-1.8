@@ -174,6 +174,12 @@ sensor MAC), so a replay is provably the same row. The device therefore uses a
 plain insert and treats the server's `409 / 23505` as success — retrying is
 always safe and never duplicates.
 
+Every 5 minutes the board also reports itself to `device_status`: battery
+voltage and percentage, whether external power is present, free heap, uptime
+and cumulative advert count. Off USB, a flat battery, a crash and a WiFi outage
+are indistinguishable from the far end — rows simply stop — so this is what
+makes the difference visible before the silence starts.
+
 Credentials, the psql connection gotchas and the schema design are in
 [`supabase/README.md`](supabase/README.md).
 
@@ -183,6 +189,7 @@ Credentials, the psql connection gotchas and the schema design are in
 | `supabase/seed_sensors.sh` | publish labels from `device_config.h` |
 | `supabase/verify.sh` | assert the firmware key cannot read or delete |
 | `supabase/check_ids.sh` | re-derive live row ids and prove they reproduce |
+| `supabase/mint_dashboard_jwt.py` | mint the dashboard's read-only token |
 | `tools/sync.sh` | Supabase → Hugging Face parquet (`/sync-data`) |
 | `tools/sync.sh --self-test` | test the archive's part-naming invariants |
 
