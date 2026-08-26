@@ -5,8 +5,18 @@ use the publishable key: every publishable key maps to `anon`, so the dashboard
 would share a credential with the firmware and rotating one would mean
 reflashing the other.
 
-PostgREST reads the `role` claim and SET ROLEs to it, so a JWT signed with the
-project's JWT secret is all that is required. Stdlib only — no PyJWT.
+PostgREST reads the `role` claim and SET ROLEs to it. Stdlib only — no PyJWT.
+
+The token is NOT sufficient on its own. Supabase's gateway authenticates every
+request against a real API key before PostgREST sees it, so the SPA must send
+both headers, and they are not interchangeable:
+
+    apikey:        <publishable key>    gets past the gateway; alone it is anon
+    Authorization: Bearer <this token>  the role PostgREST switches to
+
+A JWT in the apikey header is rejected as "Invalid API key" — which looks like
+a signing problem and is not one. The secret is a plain UTF-8 string even when
+the dashboard displays it base64-shaped; do not decode it before signing.
 
     SUPABASE_JWT_SECRET=... python3 mint_dashboard_jwt.py [--years N]
 
