@@ -26,6 +26,12 @@
 create table if not exists sensor (
     mac         text primary key,           -- immutable identity, as on the sticker
     label       text,                       -- current human name; may change
+    -- Where the sensor is, not what it is called. Ventilation advice is only
+    -- meaningful against an outdoor reference, and "the one labelled Outdoor"
+    -- is a rename away from breaking. Like the label this is mutable: a sensor
+    -- can be moved inside without becoming a different sensor.
+    placement   text not null default 'indoor'
+                check (placement in ('indoor', 'outdoor')),
     device_id   text,                       -- board that last reported it
     first_seen  timestamptz not null default now(),
     last_seen   timestamptz not null default now()
@@ -33,6 +39,16 @@ create table if not exists sensor (
 
 -- Optional rename history. Not written by the device — insert a row here if
 -- you ever need "what was this called when that reading was taken".
+alter table sensor add column if not exists placement text not null default 'indoor';
+do $$
+begin
+    if not exists (select 1 from pg_constraint where conname = 'sensor_placement_check') then
+        alter table sensor add constraint sensor_placement_check
+            check (placement in ('indoor', 'outdoor'));
+    end if;
+end
+$$;
+
 create table if not exists sensor_label (
     mac        text        not null,
     label      text        not null,
@@ -166,10 +182,11 @@ select to_timestamp(floor(extract(epoch from r.ts) / 300) * 300) as bucket,
        min(r.battery)        as battery,
        avg(r.rssi)::smallint as rssi,
        sum(r.n_samples)      as n_samples,
-       count(*)              as n_buckets
+       count(*)              as n_buckets,
+       coalesce(s.placement, 'indoor') as placement
 from reading r
 left join sensor s on s.mac = r.mac
-group by 1, 2, 3, 4;
+group by 1, 2, 3, 4, s.placement;
 
 -- Hourly rollup, for the week and month views.
 --
@@ -188,10 +205,11 @@ select to_timestamp(floor(extract(epoch from r.ts) / 3600) * 3600) as bucket,
        min(r.battery)        as battery,
        avg(r.rssi)::smallint as rssi,
        sum(r.n_samples)      as n_samples,
-       count(*)              as n_buckets
+       count(*)              as n_buckets,
+       coalesce(s.placement, 'indoor') as placement
 from reading r
 left join sensor s on s.mac = r.mac
-group by 1, 2, 3, 4;
+group by 1, 2, 3, 4, s.placement;
 
 -- Supabase configures default privileges that grant `anon` on every new object
 -- in `public`, so the view above was readable by the firmware's key the moment

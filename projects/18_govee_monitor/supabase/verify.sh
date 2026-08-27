@@ -22,6 +22,18 @@ req() {
     curl -s -o /tmp/gv_verify.out -w '%{http_code}' -X "$_m" "$SUPABASE_URL$_u" \
         -H "apikey: $_k" -H "Authorization: Bearer $_k" "$@"
 }
+
+# A JWT is not an API key. Supabase's gateway authenticates `apikey` against a
+# real project key before PostgREST sees the request, so sending a JWT there is
+# rejected as "Invalid API key" -- which looks exactly like a failed grant.
+# Sending it in both headers made every dashboard check meaningless: the
+# CAN-read ones failed on the gateway, and the CANNOT-read ones passed there
+# too, so they proved nothing about the role.
+req_jwt() {
+    _m=$1; _u=$2; _j=$3; shift 3
+    curl -s -o /tmp/gv_verify.out -w '%{http_code}' -X "$_m" "$SUPABASE_URL$_u" \
+        -H "apikey: $SUPABASE_PUBLISHABLE_KEY" -H "Authorization: Bearer $_j" "$@"
+}
 PUB="$SUPABASE_PUBLISHABLE_KEY"
 SEC="$SUPABASE_SECRET_KEY"
 JSON='-H Content-Type:application/json'
@@ -62,12 +74,18 @@ check "status replay is a duplicate"    409 "$(req POST "/rest/v1/device_status"
 check "cannot read device_status"       401 "$(req GET "/rest/v1/device_status?select=id&limit=1" "$PUB")"
 
 if [ -n "$DASHBOARD_JWT" ]; then
+# 403 not 401 for the denials: the JWT authenticates fine, so PostgREST SET
+# ROLEs and Postgres refuses the object (42501 permission denied). A 401 here
+# would mean the request never got past the gateway and the check proved
+# nothing about the role's grants.
 echo "== dashboard token reads the view and nothing else =="
-check "dashboard CAN read reading_5m"   200 "$(req GET "/rest/v1/reading_5m?select=bucket&limit=1" "$DASHBOARD_JWT")"
-check "dashboard CANNOT read reading"   401 "$(req GET "/rest/v1/reading?select=id&limit=1" "$DASHBOARD_JWT")"
-check "dashboard CANNOT read sensor"    401 "$(req GET "/rest/v1/sensor?select=mac&limit=1" "$DASHBOARD_JWT")"
-check "dashboard CAN read device_status" 200 "$(req GET "/rest/v1/device_status?select=ts&limit=1" "$DASHBOARD_JWT")"
-check "dashboard CANNOT insert"         401 "$(req POST "/rest/v1/reading" "$DASHBOARD_JWT" $JSON \
+check "dashboard CAN read reading_5m"   200 "$(req_jwt GET "/rest/v1/reading_5m?select=bucket&limit=1" "$DASHBOARD_JWT")"
+check "dashboard CAN read reading_1h"   200 "$(req_jwt GET "/rest/v1/reading_1h?select=bucket&limit=1" "$DASHBOARD_JWT")"
+check "anon CANNOT read reading_1h"      401 "$(req GET "/rest/v1/reading_1h?select=bucket&limit=1" "$PUB")"
+check "dashboard CANNOT read reading"   403 "$(req_jwt GET "/rest/v1/reading?select=id&limit=1" "$DASHBOARD_JWT")"
+check "dashboard CANNOT read sensor"    403 "$(req_jwt GET "/rest/v1/sensor?select=mac&limit=1" "$DASHBOARD_JWT")"
+check "dashboard CAN read device_status" 200 "$(req_jwt GET "/rest/v1/device_status?select=ts&limit=1" "$DASHBOARD_JWT")"
+check "dashboard CANNOT insert"         403 "$(req_jwt POST "/rest/v1/reading" "$DASHBOARD_JWT" $JSON \
         -H 'Prefer: return=minimal' -d '[{"id":"00000000-0000-7000-8000-00000000dead","ts":"2026-01-01T00:00:00Z","device_id":"x","mac":"x"}]')"
 else
 echo "== dashboard token checks skipped (DASHBOARD_JWT not set in .env) =="
