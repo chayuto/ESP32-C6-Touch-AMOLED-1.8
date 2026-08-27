@@ -171,12 +171,35 @@ from reading r
 left join sensor s on s.mac = r.mac
 group by 1, 2, 3, 4;
 
+-- Hourly rollup, for the week and month views.
+--
+-- Not a nicety: PostgREST caps every response at 1000 rows no matter what
+-- `limit` the caller asks for, and 4 sensors on 5-minute buckets burn that in
+-- ~21 hours. The client pages around the cap, but a month at 5-minute
+-- resolution is ~35k rows and 35 round trips to draw a line that is 300 px
+-- wide. An hour is finer than that line can show.
+create or replace view reading_1h as
+select to_timestamp(floor(extract(epoch from r.ts) / 3600) * 3600) as bucket,
+       r.device_id,
+       r.mac,
+       s.label,
+       avg(r.temp_c)::real   as temp_c,
+       avg(r.humid)::real    as humid,
+       min(r.battery)        as battery,
+       avg(r.rssi)::smallint as rssi,
+       sum(r.n_samples)      as n_samples,
+       count(*)              as n_buckets
+from reading r
+left join sensor s on s.mac = r.mac
+group by 1, 2, 3, 4;
+
 -- Supabase configures default privileges that grant `anon` on every new object
 -- in `public`, so the view above was readable by the firmware's key the moment
 -- it was created — silently undoing the whole point of a separate dashboard
 -- role. Least privilege here needs an explicit revoke after each create, not
 -- just an absence of grants.
 revoke all on table reading_5m from anon;
+revoke all on table reading_1h from anon;
 -- Same default-privilege trap as the view: revoke explicitly, do not assume.
 revoke select, update, delete on table device_status from anon;
 
@@ -205,6 +228,7 @@ $$;
 
 grant usage  on schema public to dashboard_reader;
 grant select on table reading_5m     to dashboard_reader;
+grant select on table reading_1h     to dashboard_reader;
 grant select on table device_status  to dashboard_reader;
 revoke all   on table reading      from dashboard_reader;
 revoke all   on table sensor       from dashboard_reader;
