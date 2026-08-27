@@ -25,7 +25,10 @@ static const uint32_t SERIES_COLORS[SLOT_STORE_MAX] = {
     0xFFD54F,   /* amber */
     0x81C784,   /* green */
     0xBA68C8,   /* purple */
+    0xFF8A65,   /* coral — 5th slot, typically the outdoor sensor */
 };
+_Static_assert(sizeof(SERIES_COLORS) / sizeof(SERIES_COLORS[0]) == SLOT_STORE_MAX,
+               "every slot needs its own colour: a missing one is black on black");
 #define THRESHOLD_COLOR 0xE53935
 
 static lv_obj_t *s_page;

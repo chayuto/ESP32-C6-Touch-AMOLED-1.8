@@ -46,7 +46,7 @@ menu "Govee Monitor"
 
     config GOVEE_MAX_SLOTS
         int "Max simultaneous sensors on display"
-        range 1 4
+        range 1 5
         default 3
         help
             Maximum number of H5075 sensors visible at once. Combined with the

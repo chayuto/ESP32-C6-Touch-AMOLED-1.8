@@ -6,7 +6,7 @@
 #include "sdkconfig.h"
 #include "govee_decoder.h"
 
-#define SLOT_STORE_MAX 4   /* Compile-time upper bound; runtime uses CONFIG_GOVEE_MAX_SLOTS */
+#define SLOT_STORE_MAX 5   /* Compile-time upper bound; runtime uses CONFIG_GOVEE_MAX_SLOTS */
 
 typedef struct {
     bool        valid;          /* True once a sensor is bound to this slot */

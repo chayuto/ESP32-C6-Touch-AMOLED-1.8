@@ -6,6 +6,10 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "esp_log.h"
+
+static const char *TAG = "ui";
+
 #define SCREEN_W 368
 #define SCREEN_H 448
 
@@ -13,10 +17,11 @@
  * actually matters here (damp/mould watch), so it does not get demoted to
  * secondary type.
  *
- * Tile height is SCREEN_H / CONFIG_GOVEE_MAX_SLOTS, so the type still has to
- * shrink as slots are added. At 4 slots a tile is 112 px (96 px inside the
- * padding) and a 48 px value collides with the header above and the battery
- * row below, so step down one size. */
+ * Tile height is fixed at SCREEN_H / TILES_PER_PAGE rather than divided among
+ * every slot: past four sensors the tiles page instead of shrinking, so the
+ * type never has to get smaller again. At 4 per page a tile is 112 px (96 px
+ * inside the padding) and a 48 px value collides with the header above and the
+ * battery row below, so step down one size. */
 #if CONFIG_GOVEE_MAX_SLOTS >= 4
 #define FONT_VALUE  (&lv_font_montserrat_28)
 #else
@@ -139,30 +144,48 @@ static void render_slot(tile_t *t, const slot_t *s)
     lv_obj_set_style_text_color(t->label_humid, fg, 0);
 }
 
-/* Views cycle on a tap anywhere that is not a control: tiles -> humidity
- * chart -> temperature chart -> tiles. */
+/* Four tiles fill the screen at a readable size, so that is the page size.
+ * Adding a fifth sensor adds a page, not a smaller tile. */
+#define TILES_PER_PAGE  4
+#define TILE_PAGES      ((CONFIG_GOVEE_MAX_SLOTS + TILES_PER_PAGE - 1) / TILES_PER_PAGE)
+
+/* A tap anywhere that is not a control advances the view:
+ *   tiles page 1 -> ... -> tiles page N -> humidity chart -> temp chart -> p1
+ * Screen on/off is the BOOT button's job, deliberately not part of this cycle:
+ * a tap that can blank the screen makes every other tap feel risky. */
 typedef enum {
-    VIEW_TILES = 0,
-    VIEW_HUMIDITY,
+    VIEW_TILES_0 = 0,
+    VIEW_HUMIDITY = TILE_PAGES,
     VIEW_TEMP,
     VIEW_COUNT,
 } view_t;
 
-static view_t    s_view = VIEW_TILES;
-static lv_obj_t *s_page_tiles;
+#define VIEW_IS_TILES(v)  ((v) < TILE_PAGES)
+
+static view_t    s_view = VIEW_TILES_0;
+static lv_obj_t *s_page_tiles[TILE_PAGES];
 static lv_obj_t *s_page_chart;
 
 static void apply_view(void)
 {
-    if (s_view == VIEW_TILES) {
-        lv_obj_clear_flag(s_page_tiles, LV_OBJ_FLAG_HIDDEN);
+    for (int p = 0; p < TILE_PAGES; p++) {
+        if (VIEW_IS_TILES(s_view) && (int)s_view == p) {
+            lv_obj_clear_flag(s_page_tiles[p], LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_add_flag(s_page_tiles[p], LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+    if (VIEW_IS_TILES(s_view)) {
         lv_obj_add_flag(s_page_chart, LV_OBJ_FLAG_HIDDEN);
     } else {
-        lv_obj_add_flag(s_page_tiles, LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(s_page_chart, LV_OBJ_FLAG_HIDDEN);
         chart_view_set_metric(s_view == VIEW_HUMIDITY ? CHART_METRIC_HUMIDITY
                                                       : CHART_METRIC_TEMP);
     }
+    ESP_LOGI(TAG, "view -> %s%d",
+             VIEW_IS_TILES(s_view) ? "tiles page " : "chart ",
+             VIEW_IS_TILES(s_view) ? (int)s_view + 1
+                                   : (s_view == VIEW_HUMIDITY ? 1 : 2));
     ui_refresh();
 }
 
@@ -179,20 +202,22 @@ void ui_create(lv_obj_t *parent)
     lv_obj_clear_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_event_cb(parent, screen_click_cb, LV_EVENT_CLICKED, NULL);
 
-    s_page_tiles = lv_obj_create(parent);
-    lv_obj_set_size(s_page_tiles, SCREEN_W, SCREEN_H);
-    lv_obj_set_pos(s_page_tiles, 0, 0);
-    lv_obj_set_style_radius(s_page_tiles, 0, 0);
-    lv_obj_set_style_border_width(s_page_tiles, 0, 0);
-    lv_obj_set_style_pad_all(s_page_tiles, 0, 0);
-    lv_obj_set_style_bg_color(s_page_tiles, lv_color_black(), 0);
-    lv_obj_clear_flag(s_page_tiles, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_clear_flag(s_page_tiles, LV_OBJ_FLAG_CLICKABLE);
-
-    int n = CONFIG_GOVEE_MAX_SLOTS;
-    int tile_h = SCREEN_H / n;
-    for (int i = 0; i < n; i++) {
-        build_tile(&s_tiles[i], s_page_tiles, i * tile_h, tile_h);
+    int tile_h = SCREEN_H / TILES_PER_PAGE;
+    for (int p = 0; p < TILE_PAGES; p++) {
+        lv_obj_t *page = lv_obj_create(parent);
+        lv_obj_set_size(page, SCREEN_W, SCREEN_H);
+        lv_obj_set_pos(page, 0, 0);
+        lv_obj_set_style_radius(page, 0, 0);
+        lv_obj_set_style_border_width(page, 0, 0);
+        lv_obj_set_style_pad_all(page, 0, 0);
+        lv_obj_set_style_bg_color(page, lv_color_black(), 0);
+        lv_obj_clear_flag(page, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_clear_flag(page, LV_OBJ_FLAG_CLICKABLE);
+        s_page_tiles[p] = page;
+    }
+    for (int i = 0; i < CONFIG_GOVEE_MAX_SLOTS; i++) {
+        build_tile(&s_tiles[i], s_page_tiles[i / TILES_PER_PAGE],
+                   (i % TILES_PER_PAGE) * tile_h, tile_h);
     }
 
     s_page_chart = chart_view_create(parent);
@@ -202,10 +227,15 @@ void ui_create(lv_obj_t *parent)
 
 void ui_refresh(void)
 {
-    if (s_view == VIEW_TILES) {
+    if (VIEW_IS_TILES(s_view)) {
         slot_t snap[SLOT_STORE_MAX];
         slot_store_snapshot(snap);
-        for (int i = 0; i < CONFIG_GOVEE_MAX_SLOTS; i++) {
+        /* Only the visible page's tiles: the hidden pages' widgets are still
+         * allocated but redrawing them each second is wasted work. */
+        int first = (int)s_view * TILES_PER_PAGE;
+        int last  = first + TILES_PER_PAGE;
+        if (last > CONFIG_GOVEE_MAX_SLOTS) last = CONFIG_GOVEE_MAX_SLOTS;
+        for (int i = first; i < last; i++) {
             render_slot(&s_tiles[i], &snap[i]);
         }
     } else {
