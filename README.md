@@ -100,6 +100,7 @@ ESP32-C6-Touch-AMOLED-1.8/
 
 - **[`CLAUDE.md`](CLAUDE.md)** — pin map, build commands, init sequence, every "gotcha" we've hit. Read this first.
 - **[`docs/board-research/`](docs/board-research/)** — long-form research backing `CLAUDE.md`: official docs digest, chip reference, GPIO map, I2C bus, RTC/audio, power saving, project plans, etc. See its [index](docs/board-research/README.md).
+- **[`docs/firmware-robustness.md`](docs/firmware-robustness.md)** — how this repo makes firmware-to-REST pipelines survive outages, reboots and its own bugs. Every rule traced to a real failure in project 18.
 - **[`docs/waveshare-support/`](docs/waveshare-support/)** — exact vendor support tickets and replies, kept verbatim.
 - **Per-project READMEs** — each `projects/<name>/README.md` covers that project's architecture and quirks.
 

@@ -325,6 +325,37 @@ board --3-min buckets--> Supabase (full history) --parquet--> HF dataset
   key in `sdkconfig.defaults` is the INSERT-only one and is deliberately
   powerless.
 
+## Firmware Robustness (Standing Rules)
+
+Full reasoning with the failures behind each rule:
+[`docs/firmware-robustness.md`](docs/firmware-robustness.md). The short list:
+
+- **Sort failures by reversibility.** A duplicate row is free; a lost or wrong
+  row in an append-only archive is permanent. Spend complexity only there.
+- **Derive row identity from the measurement**, so retries and replays are
+  free. Never keep "have I sent this?" bookkeeping that can desync.
+- **Verify backend semantics against the live backend.** "409 means already
+  stored" was wrong and cost rows — a batch 409 aborts new rows too.
+- **N independent streams need N cursors.** A shared watermark over per-sensor
+  streams silently drops the sensors that missed the row budget.
+- **Anything keyed by index must be reset when the index changes owner** —
+  slot history, per-slot watermarks. Keep the list; the compiler cannot help.
+- **Reset whole records, not the fields you were thinking about.** A partial
+  reset left `n` set and re-emitted stale buckets as fresh `-327.68` readings.
+- **Separate desired state from actual state and reconcile on a timer.**
+  One-shot commands fail once and stay failed.
+- **Lock anything wider than a word shared across tasks** — a torn 64-bit clock
+  offset becomes a permanent wrong timestamp in the archive.
+- **Check every metric can still move at the extreme it describes.** `backlog`
+  reported batch size, so it saturated at 40 during exactly the outage it
+  existed to measure.
+- **Inject the clock** (`*_at()` entry points) so time-dependent logic is
+  testable on the host, and **prove a regression test fails before it passes**.
+- **Negative tests must fail for the right reason.** Assert the specific error;
+  a 401 from the gateway and a 403 from Postgres mean very different things.
+- **Degrade toward collecting data.** Display, upload and sync are recoverable
+  later; a sample not taken is gone.
+
 ## Agent Skills
 
 Use these slash commands for common operations:
