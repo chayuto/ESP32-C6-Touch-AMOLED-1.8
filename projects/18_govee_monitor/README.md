@@ -192,6 +192,7 @@ Credentials, the psql connection gotchas and the schema design are in
 | `supabase/verify.sh` | assert the firmware key cannot read or delete |
 | `supabase/check_ids.sh` | re-derive live row ids and prove they reproduce |
 | `supabase/mint_dashboard_jwt.py` | mint the dashboard's read-only token |
+| `tools/ventilation.sh` | should you open the window? compares absolute humidity, not RH |
 | `tools/sync.sh` | Supabase → Hugging Face parquet, from the archive watermark (`/sync-data`) |
 | `tools/sync.sh --days 30` | ignore the watermark, re-read a fixed window |
 | `tools/sync.sh --all` | re-read everything Supabase still holds (backfill) |
