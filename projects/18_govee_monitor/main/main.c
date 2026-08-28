@@ -25,7 +25,6 @@
 #include "net_time.h"
 #include "uploader.h"
 #include "ble_scanner.h"
-#include "ble_scanner.h"
 #include "power_save.h"
 
 #include "freertos/FreeRTOS.h"
@@ -42,8 +41,11 @@ static esp_lcd_touch_handle_t s_touch = NULL;
 static void refresh_timer_cb(lv_timer_t *t)
 {
     (void)t;
-    if (power_save_is_active()) return;     /* skip work while screen is off */
     slot_store_tick();
+    /* Outside the power-save guard: collection must keep healing while the
+     * screen is off, which is most of the time. */
+    ble_scanner_tick();
+    if (power_save_is_active()) return;     /* only the drawing is skipped */
     ui_refresh();
 }
 
@@ -119,8 +121,16 @@ void app_main(void)
 
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_LOGW(TAG, "NVS needs erasing (%s), reformatting", esp_err_to_name(ret));
         ESP_ERROR_CHECK(nvs_flash_erase());
-        ESP_ERROR_CHECK(nvs_flash_init());
+        ret = nvs_flash_init();
+    }
+    if (ret != ESP_OK) {
+        /* Do not let this surface later as an unexplained abort inside
+         * esp_wifi_init: WiFi stores calibration in NVS and will take the whole
+         * boot down with it. */
+        ESP_LOGE(TAG, "nvs_flash_init failed: %s — WiFi and uploads will fail",
+                 esp_err_to_name(ret));
     }
 
     ESP_ERROR_CHECK(amoled_init());

@@ -167,15 +167,39 @@ esp_err_t rtc_manager_set_unix(int64_t u)
 
     /* PCF85063 datasheet: STOP must be set before writing time, then cleared.
      * Doing it inline saves a little code. */
-    uint8_t ctrl;
-    rtc_read(PCF85063_REG_CTRL1, &ctrl, 1);
+    /* Read-modify-write on Control_1. If the read fails the value is unknown,
+     * and writing a guess back can flip bit 1 (12/24-hour mode) -- which would
+     * silently corrupt every conversion from then on -- or the software-reset
+     * bit. Bail instead of writing something we did not read. */
+    uint8_t ctrl = 0;
+    esp_err_t cerr = rtc_read(PCF85063_REG_CTRL1, &ctrl, 1);
+    if (cerr != ESP_OK) {
+        ESP_LOGW(TAG, "Control_1 read failed (%s), not setting time",
+                 esp_err_to_name(cerr));
+        return cerr;
+    }
+
     uint8_t stopped = ctrl | 0x20;
-    rtc_write(PCF85063_REG_CTRL1, &stopped, 1);
+    esp_err_t serr = rtc_write(PCF85063_REG_CTRL1, &stopped, 1);
+    if (serr != ESP_OK) {
+        ESP_LOGW(TAG, "could not stop the clock (%s)", esp_err_to_name(serr));
+        return serr;
+    }
 
     esp_err_t err = rtc_write(PCF85063_REG_SECONDS, r, sizeof(r));
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "time write failed: %s", esp_err_to_name(err));
+    }
 
+    /* Always try to restart, even if the write failed: leaving STOP set would
+     * freeze the RTC and lose the backup-battery timekeeping entirely. */
     uint8_t running = ctrl & ~0x20;
-    rtc_write(PCF85063_REG_CTRL1, &running, 1);
+    esp_err_t rerr = rtc_write(PCF85063_REG_CTRL1, &running, 1);
+    if (rerr != ESP_OK) {
+        ESP_LOGE(TAG, "RTC left STOPPED (%s) — backup timekeeping is dead "
+                 "until the next successful set", esp_err_to_name(rerr));
+        if (err == ESP_OK) err = rerr;
+    }
 
     if (err == ESP_OK) {
         s_unix_at_boot = u;

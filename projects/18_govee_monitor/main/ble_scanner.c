@@ -18,6 +18,9 @@ static const char *TAG = "ble";
 static uint32_t s_advert_count;   /* decoded H5075 adverts since boot */
 
 static bool s_scanning = false;
+/* Set by power save. on_sync must not undo a deliberate pause, and a failed
+ * resume must be retried rather than leaving the radio silent until reboot. */
+static bool s_want_scanning = true;
 
 static void start_scan(void);
 
@@ -103,6 +106,7 @@ static void start_scan(void)
 
 esp_err_t ble_scanner_pause(void)
 {
+    s_want_scanning = false;
     int rc = ble_gap_disc_cancel();
     if (rc == 0 || rc == BLE_HS_EALREADY) {
         s_scanning = false;
@@ -115,9 +119,26 @@ esp_err_t ble_scanner_pause(void)
 
 esp_err_t ble_scanner_resume(void)
 {
+    s_want_scanning = true;
     if (s_scanning) return ESP_OK;
     start_scan();
-    return s_scanning ? ESP_OK : ESP_FAIL;
+    if (s_scanning) return ESP_OK;
+    /* Reachable: the BOOT button is live before NimBLE has synced, so a press
+     * in that window lands here with no stack to start. Failing silently would
+     * mean no readings until the next reboot, so leave the intent set and let
+     * the periodic retry pick it up. */
+    ESP_LOGW(TAG, "resume failed, will retry from the tick");
+    return ESP_FAIL;
+}
+
+/* Called ~1 Hz. Reconciles the radio with what power save actually wants,
+ * which is what makes a failed pause or resume self-healing. */
+void ble_scanner_tick(void)
+{
+    if (s_want_scanning && !s_scanning) {
+        ESP_LOGI(TAG, "scan not running but wanted — restarting");
+        start_scan();
+    }
 }
 
 bool ble_scanner_is_running(void)
@@ -132,12 +153,19 @@ static void on_sync(void)
         ESP_LOGE(TAG, "addr init failed: %d", rc);
         return;
     }
+    if (!s_want_scanning) {
+        ESP_LOGI(TAG, "synced, but scanning is paused — staying off");
+        return;
+    }
     start_scan();
 }
 
 static void on_reset(int reason)
 {
-    ESP_LOGW(TAG, "stack reset, reason=%d", reason);
+    /* The controller dropped the scan. Saying otherwise makes ble_scanner_tick
+     * believe everything is fine and the radio stays dead. */
+    s_scanning = false;
+    ESP_LOGW(TAG, "stack reset, reason=%d — scanning cleared", reason);
 }
 
 static void host_task(void *param)

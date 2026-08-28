@@ -5,6 +5,10 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "esp_log.h"
+
+static const char *TAG = "slots";
+
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -164,8 +168,14 @@ void slot_store_tick(void)
         int64_t age = now - s_slots[i].last_seen_us;
         s_slots[i].stale = (age > stale_us);
         if (!s_slots[i].pinned && age > evict_us) {
-            /* Free unpinned slot for a future device. */
+            /* Free unpinned slot for a future device. The history ring is
+             * keyed by slot index, so it has to go with it -- otherwise the
+             * next device inherits these samples and, via the uploader, gets
+             * them archived under its own MAC. */
+            ESP_LOGI(TAG, "slot %d evicted (%s, idle %llds), history cleared",
+                     i, s_slots[i].label, (long long)(age / 1000000));
             memset(&s_slots[i], 0, sizeof(slot_t));
+            history_reset(i);
         }
     }
 
@@ -208,7 +218,12 @@ bool slot_store_update(const uint8_t mac_be[6],
     int8_t weakest_rssi = 0;
     idx = weakest_auto(&weakest_rssi);
     if (idx >= 0 && rssi > weakest_rssi + ROTATION_HYSTERESIS_DB) {
+        ESP_LOGI(TAG, "slot %d rotated: %s (%d dBm) -> %02X:%02X:%02X:%02X:%02X:%02X "
+                 "(%d dBm), history cleared",
+                 idx, s_slots[idx].label, weakest_rssi,
+                 mac_be[0], mac_be[1], mac_be[2], mac_be[3], mac_be[4], mac_be[5], rssi);
         memset(&s_slots[idx], 0, sizeof(slot_t));
+        history_reset(idx);              /* same aliasing hazard as eviction */
         apply_reading(idx, mac_be, broadcast_name, r, rssi, true);
         stored = true;
     }

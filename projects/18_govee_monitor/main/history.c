@@ -36,6 +36,22 @@ static int active_slots(void)
     return n;
 }
 
+/* Wipe a tier back to "nothing recorded". Every field matters: `n` is what
+ * marks a ring slot as real, and a stale batt/rssi would ride along with it. */
+static void tier_clear(tier_t *t)
+{
+    for (int i = 0; i < HISTORY_POINTS; i++) {
+        t->pts[i] = (history_point_t){ HISTORY_NO_DATA, HISTORY_NO_DATA, 0, 0, 0 };
+    }
+    t->head      = 0;
+    t->count     = 0;
+    t->sum_tx100 = 0;
+    t->sum_hx100 = 0;
+    t->sum_rssi  = 0;
+    t->n         = 0;
+    t->last_batt = 0;
+}
+
 /* Close the open bucket: push its average, or NO_DATA if it saw nothing. */
 static void tier_close_bucket(tier_t *t)
 {
@@ -68,17 +84,13 @@ static void tier_advance(tier_t *t, int64_t now_us, uint32_t period_s)
     int64_t missed  = elapsed / period_us + 1;   /* buckets to close */
 
     if (missed > HISTORY_POINTS) {
-        /* Everything on record is older than the window — reset the ring. */
-        for (int i = 0; i < HISTORY_POINTS; i++) {
-            t->pts[i].temp_cx100 = HISTORY_NO_DATA;
-            t->pts[i].humid_x100 = HISTORY_NO_DATA;
-        }
-        t->head = 0;
-        t->count = 0;
-        t->sum_tx100 = 0;
-        t->sum_hx100 = 0;
-        t->sum_rssi = 0;
-        t->n = 0;
+        /* Everything on record is older than the window — reset the ring.
+         * Zero the WHOLE point, not just the two values: history_since decides
+         * a bucket is real by `n != 0`, so leaving the old n behind re-emits
+         * every stale slot as a fresh bucket carrying HISTORY_NO_DATA. Those
+         * upload as temp/humid -327.68 under new deterministic UUIDs, and the
+         * archive is append-only, so they can never be taken back. */
+        tier_clear(t);
     } else {
         for (int64_t i = 0; i < missed; i++) {
             tier_close_bucket(t);
@@ -178,6 +190,16 @@ uint16_t history_snapshot(int slot, history_range_t range, history_point_t *out)
     uint16_t valid = t->count;
     unlock();
     return valid;
+}
+
+void history_reset(int slot)
+{
+    if (slot < 0 || slot >= active_slots()) return;
+    lock();
+    for (int r = 0; r < HISTORY_RANGE_COUNT; r++) {
+        tier_clear(&s_tier[slot][r]);
+    }
+    unlock();
 }
 
 uint16_t history_since(int slot, history_range_t range, int64_t after_uptime_us,

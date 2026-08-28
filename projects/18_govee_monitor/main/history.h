@@ -57,6 +57,17 @@ typedef struct {
 /* Zeroes every tier and anchors the first bucket to the current time. */
 void history_init(void);
 
+/* Drop everything recorded for a slot, all tiers.
+ *
+ * History is keyed by SLOT INDEX, not by MAC, so a slot that changes owner --
+ * evicted after EVICT_TIMEOUT, or rotated out for a stronger signal -- carries
+ * the previous device's samples into the new device's buckets. Worse, the
+ * uploader reads history_since(slot) and stamps the rows with whatever MAC now
+ * occupies that slot, so one sensor's readings would be archived under
+ * another's identity, permanently. Callers that reassign a slot must call this
+ * in the same breath. */
+void history_reset(int slot);
+
 /* Fold one reading into the open bucket of every tier for this slot.
  * Called for each decoded advertisement. */
 void history_record(int slot, float temp_c, float humid_pct,

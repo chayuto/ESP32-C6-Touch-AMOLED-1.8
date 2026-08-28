@@ -17,6 +17,11 @@ esp_err_t ble_scanner_pause(void);
 /* Resume: re-enter passive scan with the same parameters as start(). */
 esp_err_t ble_scanner_resume(void);
 
+/* Call ~1 Hz. Restarts scanning if it should be running but is not, so a
+ * failed resume or a controller reset heals instead of silently ending
+ * collection. */
+void ble_scanner_tick(void);
+
 /* True while a scan is active. */
 bool      ble_scanner_is_running(void);
 

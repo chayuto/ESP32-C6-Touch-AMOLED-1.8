@@ -62,10 +62,22 @@ static int64_t s_last_sync_us      = -1;
 static int64_t s_last_rtc_write_us = -1;
 static uint32_t s_backoff_ms       = RECONNECT_MIN_MS;
 
+/* The offset is 64-bit and this is a 32-bit core, so a store is two words. The
+ * uploader task reads it to stamp timestamps that become deterministic UUIDs in
+ * an append-only archive: a half-updated value read across the RTC->NTP
+ * handover would be baked in permanently and could never be corrected. The
+ * critical section is a few instructions and runs a handful of times per boot.
+ *
+ * s_src is written last, and read first, so a reader either sees the previous
+ * consistent clock or the new one -- never a torn mixture. */
+static portMUX_TYPE s_clock_mux = portMUX_INITIALIZER_UNLOCKED;
+
 static void adopt_clock(int64_t epoch_us, clock_src_t src)
 {
+    portENTER_CRITICAL(&s_clock_mux);
     s_epoch_offset_us = epoch_us - esp_timer_get_time();
     s_src = src;
+    portEXIT_CRITICAL(&s_clock_mux);
 }
 
 static void sntp_sync_cb(struct timeval *tv)
@@ -191,8 +203,13 @@ clock_src_t net_time_clock_src(void) { return s_src; }
 
 int64_t net_time_epoch_ms_at(int64_t uptime_us)
 {
-    if (s_src == CLOCK_SRC_NONE) return 0;
-    return (s_epoch_offset_us + uptime_us) / 1000;
+    portENTER_CRITICAL(&s_clock_mux);
+    clock_src_t src = s_src;
+    int64_t     off = s_epoch_offset_us;
+    portEXIT_CRITICAL(&s_clock_mux);
+
+    if (src == CLOCK_SRC_NONE) return 0;
+    return (off + uptime_us) / 1000;
 }
 
 int64_t net_time_since_sync_s(void)

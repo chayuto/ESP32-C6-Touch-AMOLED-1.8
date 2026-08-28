@@ -157,10 +157,14 @@ lv_obj_t *chart_view_create(lv_obj_t *parent)
     lv_label_set_text(x_right, "now");
     lv_obj_align(x_right, LV_ALIGN_TOP_RIGHT, -8, 304);
 
-    /* Legend: 2 x 2, colour chip plus room name. */
+    /* Legend sits between the plot and the range buttons at y=386, so it gets
+     * two rows and no more. Past four slots that means three columns rather
+     * than a third row, which would draw the 5th name over the "1h" button. */
+    const int cols = active_slots() > 4 ? 3 : 2;
+    const int col_w = active_slots() > 4 ? 118 : 180;
     for (int i = 0; i < active_slots(); i++) {
-        int col = i % 2, row = i / 2;
-        int x = 12 + col * 180;
+        int col = i % cols, row = i / cols;
+        int x = 12 + col * col_w;
         int y = 326 + row * 24;
 
         s_legend_dot[i] = lv_obj_create(s_page);

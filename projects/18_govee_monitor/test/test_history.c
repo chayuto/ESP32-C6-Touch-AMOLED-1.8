@@ -170,6 +170,59 @@ static void test_since_watermark(void)
     CHECK(history_since(0, HISTORY_RANGE_1H, 0, out, 2) == 2, "max caps the count");
 }
 
+/* Regression: a gap longer than the window used to reset only temp/humid and
+ * leave `n` behind. history_since treats `n != 0` as "this bucket is real", so
+ * every stale ring slot came back as a fresh bucket carrying HISTORY_NO_DATA
+ * and uploaded as temp/humid -327.68 under a new deterministic UUID -- into an
+ * append-only archive, where it could never be withdrawn. */
+static void test_no_phantom_buckets_after_long_gap(void)
+{
+    history_bucket_t out[HISTORY_POINTS];
+    history_init_at(0);
+
+    for (int i = 0; i < 5; i++) {
+        history_record_at(0, 20.0f, 60.0f, 90, -70, SEC(i * 30 + 1));
+        history_tick_at(SEC((i + 1) * 30 + 1));
+    }
+    CHECK(history_since(0, HISTORY_RANGE_1H, 0, out, HISTORY_POINTS) == 5,
+          "five real buckets before the gap");
+
+    /* Silence for far longer than the 1 h window. */
+    history_tick_at(SEC(3600 * 5));
+
+    uint16_t n = history_since(0, HISTORY_RANGE_1H, 0, out, HISTORY_POINTS);
+    CHECK(n == 0, "no buckets survive a window-long gap, got %u", n);
+    for (uint16_t i = 0; i < n; i++) {
+        CHECK(out[i].p.temp_cx100 != HISTORY_NO_DATA,
+              "bucket %u would upload as %.2f C", i, out[i].p.temp_cx100 / 100.0);
+    }
+}
+
+/* Regression: history is keyed by slot index, so a slot that changes owner has
+ * to be wiped. Without this the next sensor inherits the previous one's
+ * buckets, and the uploader stamps them with the NEW MAC -- archiving one
+ * device's readings under another's identity. */
+static void test_reset_clears_a_slot(void)
+{
+    history_bucket_t out[8];
+    history_init_at(0);
+
+    for (int i = 0; i < 3; i++) {
+        history_record_at(1, 21.0f, 55.0f, 80, -60, SEC(i * 30 + 1));
+        history_tick_at(SEC((i + 1) * 30 + 1));
+    }
+    CHECK(history_since(1, HISTORY_RANGE_1H, 0, out, 8) == 3, "slot 1 has history");
+
+    history_reset(1);
+    CHECK(history_since(1, HISTORY_RANGE_1H, 0, out, 8) == 0,
+          "reset leaves nothing behind");
+
+    /* And the open bucket must be gone too, not just the closed ones. */
+    history_tick_at(SEC(200));
+    CHECK(history_since(1, HISTORY_RANGE_1H, 0, out, 8) == 0,
+          "no bucket closes from samples recorded before the reset");
+}
+
 int main(void)
 {
     test_windows();
@@ -181,6 +234,8 @@ int main(void)
     test_coarse_tier();
     test_battery_last_rssi_mean();
     test_since_watermark();
+    test_no_phantom_buckets_after_long_gap();
+    test_reset_clears_a_slot();
 
     if (fails == 0) {
         printf("all history tests passed\n");
